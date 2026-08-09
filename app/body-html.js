@@ -235,7 +235,7 @@ export const BODY_HTML = `
       </div>
     </div>
 
-    <div class="ed-dock-row">
+    <div class="ed-dock-row" id="edDockRow">
       <button type="button" id="edFmtBtn" title="글자 서식" onmousedown="event.preventDefault()" onclick="edToggleFmt()"><span class="ei">T</span><span class="ed-dock-lbl">서식</span></button>
       <button type="button" title="사진" onmousedown="pickImage(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 3 3-2 4 4"/></svg><span class="ed-dock-lbl">사진</span></button>
       <button type="button" title="이모티콘" onmousedown="event.preventDefault()" onclick="edPickEmoticon()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span class="ed-dock-lbl">이모티콘</span></button>

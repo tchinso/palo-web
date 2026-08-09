@@ -5286,10 +5286,22 @@ function edApplyLayout(){
   var v2=(EDITOR_LAYOUT===2);
   m.classList.toggle("v2",v2);
   var host=document.querySelector("#writeModal .ed-body");
-  if(v2&&host&&dock.parentNode!==host){
-    host.insertBefore(dock,document.getElementById("edContentHint")||document.getElementById("wContent"));
-  }else if(!v2&&dock.parentNode!==m){
-    m.appendChild(dock);
+  var fmt=document.getElementById("edFmtPanel"),row=document.getElementById("edDockRow");
+  var body=document.getElementById("wContent");
+  if(v2&&host&&fmt&&row&&body){
+    // 디시식 배치: **글자 도구는 본문 위, 넣기 도구(사진·투표·파일)는 본문 아래.**
+    // 쓰는 동안 계속 쓰는 건 글자 도구라 위에, 한 번씩 쓰는 건 아래에 둔다.
+    if(fmt.parentNode!==host||fmt.nextElementSibling!==body)host.insertBefore(fmt,body);
+    if(row.previousElementSibling!==body)host.insertBefore(row,body.nextSibling);
+    // ⚠️ 여기서 removeChild 하면 **v1으로 되돌릴 때 붙일 곳이 사라진다**(실측으로 발견).
+    //    빈 껍데기는 지우지 말고 감추기만 한다.
+    if(dock.parentNode!==m)m.appendChild(dock);
+    dock.style.display="none";
+  }else if(!v2){
+    if(dock.parentNode!==m)m.appendChild(dock);
+    dock.style.display="";
+    if(fmt&&fmt.parentNode!==dock)dock.insertBefore(fmt,dock.firstChild);
+    if(row&&row.parentNode!==dock)dock.appendChild(row);
   }
   if(v2)edToggleFmt(true);   // 공간이 넉넉하니 서식 줄을 늘 펼쳐 둔다(T를 누르는 수고 제거)
   // 🚨 v2의 핵심: 오버레이를 걷어내고 **문서 자체가 글쓰기 페이지**가 되게 한다.
