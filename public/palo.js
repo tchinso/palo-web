@@ -5071,7 +5071,13 @@ function edEnsureWebFonts(){
   document.head.appendChild(l);
 }
 // 드롭다운을 누르는 순간 커서가 본문에서 빠진다 → 그 직전 위치를 붙잡아 둔다
+/* 서식 도구를 누르기 직전에 커서를 붙잡아 둔다.
+   ⚠️ **preventDefault가 핵심** — 이걸 안 하면 mousedown이 본문의 포커스를 빼앗고,
+      모바일에서는 그 순간 **자판이 내려간다**(글꼴·크기를 고르려는데 화면이 통째로 출렁인다).
+      굵게·기울임 등은 fmt()가 이미 막고 있었는데 글꼴·크기 쪽만 빠져 있었다(2026-08-09 사용자 신고).
+   ⚠️ preventDefault를 해도 selectionchange가 이미 저장해 둔 커서는 그대로라 적용에는 문제가 없다. */
 function edSaveForMenu(e){
+  if(e&&e.preventDefault)e.preventDefault();
   saveEditorSelection();
   if(e&&e.currentTarget&&e.currentTarget.id==="edFontSel")edEnsureWebFonts();
 }

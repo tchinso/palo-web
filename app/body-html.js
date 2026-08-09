@@ -204,11 +204,11 @@ export const BODY_HTML = `
         <span class="ed-div"></span>
         <button type="button" class="ed-fmt-more" onmousedown="edSaveForMenu(event)" onclick="edFmtView('font')">글꼴 <i>›</i></button>
         <button type="button" class="ed-fmt-more" onmousedown="edSaveForMenu(event)" onclick="edFmtView('size')">크기 <i>›</i></button>
-        <button type="button" class="ed-fmt-close" onclick="edToggleFmt(false)" aria-label="서식 닫기">✕</button>
+        <button type="button" class="ed-fmt-close" onmousedown="event.preventDefault()" onclick="edToggleFmt(false)" aria-label="서식 닫기">✕</button>
       </div>
       <!-- 글꼴 목록: 같은 자리에서 오른쪽으로 이어지는 가로 목록 -->
       <div class="ed-fmt-row ed-fmt-sub" id="edFmtFont" hidden>
-        <button type="button" class="ed-fmt-back" onclick="edFmtView('main')" aria-label="뒤로">‹</button>
+        <button type="button" class="ed-fmt-back" onmousedown="event.preventDefault()" onclick="edFmtView('main')" aria-label="뒤로">‹</button>
         <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetFont(&quot;'Nanum Gothic', sans-serif&quot;)" style="font-family:'Nanum Gothic',sans-serif">나눔고딕</button>
         <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetFont(&quot;'Nanum Myeongjo', serif&quot;)" style="font-family:'Nanum Myeongjo',serif">나눔명조</button>
         <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetFont(&quot;'Nanum Pen Script', cursive&quot;)" style="font-family:'Nanum Pen Script',cursive">나눔손글씨</button>
@@ -219,7 +219,7 @@ export const BODY_HTML = `
       </div>
       <!-- 크기 목록 -->
       <div class="ed-fmt-row ed-fmt-sub" id="edFmtSize" hidden>
-        <button type="button" class="ed-fmt-back" onclick="edFmtView('main')" aria-label="뒤로">‹</button>
+        <button type="button" class="ed-fmt-back" onmousedown="event.preventDefault()" onclick="edFmtView('main')" aria-label="뒤로">‹</button>
         <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetSize('13')" style="font-size:12px">아주 작게</button>
         <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetSize('15')" style="font-size:13px">작게</button>
         <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetSize('17')" style="font-size:15px">보통</button>
