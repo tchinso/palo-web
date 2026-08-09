@@ -6708,20 +6708,8 @@ function notifCheckSubscribed(){
       }
     },function(){});
 }
-/* 디자인 확인용 강제 노출: 주소 뒤에 `?nb=ask`(알림 켜기) 또는 `?nb=ios`(홈 화면 추가)를 붙이면
-   조건을 전부 건너뛰고 그 배너를 띄운다. 주소에 직접 붙일 때만 켜지므로 일반 사용자에겐 영향이 없다.
-   ⚠️ 확인이 끝나면 이 블록과 아래 한 줄(`var f=...`)을 지울 것. */
-var _nbForce;
-function notifBannerForce(){
-  if(_nbForce===undefined){
-    try{var m=/[?&]nb=(ask|ios)(?:&|$)/.exec(location.search);_nbForce=m?m[1]:"";}
-    catch(e){_nbForce="";}
-  }
-  return _nbForce||null;
-}
 /* 배너를 보여줄 상황인지. 보여줄 만하면 그 '종류'를 돌려준다(ask | ios). */
 function notifBannerKind(){
-  var f=notifBannerForce(); if(f)return f;         // 디자인 확인용(위 주석 참고)
   if(!AUTH.user)return null;                       // 로그인해야 구독을 저장할 수 있다
   if(notifBannerHidden())return null;
   // ⚠️ **권한 판정이 iOS 분기보다 먼저 와야 한다.** 순서가 반대면 아이폰 사용자는
