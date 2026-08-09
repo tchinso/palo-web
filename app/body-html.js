@@ -122,6 +122,7 @@ export const BODY_HTML = `
     <div class="wrap ed-top-in">
       <button class="ed-cancel" onclick="closeWrite()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg><span>나가기</span></button>
       <span class="ed-title" id="edTitleLabel">글쓰기</span>
+      <button type="button" class="ed-layout-switch" id="edLayoutSwitch" onclick="edSetLayout(EDITOR_LAYOUT===2?1:2)" title="글쓰기 화면 바꿔보기">v1</button>
       <button class="ed-submit" id="edSubmitBtn" onclick="submitPost()">등록</button>
     </div>
   </div>
@@ -181,6 +182,11 @@ export const BODY_HTML = `
         <label class="ed-opt"><input type="checkbox" id="edNotify" checked><span>댓글 알림 받기</span></label>
       </div>
       <p class="ed-guide"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg> 인신공격·도용·AI 무단 도배는 삭제될 수 있어요. 서로의 그림을 존중해 주세요.</p>
+      <!-- v2 전용: 폼 끝에서 제출(디시식). v1에서는 CSS로 숨긴다 -->
+      <div class="ed-foot">
+        <button type="button" class="ed-foot-cancel" onclick="closeWrite()">취소</button>
+        <button type="button" class="ed-foot-submit" id="edFootSubmit" onclick="submitPost()">등록</button>
+      </div>
     </div>
   </div>
 

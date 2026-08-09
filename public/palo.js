@@ -4734,7 +4734,7 @@ function openWrite(){
   document.getElementById("writeModal").classList.add("open");document.body.style.overflow="hidden";
   document.getElementById("edBoardMenu").classList.remove("open");
   edToggleFmt(false);      // 서식 패널은 접은 채로 시작
-  edDockFollow();  edOfferDraft(); // 쓰던 글이 있으면 알리기만 — 채우는 건 [불러오기]를 눌렀을 때
+  edApplyLayout();  edOfferDraft(); // 쓰던 글이 있으면 알리기만 — 채우는 건 [불러오기]를 눌렀을 때
 }
 function openEditPost(id){
   var p=POSTS.find(function(x){return x.id===id});if(!p)return;
@@ -4757,7 +4757,7 @@ function openEditPost(id){
   document.getElementById("writeModal").classList.add("open");document.body.style.overflow="hidden";
   document.getElementById("edBoardMenu").classList.remove("open");
   var _db=document.getElementById("edDraftBar");if(_db)_db.style.display="none"; // 수정 화면엔 임시저장 안내가 안 뜬다
-  edToggleFmt(false);edDockFollow();}
+  edToggleFmt(false);edApplyLayout();}
 var commissionReviewFilter=null;
 function openCommissionReviews(postId){
   commissionReviewFilter=null;
@@ -5253,9 +5253,50 @@ function pickImage(e){e.preventDefault();saveEditorSelection();document.getEleme
       키보드는 '보이는 영역(visualViewport)'만 줄이고 레이아웃 뷰포트는 그대로 두기 때문에,
       바닥에 붙인 요소가 키보드 뒤로 숨는다. visualViewport의 높이·스크롤을 따라
       도크를 그만큼 끌어올려야 항상 손끝(키보드 바로 위)에 남는다. */
+/* ===== 글쓰기 화면 레이아웃 두 가지 ========================================
+   v1 — 도구가 화면 하단에 붙어 키보드를 따라온다(모바일 채팅앱식).
+   v2 — 디시식: **아무것도 고정하지 않고** 도구를 본문 바로 위에 두고 페이지와 함께 굴린다.
+        본문은 내용만큼 늘어나고, 등록은 폼 맨 아래에서 누른다.
+   ⚠️ 어느 쪽이 편한지는 직접 써 봐야 안다 → **둘 다 남기고 상단 버튼으로 바꿔 본다.**
+      (디자인 시안 A~D를 실제 사이트에서 눌러 비교한 것과 같은 방식)
+      하나로 정해지면 진 쪽과 이 스위치를 지운다. */
+var EDITOR_LAYOUT=(function(){
+  try{
+    var q=new URLSearchParams(location.search).get("ed");
+    if(q==="1"||q==="2"){localStorage.setItem("palo_ed_layout",q);return parseInt(q,10);}
+    return (localStorage.getItem("palo_ed_layout")==="2")?2:1;
+  }catch(e){return 1;}
+})();
+function edSetLayout(v){
+  EDITOR_LAYOUT=(v===2)?2:1;
+  try{localStorage.setItem("palo_ed_layout",String(EDITOR_LAYOUT));}catch(e){}
+  edApplyLayout();
+  toast(EDITOR_LAYOUT===2?"v2 · 도구가 본문 위에 붙어 함께 굴러가요":"v1 · 도구가 화면 하단에 붙어요");
+}
+/* ⚠️ CSS만으로는 안 된다 — 도크는 `.ed-scroll` **바깥**이라, v2에서 본문과 함께 굴러가려면
+      스크롤 영역 **안으로 옮겨야** 한다(order로는 다른 부모로 못 보낸다). */
+function edApplyLayout(){
+  var m=document.getElementById("writeModal"),dock=document.getElementById("edDock");
+  if(!m||!dock)return;
+  var v2=(EDITOR_LAYOUT===2);
+  m.classList.toggle("v2",v2);
+  var host=document.querySelector("#writeModal .ed-body");
+  if(v2&&host&&dock.parentNode!==host){
+    host.insertBefore(dock,document.getElementById("edContentHint")||document.getElementById("wContent"));
+  }else if(!v2&&dock.parentNode!==m){
+    m.appendChild(dock);
+  }
+  if(v2)edToggleFmt(true);   // 공간이 넉넉하니 서식 줄을 늘 펼쳐 둔다(T를 누르는 수고 제거)
+  var btn=document.getElementById("edLayoutSwitch");
+  if(btn)btn.textContent=v2?"v2":"v1";
+  edDockFollow();
+}
+
 function edDockFollow(){
   var m=document.getElementById("writeModal");if(!m)return;
   var vv=window.visualViewport;
+  // v2는 아무것도 고정하지 않는다 → 화면 크기를 건드릴 이유가 없다(브라우저 기본 동작에 맡긴다)
+  if(m.classList.contains("v2")){m.style.height="";m.style.top="";m.style.bottom="";m._vT=m._vH=null;return;}
   if(!vv||!m.classList.contains("open")){m.style.height="";m.style.top="";m.style.bottom="";m._vT=m._vH=null;return;}
   // ⚠️ 도크를 개별로 끌어올리지 않고 **글쓰기 화면 전체를 '보이는 영역'에 맞춘다.**
   //    .editor가 세로 flex라 도크는 그 바닥(=키보드 바로 위)에 자연히 붙고,
