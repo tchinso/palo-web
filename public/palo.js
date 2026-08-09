@@ -775,6 +775,9 @@ function authErrMsg(msg){
   if(/Unable to validate email|invalid format/i.test(msg))return "이메일 주소 형식을 확인해주세요.";
   if(/email address.*is invalid|invalid email/i.test(msg))return "사용할 수 없는 이메일 주소예요. 실제로 쓰는 이메일을 입력해주세요.";
   if(/For security purposes|after \d+ seconds/i.test(msg))return "잠시 후 다시 시도해주세요.";
+  // 이메일 변경을 확정하면 Supabase가 다른 세션들을 로그아웃시킨다 → 열려 있던 화면에서
+  // 이어서 저장을 누르면 이 오류가 난다(2026-08-09 실사용자 로그에서 6회 확인)
+  if(/Session not found|session_not_found/i.test(msg))return "로그인이 풀렸어요. 새로고침 후 다시 로그인해서 시도해주세요.";
   return "처리에 실패했어요: "+msg;
 }
 function _lgBusy(on,label){
@@ -8421,15 +8424,20 @@ function handleLoginError(){
   try{history.replaceState({},"",location.pathname);}catch(_){}
   setTimeout(_clean,1500);
   console.error("[로그인 실패 상세]",h); // 원문은 콘솔에 남겨 문의 대응에 쓴다
+  // ⚠️ 만료된 메일 링크도 error=access_denied 로 오므로(error_code=otp_expired),
+  //    '취소' 분기보다 먼저 검사해야 한다 — 안 그러면 만료 안내가 "취소했어요"로 잘못 나간다.
+  var codeDetail=hp.get("error_code")||"";
   var friendly=
-    /access_denied/i.test(code2)||/cancell?ed|denied/i.test(desc)
-      ?"로그인을 취소했어요."
+    /otp_expired/i.test(codeDetail)||/invalid or has expired|One-time token/i.test(desc)
+      ?"링크가 만료됐거나 이미 사용됐어요. 메일을 다시 요청해주세요."
     :/Error getting user (profile|email) from external provider/i.test(desc)
       ?"소셜 계정에서 정보를 받아오지 못했어요. 잠시 후 다시 시도해 주세요."
     :/Database error saving new user/i.test(desc)
       ?"가입 처리 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
     :/Signups not allowed/i.test(desc)
       ?"지금은 새 가입을 받지 않고 있어요."
+    :/access_denied/i.test(code2)||/cancell?ed|denied/i.test(desc)
+      ?"로그인을 취소했어요."
     :"로그인에 실패했어요: "+desc;
   toast(friendly,"⚠");
 }
