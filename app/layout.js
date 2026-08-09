@@ -121,6 +121,14 @@ export default function RootLayout({ children }) {
 }catch(e){}})();`,
           }}
         />
+        {/* 브랜드 워드마크("commi") 전용 서체.
+            ⚠️ text= 로 딱 그 글자들만 부분집합 요청 — 파일이 2KB 남짓이라 로딩 부담이 없다.
+            로고 워드마크는 항상 "commi" 다섯 글자뿐이므로 다른 글자는 영영 필요 없다. */}
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@800&text=commi&display=swap"
+        />
       </head>
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }} />
