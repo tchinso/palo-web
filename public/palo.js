@@ -2636,7 +2636,7 @@ async function addComment(id){
   p.comments.push(newComment);
   document.getElementById("cmList").innerHTML=renderComments(p);
   document.querySelector(".cm-head").innerHTML='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>훈수 · 크리틱 '+p.comments.length;
-  inp.value="";track("comment");toast("훈수를 남겼어요 🙏");
+  inp.value="";track("comment");toast("댓글을 남겼어요 ✏️");
 }
 async function toggleLike(id){
   var p=POSTS.find(function(x){return x.id===id});
