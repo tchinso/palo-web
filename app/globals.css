@@ -11,7 +11,15 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-  html{overflow-x:hidden}body{overflow-x:hidden;max-width:100%}
+  /* 🚨 `html{overflow-x:hidden}` 은 **iOS에서 `position:fixed` 를 깨뜨린다.**
+     루트가 스크롤 컨테이너가 되면서 고정 요소가 뷰포트가 아니라 그 컨테이너를 기준으로 잡히고,
+     관성/고무줄 스크롤 도중 **하단 탭바가 본문과 따로 떨어져 움직인다.**
+     홈 화면에 추가한 PWA(standalone)에서 특히 잦다 — 브라우저 UI가 없어 그 어긋남이 그대로 보인다.
+     (2026-08-09 사용자 신고 → 원인 확정)
+     → 루트에서는 걷어내고, 가로 넘침은 body에서만 막는다.
+     ⚠️ `overflow-x:clip` 은 hidden 과 달리 **스크롤 컨테이너를 만들지 않아** 고정 요소가 멀쩡하다.
+        clip 을 모르는 예전 브라우저를 위해 hidden 을 먼저 두고 clip 으로 덮어쓴다. */
+  body{overflow-x:hidden;overflow-x:clip;max-width:100%}
   body{background:var(--bg);color:var(--ink);font-family:'Pretendard','Pretendard Variable',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕','Noto Sans KR',system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;letter-spacing:-.01em}
   body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
     background:radial-gradient(circle at 12% 8%,rgba(224,122,166,.05),transparent 42%),radial-gradient(circle at 88% 20%,rgba(151,132,214,.045),transparent 44%),radial-gradient(circle at 70% 90%,rgba(124,195,224,.04),transparent 46%)}
@@ -1562,6 +1570,13 @@
     #main{display:block !important;width:100% !important;min-width:0 !important;padding-top:18px}
   }
 
+
+  /* 홈 화면에 추가한 PWA에서는 위아래 고무줄 반동을 끈다.
+     반동 중에는 고정 요소(탭바)가 잠깐 어긋나 보이는데, standalone은 브라우저 UI가 없어 더 도드라진다.
+     ⚠️ 일반 브라우저에서는 끄지 않는다 — 반동은 그 자체로 익숙한 피드백이라 없애면 어색하다. */
+  @media (display-mode: standalone){
+    html,body{overscroll-behavior-y:none}
+  }
 
   /* ===== 부드러운 움직임 (전역) ===== */
   html{scroll-behavior:smooth}
