@@ -6631,13 +6631,36 @@ function dismissNotifBanner(e){
   var el=document.getElementById("notifBanner");
   if(el)el.remove();
 }
+/* 이 계정이 이미 어딘가에서 알림을 켜 뒀는지(기기 무관).
+   ⚠️ iOS는 **사파리와 홈 화면 앱을 서로 다른 컨텍스트로** 취급한다. 홈 화면 앱에서 알림을 켜도
+      사파리에서 본 `Notification.permission` 은 여전히 "default" 다.
+      그래서 권한만 보고 판단하면 **이미 켠 사람에게 또 권유하게 된다**(2026-08-09 사용자 신고).
+      계정에 푸시 구독이 하나라도 있으면 '이미 켠 사람'으로 보고 배너를 접는다. */
+var _notifHasSub=null;   // null=아직 모름 / true·false=확인함
+function notifCheckSubscribed(){
+  if(_notifHasSub!==null||!AUTH.user||!window.supabase)return;
+  _notifHasSub=false;   // 조회 중 중복 요청 방지
+  window.supabase.from("push_subscriptions").select("id").eq("user_id",AUTH.user.id).limit(1)
+    .then(function(res){
+      if(!res.error&&res.data&&res.data.length){
+        _notifHasSub=true;
+        var el=document.getElementById("notifBanner");if(el)el.remove();
+      }
+    },function(){});
+}
 /* 배너를 보여줄 상황인지. 보여줄 만하면 그 '종류'를 돌려준다(ask | ios). */
 function notifBannerKind(){
   if(!AUTH.user)return null;                       // 로그인해야 구독을 저장할 수 있다
   if(notifBannerHidden())return null;
+  // ⚠️ **권한 판정이 iOS 분기보다 먼저 와야 한다.** 순서가 반대면 아이폰 사용자는
+  //    이미 알림을 켰어도 '홈 화면에 추가하세요' 배너를 계속 보게 된다(그 순서가 실제 버그였다).
+  var st=notifPermState();
+  if(st==="granted"||st==="denied")return null;
+  if(_notifHasSub)return null;                     // 다른 기기·앱에서 이미 켠 계정
+  notifCheckSubscribed();                          // 아직 모르면 조용히 확인해 둔다(다음 렌더부터 반영)
   if(isIOSDevice()&&!isStandalonePWA())return "ios";  // 홈 화면 추가부터 안내
   if(!pushSupported())return null;                 // 지원 안 하는 브라우저엔 권유할 게 없다
-  return (notifPermState()==="default")?"ask":null;
+  return (st==="default")?"ask":null;
 }
 function notifBannerHTML(){
   var kind=notifBannerKind();
