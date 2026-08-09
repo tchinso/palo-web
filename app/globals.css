@@ -2172,11 +2172,6 @@
 /* ===== 글쓰기 하단 도구 도크 =====
    ⚠️ fixed 만으로는 모바일 키보드가 올라올 때 가려진다 —
       palo.js(edDockFollow)가 visualViewport를 따라 transform으로 끌어올린다. */
-.ed-dock{flex-shrink:0;z-index:70;
-  background:rgba(255,255,255,.94);-webkit-backdrop-filter:blur(14px) saturate(1.6);backdrop-filter:blur(14px) saturate(1.6);
-  border-top:1px solid var(--line-2);box-shadow:0 -6px 22px rgba(31,22,28,.10);
-  padding-bottom:env(safe-area-inset-bottom,0px)}
-/* ⚠️ 도크에는 transition을 걸지 않는다 — 화면 크기를 따라갈 때 한 박자 늦게 붙어 '떨어진 것처럼' 보인다 */
 /* 삽입 도구 줄 — 6개가 한 줄에 균등.
    ⚠️ 세로 공간이 곧 본문 공간이다(키보드까지 올라오면 본문이 화면의 3분의 1밖에 안 남는다) →
       아이콘·글자·여백을 최소로 줄여 한 줄 52px 안에 넣는다. */
@@ -2227,18 +2222,14 @@
    포커스 표시는 상자 테두리 색으로 충분하므로 여기서 확실히 끈다. */
 .ed-content,.ed-content:focus,.ed-content:focus-visible{outline:none!important}
 /* ===================================================================
-   글쓰기 v2 — 디시식 "고정 없는" 문서 페이지 (commi 결로 정돈)
-   🚨 v2의 핵심은 도구 위치가 아니라 **구조**다.
-      v1은 `position:fixed` 오버레이 + 내부 스크롤 + `body{overflow:hidden}` 인데,
+   글쓰기 화면 — 디시식 "고정 없는" 문서 페이지 (commi 결로 정돈)
+   🚨 이 화면의 핵심은 도구 위치가 아니라 **구조**다.
+      예전 방식은 `position:fixed` 오버레이 + 내부 스크롤 + `body{overflow:hidden}` 인데,
       iOS는 자판이 올라오면 '커서를 보이게' 스크롤하려 하고 그 동작이 내부 스크롤 컨테이너와
       싸워 **커서가 자판 뒤로 들어가고 화면이 튄다.** DC에 이 문제가 없는 건 애초에
-      오버레이가 아니라 **평범한 문서 페이지**이기 때문 → v2는 문서 자체가 글쓰기 페이지가 된다.
+      오버레이가 아니라 **평범한 문서 페이지**이기 때문 → 문서 자체가 글쓰기 페이지가 된다.
    배치: **글자 도구는 본문 위, 넣기 도구(사진·투표·파일)는 본문 아래** (디시와 같게).
    =================================================================== */
-/* 상단 전환 버튼(둘을 비교하는 동안만 존재) */
-.ed-layout-switch{border:1px solid var(--line-2);background:var(--surface);color:var(--muted);
-  font-family:inherit;font-size:11px;font-weight:800;padding:5px 9px;border-radius:8px;cursor:pointer;margin-left:8px}
-.ed-layout-switch:hover{border-color:var(--brand);color:#9c3566}
 
 /* ── 구조: 문서가 곧 글쓰기 페이지 ── */
 body.ed-page{overflow:visible!important}
@@ -2248,57 +2239,56 @@ body.ed-page > div > footer,
 body.ed-page .tabbar,
 body.ed-page #toTop{display:none!important}
 /* ⚠️ 닫혀 있을 때는 완전히 없앤다 — 흐름 안에 있어 visibility:hidden으로는 자리가 남는다(실측 865px) */
-.editor.v2:not(.open){display:none}
-.editor.v2.open{position:static;inset:auto;height:auto;min-height:100vh;display:block;
+.editor:not(.open){display:none}
+.editor.open{position:static;inset:auto;height:auto;min-height:100vh;display:block;
   opacity:1;visibility:visible;transform:none;transition:none;background:var(--bg)}
-.editor.v2 .ed-scroll{flex:none;overflow:visible;display:block}
-.editor.v2 .ed-top{position:static;background:transparent;border-bottom:1px solid var(--line)}
-.editor.v2 .ed-top-in{height:56px}
-.editor.v2 .ed-body{padding-bottom:0}
+.editor .ed-scroll{flex:none;overflow:visible;display:block}
+.editor .ed-top{position:static;background:transparent;border-bottom:1px solid var(--line)}
+.editor .ed-top-in{height:56px}
+.editor .ed-body{padding-bottom:0}
 
 /* ── 여백 리듬을 하나로 통일(조잡함의 주범은 제각각인 간격이었다) ── */
-.editor.v2 .ed-metarow{margin:16px 0 0}
-.editor.v2 .ed-tags{margin:10px 0 0}
-.editor.v2 .ed-title-input{margin:14px 0 0;border:none;border-bottom:1.5px solid var(--line-2);
+.editor .ed-metarow{margin:16px 0 0}
+.editor .ed-tags{margin:10px 0 0}
+.editor .ed-title-input{margin:14px 0 0;border:none;border-bottom:1.5px solid var(--line-2);
   border-radius:0;background:transparent;padding:12px 2px;font-size:20px;font-weight:800}
-.editor.v2 .ed-title-input:focus{border-bottom-color:var(--brand)}
+.editor .ed-title-input:focus{border-bottom-color:var(--brand)}
 
 /* ── 글자 도구 + 본문 = 한 장의 카드 ── */
-.editor.v2 #edFmtPanel{display:block!important;margin:16px 0 0;background:var(--surface-2);
+.editor #edFmtPanel{display:block!important;margin:16px 0 0;background:var(--surface-2);
   border:1px solid var(--line-2);border-bottom:none;border-radius:14px 14px 0 0;padding:0}
-.editor.v2 #edFmtPanel .ed-fmt-row{padding:6px 8px;border:none}
-.editor.v2 .ed-fmt button{background:transparent;box-shadow:none;height:34px;min-width:36px;
+.editor #edFmtPanel .ed-fmt-row{padding:6px 8px;border:none}
+.editor .ed-fmt button{background:transparent;box-shadow:none;height:34px;min-width:36px;
   border-radius:9px;color:var(--ink-2)}
-.editor.v2 .ed-fmt button:hover{background:var(--surface)}
-.editor.v2 .ed-fmt .ed-div{background:var(--line)}
+.editor .ed-fmt button:hover{background:var(--surface)}
+.editor .ed-fmt .ed-div{background:var(--line)}
 /* v2는 글자 도구가 늘 펼쳐져 있으므로 T 버튼·닫기 버튼이 필요 없다.
    ⚠️ #edFmtBtn 은 '넣기 도구 줄' 안에 있어, 줄을 본문 아래로 옮긴 뒤에도 숨어야 한다. */
-.editor.v2 #edFmtBtn,.editor.v2 .ed-fmt-close,body.ed-page #edFmtBtn{display:none!important}
-.editor.v2 .ed-content{min-height:44vh;margin:0;padding:16px 14px;background:var(--surface);
+.editor #edFmtBtn,.editor .ed-fmt-close,#edFmtBtn{display:none!important}
+.editor .ed-content{min-height:44vh;margin:0;padding:16px 14px;background:var(--surface);
   border:1px solid var(--line-2);border-top:none;border-radius:0 0 14px 14px}
-.editor.v2 .ed-content:focus{border-color:var(--brand-2)}
+.editor .ed-content:focus{border-color:var(--brand-2)}
 
 /* ── 넣기 도구: 본문 아래, 알약 버튼 한 줄 (아이콘 격자보다 훨씬 정돈돼 보인다) ── */
-.editor.v2 #edDockRow{display:flex;gap:7px;margin:12px 0 0;padding:0;
+.editor #edDockRow{display:flex;gap:7px;margin:12px 0 0;padding:0;
   overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-.editor.v2 #edDockRow::-webkit-scrollbar{display:none}
-.editor.v2 #edDockRow button{flex:0 0 auto;flex-direction:row;gap:6px;
+.editor #edDockRow::-webkit-scrollbar{display:none}
+.editor #edDockRow button{flex:0 0 auto;flex-direction:row;gap:6px;
   background:var(--surface);border:1px solid var(--line-2);border-radius:999px;
   padding:9px 14px;color:var(--ink-2);box-shadow:none}
-.editor.v2 #edDockRow button:hover{border-color:var(--brand);color:#9c3566}
-.editor.v2 #edDockRow .ic{width:17px;height:17px}
-.editor.v2 #edDockRow .ed-dock-lbl{font-size:12.5px;font-weight:700}
+.editor #edDockRow button:hover{border-color:var(--brand);color:#9c3566}
+.editor #edDockRow .ic{width:17px;height:17px}
+.editor #edDockRow .ed-dock-lbl{font-size:12.5px;font-weight:700}
 
 /* ── 첨부·옵션: 테두리 없이 구분선만 (상자를 겹치면 조잡해진다) ── */
-.editor.v2 #edImages{margin-top:14px}
-.editor.v2 .ed-options{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
-.editor.v2 .ed-guide{margin-top:14px}
+.editor #edImages{margin-top:14px}
+.editor .ed-options{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.editor .ed-guide{margin-top:14px}
 
 /* ── 제출: 폼 끝에서 ── */
-.ed-foot{display:none}
-.editor.v2 .ed-foot{display:flex;gap:9px;margin:20px 0 34px}
-.editor.v2 .ed-foot button{flex:1;min-height:52px;border:none;border-radius:14px;
+.ed-foot{display:flex;gap:9px;margin:20px 0 34px}
+.editor .ed-foot button{flex:1;min-height:52px;border:none;border-radius:14px;
   font-family:inherit;font-size:15px;font-weight:800;cursor:pointer}
-.editor.v2 .ed-foot-cancel{flex:0 0 32%;background:var(--surface-2);color:var(--ink-2)}
-.editor.v2 .ed-foot-submit{background:var(--brand);color:#fff}
-.editor.v2 .ed-submit{display:none}
+.editor .ed-foot-cancel{flex:0 0 32%;background:var(--surface-2);color:var(--ink-2)}
+.editor .ed-foot-submit{background:var(--brand);color:#fff}
+.editor .ed-submit{display:none}

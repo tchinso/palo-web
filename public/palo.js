@@ -4731,10 +4731,10 @@ function openWrite(){
   document.getElementById("edCrit").checked=(edState.board==="crit");
   document.getElementById("edTitleLabel").textContent="글쓰기";
   document.getElementById("edSubmitBtn").textContent="등록";
-  document.getElementById("writeModal").classList.add("open");document.body.style.overflow="hidden";
+  document.getElementById("writeModal").classList.add("open");
+  edEnterPage();   // 문서 자체가 글쓰기 페이지가 된다(뒤 페이지 감춤 + 맨 위로)
   document.getElementById("edBoardMenu").classList.remove("open");
-  edToggleFmt(false);      // 서식 패널은 접은 채로 시작
-  edApplyLayout();  edOfferDraft(); // 쓰던 글이 있으면 알리기만 — 채우는 건 [불러오기]를 눌렀을 때
+  edOfferDraft(); // 쓰던 글이 있으면 알리기만 — 채우는 건 [불러오기]를 눌렀을 때
 }
 function openEditPost(id){
   var p=POSTS.find(function(x){return x.id===id});if(!p)return;
@@ -4754,10 +4754,11 @@ function openEditPost(id){
   document.getElementById("edCrit").checked=(edState.board==="crit");
   document.getElementById("edTitleLabel").textContent="글 수정";
   document.getElementById("edSubmitBtn").textContent="수정 완료";
-  document.getElementById("writeModal").classList.add("open");document.body.style.overflow="hidden";
+  document.getElementById("writeModal").classList.add("open");
+  edEnterPage();   // 문서 자체가 글쓰기 페이지가 된다(뒤 페이지 감춤 + 맨 위로)
   document.getElementById("edBoardMenu").classList.remove("open");
   var _db=document.getElementById("edDraftBar");if(_db)_db.style.display="none"; // 수정 화면엔 임시저장 안내가 안 뜬다
-  edToggleFmt(false);edApplyLayout();}
+}
 var commissionReviewFilter=null;
 function openCommissionReviews(postId){
   commissionReviewFilter=null;
@@ -4799,18 +4800,13 @@ function openReviewFor(postId){
   renderCommissionSelected();
 }
 function closeWrite(){
-  var _m=document.getElementById("writeModal");
-  if(_m){_m.style.height="";_m.style.top="";_m.style.bottom="";_m._vT=_m._vH=null;}
-  if(document.body.classList.contains("ed-page")){
-    document.body.classList.remove("ed-page"); // v2에서 감췄던 목록·탭바를 되살린다
-    var _back=document.body._edBackY||0;
-    try{window.scrollTo({top:_back,behavior:"auto"});}catch(e){window.scrollTo(0,_back);}
-  } // 다음에 열 때를 위해 인라인 크기 정리
-  edSaveDraft(); // ⚠️ 나가기 전에 마지막 모습을 저장 — 실수로 닫아도 글이 사라지지 않는다
+  edSaveDraft();   // 나가기 전에 마지막 모습을 저장 — 실수로 닫아도 글이 사라지지 않는다
   editingPostId=null;
   document.getElementById("writeModal").classList.remove("open");
   document.body.style.overflow="";
+  edLeavePage();   // 뒤 페이지를 되살리고 보던 목록 위치로
 }
+
 
 /* ===== 임시저장 =====
    글쓰기는 실수로 닫히기 너무 쉽다(나가기 오터치·ESC·뒤로가기·브라우저 이탈).
@@ -5258,103 +5254,26 @@ function pickImage(e){e.preventDefault();saveEditorSelection();document.getEleme
       키보드는 '보이는 영역(visualViewport)'만 줄이고 레이아웃 뷰포트는 그대로 두기 때문에,
       바닥에 붙인 요소가 키보드 뒤로 숨는다. visualViewport의 높이·스크롤을 따라
       도크를 그만큼 끌어올려야 항상 손끝(키보드 바로 위)에 남는다. */
-/* ===== 글쓰기 화면 레이아웃 두 가지 ========================================
-   v1 — 도구가 화면 하단에 붙어 키보드를 따라온다(모바일 채팅앱식).
-   v2 — 디시식: **아무것도 고정하지 않고** 도구를 본문 바로 위에 두고 페이지와 함께 굴린다.
-        본문은 내용만큼 늘어나고, 등록은 폼 맨 아래에서 누른다.
-   ⚠️ 어느 쪽이 편한지는 직접 써 봐야 안다 → **둘 다 남기고 상단 버튼으로 바꿔 본다.**
-      (디자인 시안 A~D를 실제 사이트에서 눌러 비교한 것과 같은 방식)
-      하나로 정해지면 진 쪽과 이 스위치를 지운다. */
-var EDITOR_LAYOUT=(function(){
-  try{
-    var q=new URLSearchParams(location.search).get("ed");
-    if(q==="1"||q==="2"){localStorage.setItem("palo_ed_layout",q);return parseInt(q,10);}
-    return (localStorage.getItem("palo_ed_layout")==="2")?2:1;
-  }catch(e){return 1;}
-})();
-function edSetLayout(v){
-  EDITOR_LAYOUT=(v===2)?2:1;
-  try{localStorage.setItem("palo_ed_layout",String(EDITOR_LAYOUT));}catch(e){}
-  edApplyLayout();
-  toast(EDITOR_LAYOUT===2?"v2 · 도구가 본문 위에 붙어 함께 굴러가요":"v1 · 도구가 화면 하단에 붙어요");
+/* ===== 글쓰기 페이지 진입/이탈 ==========================================
+   글쓰기는 **오버레이가 아니라 문서 자체가 글쓰기 페이지**가 되는 방식이다(디시식).
+   ⚠️ 예전에 쓰던 `position:fixed` 오버레이 + 내부 스크롤 + `body{overflow:hidden}` 조합은
+      iOS에서 자판이 올라올 때 브라우저의 '커서를 보이게 스크롤'과 싸워 **커서가 자판 뒤로
+      들어가고 화면이 튀었다.** 문서 흐름에 맡기면 그 문제가 통째로 사라진다.
+   그래서 열 때: 뒤 페이지(header·목록·footer·탭바)를 감춰 문서 높이를 글쓰기와 일치시키고,
+   닫을 때: 되살리고 보던 목록 위치로 돌아간다. */
+function edEnterPage(){
+  document.body._edBackY=window.scrollY||0;
+  document.body.classList.add("ed-page");
+  document.body.style.overflow="";              // 문서가 굴러야 하므로 잠그지 않는다
+  try{window.scrollTo({top:0,behavior:"auto"});}catch(e){window.scrollTo(0,0);}
 }
-/* ⚠️ CSS만으로는 안 된다 — 도크는 `.ed-scroll` **바깥**이라, v2에서 본문과 함께 굴러가려면
-      스크롤 영역 **안으로 옮겨야** 한다(order로는 다른 부모로 못 보낸다). */
-function edApplyLayout(){
-  var m=document.getElementById("writeModal"),dock=document.getElementById("edDock");
-  if(!m||!dock)return;
-  var v2=(EDITOR_LAYOUT===2);
-  m.classList.toggle("v2",v2);
-  var host=document.querySelector("#writeModal .ed-body");
-  var fmt=document.getElementById("edFmtPanel"),row=document.getElementById("edDockRow");
-  var body=document.getElementById("wContent");
-  if(v2&&host&&fmt&&row&&body){
-    // 디시식 배치: **글자 도구는 본문 위, 넣기 도구(사진·투표·파일)는 본문 아래.**
-    // 쓰는 동안 계속 쓰는 건 글자 도구라 위에, 한 번씩 쓰는 건 아래에 둔다.
-    if(fmt.parentNode!==host||fmt.nextElementSibling!==body)host.insertBefore(fmt,body);
-    if(row.previousElementSibling!==body)host.insertBefore(row,body.nextSibling);
-    // ⚠️ 여기서 removeChild 하면 **v1으로 되돌릴 때 붙일 곳이 사라진다**(실측으로 발견).
-    //    빈 껍데기는 지우지 말고 감추기만 한다.
-    if(dock.parentNode!==m)m.appendChild(dock);
-    dock.style.display="none";
-  }else if(!v2){
-    if(dock.parentNode!==m)m.appendChild(dock);
-    dock.style.display="";
-    if(fmt&&fmt.parentNode!==dock)dock.insertBefore(fmt,dock.firstChild);
-    if(row&&row.parentNode!==dock)dock.appendChild(row);
-  }
-  if(v2)edToggleFmt(true);   // 공간이 넉넉하니 서식 줄을 늘 펼쳐 둔다(T를 누르는 수고 제거)
-  // 🚨 v2의 핵심: 오버레이를 걷어내고 **문서 자체가 글쓰기 페이지**가 되게 한다.
-  //    body 잠금을 풀어야 문서가 굴러가고, 그래야 iOS가 커서를 자판 위로 스스로 올려 준다
-  //    (내부 스크롤 컨테이너를 쓰면 브라우저의 그 동작과 싸워 화면이 튄다).
-  var opened=m.classList.contains("open");
-  var wasPage=document.body.classList.contains("ed-page");
-  document.body.classList.toggle("ed-page",v2&&opened);
-  document.body.style.overflow=(v2&&opened)?"":"hidden";
-  if(!opened)document.body.style.overflow="";
-  // ⚠️ v2는 문서가 스크롤되므로, 목록에서 한참 내려온 상태로 글쓰기를 열면
-  //    글쓰기 화면도 그 위치에서 시작해 제목이 화면 밖에 있다 → 열 때 맨 위로.
-  //    닫을 때는 보던 목록 위치로 되돌린다(DC에서 글쓰기를 취소하면 목록으로 돌아오는 것과 같게).
-  if(v2&&opened&&!wasPage){
-    document.body._edBackY=window.scrollY||0;
-    try{window.scrollTo({top:0,behavior:"auto"});}catch(e){window.scrollTo(0,0);}
-  }else if(wasPage&&!(v2&&opened)){
-    var back=document.body._edBackY||0;
-    try{window.scrollTo({top:back,behavior:"auto"});}catch(e){window.scrollTo(0,back);}
-  }
-  var btn=document.getElementById("edLayoutSwitch");
-  if(btn)btn.textContent=v2?"v2":"v1";
-  edDockFollow();
+function edLeavePage(){
+  if(!document.body.classList.contains("ed-page"))return;
+  document.body.classList.remove("ed-page");
+  var back=document.body._edBackY||0;
+  try{window.scrollTo({top:back,behavior:"auto"});}catch(e){window.scrollTo(0,back);}
 }
 
-function edDockFollow(){
-  var m=document.getElementById("writeModal");if(!m)return;
-  var vv=window.visualViewport;
-  // v2는 아무것도 고정하지 않는다 → 화면 크기를 건드릴 이유가 없다(브라우저 기본 동작에 맡긴다)
-  if(m.classList.contains("v2")){m.style.height="";m.style.top="";m.style.bottom="";m._vT=m._vH=null;return;}
-  if(!vv||!m.classList.contains("open")){m.style.height="";m.style.top="";m.style.bottom="";m._vT=m._vH=null;return;}
-  // ⚠️ 도크를 개별로 끌어올리지 않고 **글쓰기 화면 전체를 '보이는 영역'에 맞춘다.**
-  //    .editor가 세로 flex라 도크는 그 바닥(=키보드 바로 위)에 자연히 붙고,
-  //    본문 스크롤 영역도 알아서 줄어든다. 도크 하나만 옮기면 본문이 키보드에 가려진 채 남는다.
-  // ⚠️ .editor는 inset:0 이라 top·bottom이 둘 다 고정 → height를 줘도 무시된다.
-  //    bottom을 풀어야 height가 실제로 먹는다(실측으로 확인).
-  // ⚠️ 같은 값이면 아무것도 쓰지 않는다 — 스크롤 중 매 이벤트마다 인라인 스타일을 다시 쓰면
-  //    그때마다 배치가 다시 계산돼 눈에 띄게 밀린다.
-  var top=Math.round(vv.offsetTop),h=Math.round(vv.height);
-  if(m._vT===top&&m._vH===h)return;
-  m._vT=top;m._vH=h;
-  m.style.top=top+"px";
-  m.style.bottom="auto";
-  m.style.height=h+"px";
-}
-(function(){
-  var vv=window.visualViewport;if(!vv)return;
-  vv.addEventListener("resize",edDockFollow);
-  vv.addEventListener("scroll",edDockFollow);
-  window.addEventListener("resize",edDockFollow);
-})();
-
-/* 글자 서식 패널 열고 닫기. force=true/false를 주면 그 상태로 강제한다. */
 /* 서식 패널 안에서 '기본 / 글꼴 / 크기' 세 화면을 같은 한 줄 자리에서 바꿔 낀다.
    ⚠️ <select>의 네이티브 팝업을 쓰지 않는 이유 — 모바일에서 화면 절반을 덮는 별도 창이 뜨고,
       그동안 본문이 안 보여 무엇에 적용되는지 알 수 없다. 여기서는 줄만 바뀌므로 본문이 계속 보인다. */
@@ -5368,31 +5287,6 @@ function edFmtView(which){
   var sub=document.getElementById(ids[which]);
   if(sub)sub.scrollLeft=0;  // 다시 열 때 항상 왼쪽부터
 }
-function edToggleFmt(force){
-  var p=document.getElementById("edFmtPanel"),b=document.getElementById("edFmtBtn");
-  if(!p)return;
-  var wasOpen=!p.hasAttribute("hidden");
-  var open=(force==null)?!wasOpen:!!force;
-  if(open){
-    p.removeAttribute("hidden");
-    // ⚠️ **이미 열려 있으면 보고 있던 줄(글꼴·크기 목록)을 건드리지 않는다.**
-    //    서식을 적용하면 커서가 복원되며 selectionchange가 다시 이 함수를 부르는데,
-    //    그때마다 기본 줄로 되돌리면 글꼴을 하나 고를 때마다 목록이 닫혀 버린다.
-    if(!wasOpen)edFmtView("main");
-  }
-  else p.setAttribute("hidden","");
-  if(b)b.classList.toggle("on",open);
-  }
-/* 본문에서 글자를 선택하면 서식 패널을 자동으로 띄운다(선택 해제되면 손대지 않는다 —
-   사용자가 T로 열어 둔 것을 마음대로 닫지 않기 위해). */
-document.addEventListener("selectionchange",function(){
-  var ed=document.getElementById("wContent");if(!ed)return;
-  var m=document.getElementById("writeModal");
-  if(!m||!m.classList.contains("open"))return;
-  var sel=window.getSelection();if(!sel||!sel.rangeCount||sel.isCollapsed)return;
-  var r=sel.getRangeAt(0);
-  if(ed.contains(r.commonAncestorContainer))edToggleFmt(true);
-});
 /* 도크는 flex 자식이라 본문 영역이 알아서 줄어든다 — 여백 보정이 필요 없다.
    (예전엔 fixed라 .ed-scroll에 padding-bottom을 계산해 넣어야 했다) */
 

@@ -122,8 +122,6 @@ export const BODY_HTML = `
     <div class="wrap ed-top-in">
       <button class="ed-cancel" onclick="closeWrite()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg><span>나가기</span></button>
       <span class="ed-title" id="edTitleLabel">글쓰기</span>
-      <button type="button" class="ed-layout-switch" id="edLayoutSwitch" onclick="edSetLayout(EDITOR_LAYOUT===2?1:2)" title="글쓰기 화면 바꿔보기">v1</button>
-      <button class="ed-submit" id="edSubmitBtn" onclick="submitPost()">등록</button>
     </div>
   </div>
 
@@ -164,38 +162,10 @@ export const BODY_HTML = `
       </div>
 
       <!-- 서식 툴바 (제목 아래·본문 위, 스크롤해도 상단 고정) -->
-      <!-- 서식·삽입 도구는 화면 하단 고정 도크(#edDock)로 옮겼다 — 키보드가 올라와도 손끝에 남아야 하므로 -->
 
       <!-- 본문 (contenteditable) -->
-      <p class="ed-content-hint" id="edContentHint" style="display:none">한 줄 후기도 좋아요 — 내용 없이 별점만 남겨도 괜찮아요.</p>
-      <div id="wContent" class="ed-content" contenteditable="true"
-        ondragover="onEditorDragOver(event)" ondragleave="onEditorDragLeave(event)" ondrop="onEditorDrop(event)"
-        data-ph="이야기를 자유롭게 적어 주세요. 커서를 원하는 위치에 두고 위 🖼 버튼으로 그림을 그 자리에 넣을 수 있어요. 이미지 파일을 끌어다 놓아도 돼요."></div>
-      <input type="file" id="edFile" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="hidden" onchange="onImage(event)">
-      <div id="edImages" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"></div>
-
-      <!-- 투표는 위 도구바 📊 버튼으로 본문 원하는 위치에 삽입(여러 개 가능) -->
-
-      <!-- 옵션 -->
-      <div class="ed-options">
-        <label class="ed-opt"><input type="checkbox" id="edCrit"><span>크리틱(피드백) 받고 싶어요</span></label>
-        <label class="ed-opt"><input type="checkbox" id="edNotify" checked><span>댓글 알림 받기</span></label>
-      </div>
-      <p class="ed-guide"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg> 인신공격·도용·AI 무단 도배는 삭제될 수 있어요. 서로의 그림을 존중해 주세요.</p>
-      <!-- v2 전용: 폼 끝에서 제출(디시식). v1에서는 CSS로 숨긴다 -->
-      <div class="ed-foot">
-        <button type="button" class="ed-foot-cancel" onclick="closeWrite()">취소</button>
-        <button type="button" class="ed-foot-submit" id="edFootSubmit" onclick="submitPost()">등록</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 하단 고정 도구 도크.
-       ⚠️ position:fixed 만으로는 모바일에서 키보드가 올라올 때 가려진다 →
-          palo.js(edDockFollow)가 visualViewport를 따라 위치를 계속 맞춘다. -->
-  <div class="ed-dock" id="edDock">
-    <!-- 글자 서식 패널: T 버튼을 누르거나 본문에서 텍스트를 선택하면 도크 바로 위에 뜬다 -->
-    <div class="ed-fmt" id="edFmtPanel" hidden>
+      <!-- 글자 도구: 본문 바로 위 (디시식) -->
+      <div class="ed-fmt" id="edFmtPanel">
       <!-- 기본 줄. 글꼴·크기는 창을 띄우지 않고 이 줄을 오른쪽으로 밀어내며 목록을 편다 -->
       <div class="ed-fmt-row" id="edFmtMain">
         <button type="button" title="굵게" onmousedown="fmt(event,'bold')"><span class="ei" style="font-weight:900">B</span></button>
@@ -210,7 +180,6 @@ export const BODY_HTML = `
         <span class="ed-div"></span>
         <button type="button" class="ed-fmt-more" onmousedown="edSaveForMenu(event)" onclick="edFmtView('font')">글꼴 <i>›</i></button>
         <button type="button" class="ed-fmt-more" onmousedown="edSaveForMenu(event)" onclick="edFmtView('size')">크기 <i>›</i></button>
-        <button type="button" class="ed-fmt-close" onmousedown="event.preventDefault()" onclick="edToggleFmt(false)" aria-label="서식 닫기">✕</button>
       </div>
       <!-- 글꼴 목록: 같은 자리에서 오른쪽으로 이어지는 가로 목록 -->
       <div class="ed-fmt-row ed-fmt-sub" id="edFmtFont" hidden>
@@ -234,16 +203,40 @@ export const BODY_HTML = `
         <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetSize('30')" style="font-size:21px">제목만큼</button>
       </div>
     </div>
-
-    <div class="ed-dock-row" id="edDockRow">
-      <button type="button" id="edFmtBtn" title="글자 서식" onmousedown="event.preventDefault()" onclick="edToggleFmt()"><span class="ei">T</span><span class="ed-dock-lbl">서식</span></button>
+      <p class="ed-content-hint" id="edContentHint" style="display:none">한 줄 후기도 좋아요 — 내용 없이 별점만 남겨도 괜찮아요.</p>
+      <div id="wContent" class="ed-content" contenteditable="true"
+        ondragover="onEditorDragOver(event)" ondragleave="onEditorDragLeave(event)" ondrop="onEditorDrop(event)"
+        data-ph="이야기를 자유롭게 적어 주세요. 커서를 원하는 위치에 두고 위 🖼 버튼으로 그림을 그 자리에 넣을 수 있어요. 이미지 파일을 끌어다 놓아도 돼요."></div>
+      <!-- 넣기 도구: 본문 바로 아래 (디시식) -->
+      <div class="ed-dock-row" id="edDockRow">
       <button type="button" title="사진" onmousedown="pickImage(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 3 3-2 4 4"/></svg><span class="ed-dock-lbl">사진</span></button>
       <button type="button" title="이모티콘" onmousedown="event.preventDefault()" onclick="edPickEmoticon()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span class="ed-dock-lbl">이모티콘</span></button>
       <button type="button" title="링크" onmousedown="edSaveForMenu(event)" onclick="edInsertLink()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg><span class="ed-dock-lbl">링크</span></button>
       <button type="button" title="파일" onmousedown="pickAttachFile(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.5 12.5 21a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.5 3.5 0 1 1 5 5L9.6 18.3a1.5 1.5 0 1 1-2.1-2.1l7.8-7.8"/></svg><span class="ed-dock-lbl">파일</span></button>
       <button type="button" title="투표" onmousedown="edInsertPoll(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="10"/></svg><span class="ed-dock-lbl">투표</span></button>
     </div>
+      <input type="file" id="edFile" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="hidden" onchange="onImage(event)">
+      <div id="edImages" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"></div>
+
+      <!-- 투표는 위 도구바 📊 버튼으로 본문 원하는 위치에 삽입(여러 개 가능) -->
+
+      <!-- 옵션 -->
+      <div class="ed-options">
+        <label class="ed-opt"><input type="checkbox" id="edCrit"><span>크리틱(피드백) 받고 싶어요</span></label>
+        <label class="ed-opt"><input type="checkbox" id="edNotify" checked><span>댓글 알림 받기</span></label>
+      </div>
+      <p class="ed-guide"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg> 인신공격·도용·AI 무단 도배는 삭제될 수 있어요. 서로의 그림을 존중해 주세요.</p>
+      <!-- v2 전용: 폼 끝에서 제출(디시식). v1에서는 CSS로 숨긴다 -->
+      <div class="ed-foot">
+        <button type="button" class="ed-foot-cancel" onclick="closeWrite()">취소</button>
+        <button type="button" class="ed-foot-submit" id="edSubmitBtn" onclick="submitPost()">등록</button>
+      </div>
+    </div>
   </div>
+
+  <!-- 하단 고정 도구 도크.
+       ⚠️ position:fixed 만으로는 모바일에서 키보드가 올라올 때 가려진다 →
+          palo.js(edDockFollow)가 visualViewport를 따라 위치를 계속 맞춘다. -->
   <input type="file" id="edAttachFile" class="hidden" onchange="onAttachFile(event)">
 
 </div>
