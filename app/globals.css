@@ -1485,10 +1485,12 @@
     background:linear-gradient(135deg,var(--brand),var(--grape));color:#fff;box-shadow:0 8px 22px rgba(224,122,166,.32)}
   .lg-logo svg{width:38px;height:38px}
   /* 앱 아이콘 이미지가 통을 꽉 채우게 — 그라데이션 배경은 이미지가 뜨기 전 잠깐의 바탕이 된다.
-     ⚠️ 예전엔 아이콘 파일에 흰 모서리가 있어 scale(1.08)로 밀어내야 했다.
-        2026-08-09에 아이콘 원본에서 흰 여백을 잘라내(12%) 없앴으므로 그 보정은 제거했다. */
+     ⚠️ scale(1.08): 사이트 안에서 쓰는 `/logo-inapp.png`는 '흰 바탕 위 둥근 사각형'이라
+        그대로 넣으면 네 모서리에 흰 조각이 비친다. 살짝 확대해 통 밖으로 밀어내고 잘라낸다.
+        헤더 로고(`.brand .logo img`)와 반드시 같은 배율이어야 한다 — 한쪽만 건드리면
+        같은 로고가 화면마다 다른 크기로 보인다(2026-08-10에 실제로 그렇게 어긋났다). */
   .lg-logo{overflow:hidden}
-  .lg-logo img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+  .lg-logo img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;transform:scale(1.08)}
   .lg-name{font-size:23px;font-weight:900;letter-spacing:-.02em;color:var(--ink)}
   /* 안전 안내 박스 — 계정을 맡기는 자리라 무엇을 하고 안 하는지 짧게 알린다 */
   .lg-safe{display:flex;gap:11px;text-align:left;background:var(--surface-2);border-radius:14px;padding:13px 14px;margin-bottom:20px}

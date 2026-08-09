@@ -7,7 +7,7 @@ export const BODY_HTML = `
   <div class="wrap bar">
     <button class="menu-btn" id="menuBtn" aria-label="메뉴 열기"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
     <div class="brand" onclick="goHome()">
-      <span class="logo"><img src="/icon-192.png" alt="" width="34" height="34"></span>
+      <span class="logo"><img src="/logo-inapp.png" alt="" width="34" height="34"></span>
       <span class="mark">commi</span>
     </div>
     <div class="search desktop">
@@ -73,7 +73,7 @@ export const BODY_HTML = `
 <!-- drawer -->
 <div class="scrim" id="scrim"></div>
 <nav class="drawer" id="drawer" aria-label="게시판 메뉴">
-  <div class="dh"><span class="brand"><span class="logo"><img src="/icon-192.png" alt="" width="34" height="34"></span><span class="mark">commi</span></span>
+  <div class="dh"><span class="brand"><span class="logo"><img src="/logo-inapp.png" alt="" width="34" height="34"></span><span class="mark">commi</span></span>
     <button class="dclose" id="drawerClose" aria-label="닫기"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
   <div class="search" style="max-width:none;margin:0 0 16px">
     <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -469,7 +469,7 @@ export const BODY_HTML = `
 
     <div class="lg-brand">
       <!-- 홈 화면에 추가했을 때 보이는 앱 아이콘과 같은 이미지(사용자 요청) -->
-      <span class="lg-logo"><img src="/icon-192.png" alt="commi" width="66" height="66"></span>
+      <span class="lg-logo"><img src="/logo-inapp.png" alt="commi" width="66" height="66"></span>
       <div class="lg-name">commi</div>
       <p class="login-desc" id="loginDesc">그림 그리는 사람들의 커뮤니티</p>
     </div>
