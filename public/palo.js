@@ -171,7 +171,7 @@ var POSTS=[]; // 실제 글은 loadRealPosts()가 DB에서 채움
 var TREND=[
   {name:"비 오는 창가",tag:"챌린지 1위",thumb:"t1",sub:"참여 38명"},
   {name:"인체 비례 연재",tag:"강좌 급상승",thumb:"t4",sub:"조회 905"},
-  {name:"숲 속 마녀",tag:"크리틱 화제",thumb:"t2",sub:"훈수 12"},
+  {name:"숲 속 마녀",tag:"크리틱 화제",thumb:"t2",sub:"댓글 12"},
   {name:"손 그림자 루틴",tag:"팁 인기",thumb:"t3",sub:"좋아요 96"},
   {name:"AI 정책 투표",tag:"토론 뜨거움",thumb:"t5",sub:"댓글 214"}
 ];
@@ -1527,7 +1527,7 @@ function renderPostDetail(id){
     ((p.dbId&&AUTH.profile&&AUTH.profile.is_admin)?('<button class="d-act'+(p.isManagerPick?' liked':'')+'" onclick="toggleManagerPick('+p.id+')">📌 '+(p.isManagerPick?"매니저 픽 해제":"매니저 픽 지정")+'</button>'):'')+
     ((p.dbId&&AUTH.profile&&AUTH.profile.is_admin)?('<button class="d-act d-act-admindel" onclick="adminDeletePost('+p.id+')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>관리자 삭제</button>'):'')+
     '</div>'+
-    '<div class="comments"><div class="cm-head"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>훈수 · 크리틱 '+p.comments.length+'</div>'+
+    '<div class="comments"><div class="cm-head"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>댓글 '+p.comments.length+'</div>'+
     (p.board==='crit'?'<div class="cm-accept-info">💡 마음에 든 피드백을 <b>채택</b>하면 그 작성자에게 <b>광고 25점 + 활동 25점</b>을 지급해요 (하루 최대 100점).</div>':'')+
     '<div class="cm-write"><div class="d-ava serif" id="cmAva">'+avatarHTML("나",AUTH.profile&&AUTH.profile.avatar_url)+'</div><div class="box"><textarea id="cmInput" placeholder="따뜻한 피드백을 남겨주세요. 사람보다 그림을 이야기해요."></textarea>'+
     '<div class="emo-strip">'+emoStripHTML()+'</div>'+
@@ -2553,7 +2553,7 @@ function confirmDialog(message){
   });
 }
 function renderComments(p){
-  if(p.comments.length===0)return '<div style="padding:26px 0;text-align:center;color:var(--muted);font-size:13px">첫 훈수를 남겨보세요 ✏️</div>';
+  if(p.comments.length===0)return '<div style="padding:26px 0;text-align:center;color:var(--muted);font-size:13px">첫 댓글을 남겨보세요 ✏️</div>';
   var isFeedback=(p.board==='crit');                                  // '피드백 요청' 게시판만 채택 기능
   var isPostAuthor=!!(AUTH.user&&p.authorId&&p.authorId===AUTH.user.id);
   var accId=p.acceptedCommentId||null;
@@ -2607,7 +2607,7 @@ async function adminDeleteComment(postId,ci){
   var listEl=document.getElementById("cmList");
   if(listEl)listEl.innerHTML=renderComments(p);
   var head=document.querySelector(".cm-head");
-  if(head)head.innerHTML='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>훈수 · 크리틱 '+p.comments.length;
+  if(head)head.innerHTML='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>댓글 '+p.comments.length;
   toast(r.notify?"관리자 권한으로 댓글을 삭제했어요":"관리자 권한으로 댓글을 삭제했어요 (알림 미발송)");
 }
 async function deleteComment(postId,ci){
@@ -2620,7 +2620,7 @@ async function deleteComment(postId,ci){
   }
   p.comments.splice(ci,1);
   document.getElementById("cmList").innerHTML=renderComments(p);
-  document.querySelector(".cm-head").innerHTML='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>훈수 · 크리틱 '+p.comments.length;
+  document.querySelector(".cm-head").innerHTML='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>댓글 '+p.comments.length;
   toast("댓글을 삭제했어요");
 }
 async function addComment(id){
@@ -2635,7 +2635,7 @@ async function addComment(id){
   }
   p.comments.push(newComment);
   document.getElementById("cmList").innerHTML=renderComments(p);
-  document.querySelector(".cm-head").innerHTML='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>훈수 · 크리틱 '+p.comments.length;
+  document.querySelector(".cm-head").innerHTML='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>댓글 '+p.comments.length;
   inp.value="";track("comment");toast("댓글을 남겼어요 ✏️");
 }
 async function toggleLike(id){
@@ -6548,7 +6548,7 @@ function openPfList(kind){
   var recent=[];Array.from(READ).reverse().forEach(function(id){var p=POSTS.find(function(x){return x.id===id});if(p)recent.push(p)});
   recent=recent.slice(0,10);
   var M={mine:["쓴 글",mine,'아직 쓴 글이 없어요.<br>첫 이야기를 올려볼까요?',true],
-         cm:["댓글 단 글",commented,'댓글을 단 글이 아직 없어요.<br>마음에 드는 글에 훈수를 남겨보세요!',false],
+         cm:["댓글 단 글",commented,'댓글을 단 글이 아직 없어요.<br>마음에 드는 글에 댓글을 남겨보세요!',false],
          liked:["좋아요",likedArr,'좋아요한 글이 아직 없어요.<br>마음에 드는 그림에 하트를 눌러보세요!',false],
          recent:["최근 본 글",recent,'최근 본 글이 없어요.',false]};
   var m=M[kind]||M.mine;
@@ -7235,7 +7235,7 @@ function renderMyProfile(){
   // ===== 메뉴 (포스타입식 섹션: 소제목 + 한 줄에 하나씩) =====
   h+=pfSection('내 글','내가 쓴 글과 반응을 확인해요','<div class="pf-tiles">'+
      pfTile(pfMiniIcon('<path d="M4 20h4L20 8l-4-4L4 16v4z"/><path d="M14 6l4 4"/>'),'쓴 글','내가 올린 글',"openPfList('mine')",mine.length)+
-     pfTile(pfMiniIcon('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),'댓글 단 글','내가 남긴 훈수',"openPfList('cm')",commented.length)+
+     pfTile(pfMiniIcon('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),'댓글 단 글','내가 남긴 댓글',"openPfList('cm')",commented.length)+
      pfTile(pfMiniIcon('<path d="M12 20s-7-4.5-7-9.5A3.5 3.5 0 0 1 12 7a3.5 3.5 0 0 1 7 3.5c0 5-7 9.5-7 9.5z"/>'),'좋아요','내가 누른 글',"openPfList('liked')",likedArr.length)+
      pfTile(pfMiniIcon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>'),'최근 본 글','다시 찾아보기',"openPfList('recent')",recent.length)+
      '</div>');
