@@ -1507,6 +1507,16 @@ Supabase Storage 용량 절약 + 로딩 속도 개선 목적. 전부 **브라우
 - **소유확인·사이트맵 제출 완료(2026-08-04, 사용자)**: 네이버·구글 둘 다 소유확인 성공 + sitemap 제출.
 - **SEO 세부설정(2026-08-04)**: ①**RSS 피드** `app/rss.xml/route.js`(GET, `revalidate=1800`, 최신 글 50개·성인 제외, `application/rss+xml`) — 네이버 RSS 제출용. ②**OG 이미지**: `layout.js` 기본 og:image=`/icon-512.png`, 글·커미션은 첫 이미지·**없으면 `/icon-512.png` 폴백**(페이지 openGraph가 layout을 덮어써 이미지 없으면 og:image가 비던 문제 → 폴백으로 해결), 게시판도 폴백. `post/[id]`에 `post_images(url,sort)` 조회 추가·description 개선. ③**JSON-LD**(`layout.js` body): `@graph`에 WebSite+Organization(schema.org). ④**중복 도메인**: `next.config.mjs` `redirects()`로 host=`palo-web-nu.vercel.app`→`https://commi.kr` 308 영구이동(정규 도메인 통일). 검증(dev): /rss.xml 유효·JSON-LD 2종·og:image 폴백 확인. **남은 것(사용자)**: 네이버 서치어드바이저에 **RSS(`https://commi.kr/rss.xml`) 제출**, 홈 색인 요청. ⚠️ 실검색 노출까지 며칠~몇 주.
 
+### 검색 결과 로고(파비콘) 흰 모서리 제거 (2026-08-09)
+검색 결과에 뜨는 로고의 **네 모서리에 흰 조각**이 보인다는 사용자 지적. 픽셀 실측 결과 `public/icon-512.png` 원본이 **"흰 바탕 위에 놓인 둥근 사각형"** 이었음 — 그림 자체는 캔버스를 거의 꽉 채우지만(내용 bbox 509×509/512), 둥근 모서리 바깥 4곳이 흰색(바깥과 연결된 흰 픽셀 5.9%). 그동안은 로그인 화면에서만 `.lg-logo img{transform:scale(1.08)}`로 밀어내 가려두고 있었고, 검색·홈화면 아이콘에는 그대로 노출되고 있었음.
+- **시도했다가 버린 방법**: 바깥 흰색을 flood-fill로 찾아 가장자리 색을 안쪽으로 36회 번지게 채우기 → 흰 픽셀 0은 됐지만 모서리가 `rgb(244,238,245)`(사실상 흰색)이라 검색 결과에서 똑같아 보여 되돌림.
+- **채택한 방법**: 원본을 **각 변에서 12%씩 잘라내(crop)** 둥근 모서리를 아예 프레임 밖으로 보냄. 잘라낸 비율별 실측 — 8%: 흰색 0이지만 모서리 `rgb(239,237,245)`(여전히 흰끼), **12%: 흰색 0 · 모서리 `rgb(192,195,240)` ✅**, 14%도 유사, 16%부터 흰색이 다시 등장. 12%에서 펜·연필 마크가 잘리지 않는 것도 확인(마크 bounds 12%~72%).
+- **재생성 대상**: `public/icon-512.png`(512) · `icon-192.png`(192) · `apple-icon.png`(180) · `favicon-32.png`(32) · `app/favicon.ico`(16/32/48/96/144/256 멀티사이즈). 축소 리샘플링이 가장자리를 흰색 쪽으로 섞을 수 있어 **출력물마다 바깥연결 흰 픽셀 0을 재검증**했고, 브라우저에서 실제 서빙되는 5개 파일의 네 모서리를 canvas로 찍어 전부 그라데이션 색(`233,155,239` / `189,204,242` / `192,196,242` / `161,230,238`)임을 확인.
+- **같이 제거**: `app/globals.css`의 `.lg-logo img{transform:scale(1.08)}` — 흰 모서리를 가리려던 임시방편이었고 원본이 고쳐졌으니 불필요.
+- **⚠️ 두 번 자르지 않기**: 스크립트가 결과를 `public/icon-512.png`에 덮어쓰므로, 그 파일을 다시 읽어 자르면 12%가 24%로 누적돼 흰색이 되돌아온다(실제로 한 번 겪음). 반드시 `git show HEAD:public/icon-512.png` 같은 원본에서 시작할 것.
+- **⚠️ Next(Turbopack) 제약**: `.ico` 안에 든 PNG가 **RGBA가 아니면** 빌드가 `Format error decoding Ico: The PNG is not in RGBA format!`로 실패한다 → `.ico` 저장 전에만 `convert("RGBA")`.
+- **반영 시점**: 검색엔진 파비콘은 재수집이 있어야 갱신됨 — 네이버 서치어드바이저 → 요청 → 웹 페이지 수집, 구글 서치콘솔 → 색인 생성 요청 필요(수일 소요).
+
 ### 비회원 IP 앞자리 표시(디시식, 자작·도배 감별) (2026-08-04 추가)
 비로그인(익명) 글·댓글에 **IP 앞 2자리(예: `210.106`)** 를 모두에게 표시 → 자작극·도배 어느 정도 감별. 로그인 유저는 미표시.
 - **IP 캡처 검증**: 테스트 RPC `debug_client_ip()`로 `current_setting('request.headers',true)::json->>'cf-connecting-ip'`(및 `x-forwarded-for`)에 **진짜 클라 IP가 잡힘** 확인(Supabase=Cloudflare). 이후 debug 함수 제거.
