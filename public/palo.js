@@ -8398,10 +8398,36 @@ else window.addEventListener("palo-supabase-ready",_bootBackend,{once:true});
 // 네이버 로그인 실패 시 서버가 /?login_error=... 로 돌려보냄 → 사유를 토스트로 안내하고 주소 정리
 function handleLoginError(){
   var params;try{params=new URLSearchParams(location.search);}catch(e){return;}
-  var code=params.get("login_error");if(!code)return;
-  try{history.replaceState({},"","/");}catch(_){}
-  var msg={state:"보안 확인에 실패했어요. 다시 시도해 주세요.",no_email:"네이버 이메일 제공에 동의해야 로그인할 수 있어요.",config:"네이버 로그인이 아직 준비 중이에요. 잠시 후 다시 시도해 주세요.",token:"네이버 인증에 실패했어요. 다시 시도해 주세요.",profile:"네이버 정보를 불러오지 못했어요.",link:"로그인 처리에 실패했어요. 다시 시도해 주세요."}[code]||"네이버 로그인에 실패했어요.";
-  toast(msg);
+  var code=params.get("login_error");
+  if(code){
+    try{history.replaceState({},"","/");}catch(_){}
+    var msg={state:"보안 확인에 실패했어요. 다시 시도해 주세요.",no_email:"네이버 이메일 제공에 동의해야 로그인할 수 있어요.",config:"네이버 로그인이 아직 준비 중이에요. 잠시 후 다시 시도해 주세요.",token:"네이버 인증에 실패했어요. 다시 시도해 주세요.",profile:"네이버 정보를 불러오지 못했어요.",link:"로그인 처리에 실패했어요. 다시 시도해 주세요."}[code]||"네이버 로그인에 실패했어요.";
+    toast(msg);
+    return;
+  }
+  // ⚠️ 구글·X처럼 Supabase를 거치는 로그인이 실패하면 Supabase가
+  //    주소 뒤에 #error=...&error_description=... 을 붙여 돌려보낸다.
+  //    예전엔 이걸 아무도 읽지 않아 **사용자는 아무 안내 없이 첫 화면만 봤다**
+  //    (2026-08-09 실사용자 신고 — "없는 계정으로 뜬다"고 추측만 하게 됨).
+  var h=location.hash||"";
+  if(h.indexOf("error")<0)return;
+  var hp;try{hp=new URLSearchParams(h.replace(/^#/,""));}catch(e){return;}
+  var code2=hp.get("error")||"";                       // 예: access_denied / server_error
+  var desc=hp.get("error_description")||code2;
+  if(!desc)return;
+  try{history.replaceState({},"",location.pathname);}catch(_){}
+  console.error("[로그인 실패 상세]",h); // 원문은 콘솔에 남겨 문의 대응에 쓴다
+  var friendly=
+    /access_denied/i.test(code2)||/cancell?ed|denied/i.test(desc)
+      ?"로그인을 취소했어요."
+    :/Error getting user (profile|email) from external provider/i.test(desc)
+      ?"소셜 계정에서 정보를 받아오지 못했어요. 잠시 후 다시 시도해 주세요."
+    :/Database error saving new user/i.test(desc)
+      ?"가입 처리 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
+    :/Signups not allowed/i.test(desc)
+      ?"지금은 새 가입을 받지 않고 있어요."
+    :"로그인에 실패했어요: "+desc;
+  toast(friendly,"⚠");
 }
 
 // ===== 게시글 이미지 미리보기 (PC 마우스 호버 / 모바일 길게 누르기) =====
