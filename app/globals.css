@@ -2132,9 +2132,12 @@
 .ed-draftbar{display:flex;align-items:center;justify-content:space-between;gap:10px;
   background:var(--brand-soft);border-radius:12px;padding:9px 12px;margin-top:10px;
   font-size:12.5px;font-weight:700;color:var(--ink)}
-.ed-draftbar button{border:none;background:var(--surface);color:#9c3566;font-family:inherit;
+.ed-draftbar-btns{display:flex;gap:6px;flex-shrink:0}
+.ed-draftbar button{border:none;background:var(--surface);color:var(--muted);font-family:inherit;
   font-size:12px;font-weight:800;padding:7px 12px;border-radius:9px;cursor:pointer;flex-shrink:0;
   box-shadow:0 1px 3px rgba(31,22,28,.08)}
+/* 주 동작(불러오기)을 브랜드색으로 채워 '지우기'와 확실히 구분 */
+.ed-draftbar button.load{background:var(--brand);color:#fff}
 
 /* 구글 로그인: 보이는 우리 버튼 위에 진짜 GIS 버튼을 투명하게 겹친다.
    GIS iframe은 크기(약 44px 높이·지정 폭)를 바꿀 수 없으므로,

@@ -4733,7 +4733,7 @@ function openWrite(){
   document.getElementById("edSubmitBtn").textContent="등록";
   document.getElementById("writeModal").classList.add("open");document.body.style.overflow="hidden";
   document.getElementById("edBoardMenu").classList.remove("open");
-  edRestoreDraft(); // 쓰다 만 글이 있으면 이어서
+  edOfferDraft(); // 쓰던 글이 있으면 알리기만 — 채우는 건 [불러오기]를 눌렀을 때
 }
 function openEditPost(id){
   var p=POSTS.find(function(x){return x.id===id});if(!p)return;
@@ -4811,7 +4811,13 @@ function closeWrite(){
       수정하다 만 내용이 새 글 화면에 되살아나면 더 혼란스럽다. */
 var ED_DRAFT_KEY="palo_draft_v1";
 var _edDraftT=null;
-function edSaveDraftSoon(){clearTimeout(_edDraftT);_edDraftT=setTimeout(edSaveDraft,800);}
+function edSaveDraftSoon(){
+  // ⚠️ 새 글을 쓰기 시작하면 저장분이 그것으로 덮어써진다 → 안내 줄을 그대로 두면
+  //    "쓰던 글: 옛 제목"이라 해 놓고 불러오면 방금 쓴 글이 나오는 상태가 된다. 그래서 먼저 내린다.
+  var bar=document.getElementById("edDraftBar");
+  if(bar&&bar.style.display!=="none")bar.style.display="none";
+  clearTimeout(_edDraftT);_edDraftT=setTimeout(edSaveDraft,800);
+}
 function edSaveDraft(){
   clearTimeout(_edDraftT);
   if(editingPostId)return;
@@ -4841,12 +4847,24 @@ function edClearDraft(){
   try{localStorage.removeItem(ED_DRAFT_KEY);}catch(e){}
   var b=document.getElementById("edDraftBar");if(b)b.style.display="none";
 }
-function edDropDraft(){ // '새로 쓰기' — 지우고 빈 화면으로 다시 연다
+function edDropDraft(){ // 저장해 둔 글을 버린다(화면은 이미 비어 있으므로 다시 열 필요 없다)
   edClearDraft();
-  openWrite();
-  toast("새 글로 시작해요");
+  toast("저장해 둔 글을 지웠어요");
 }
-/* openWrite가 초기화를 끝낸 뒤 불린다. 되살릴 게 있으면 채워 넣는다. */
+/* 글쓰기를 열면 **빈 화면이 기본**이다(2026-08-09 사용자 요청).
+   쓰던 글이 있으면 그 사실만 알려 주고, [불러오기]를 눌렀을 때만 채운다 —
+   자동으로 채우면 새 글을 쓰려던 사람이 지난 글을 지우는 일부터 해야 한다. */
+function edOfferDraft(){
+  var bar=document.getElementById("edDraftBar");if(!bar)return;
+  var d=edLoadDraft();
+  if(!d){bar.style.display="none";return;}
+  var min=Math.max(1,Math.round((Date.now()-(d.ts||Date.now()))/60000));
+  var when=min<60?(min+"분 전"):(min<1440?(Math.round(min/60)+"시간 전"):(Math.round(min/1440)+"일 전"));
+  var title=(d.title||"").trim();
+  var peek=title?('"'+(title.length>14?title.slice(0,14)+"…":title)+'"'):"제목 없는 글";
+  document.getElementById("edDraftBarMsg").textContent="쓰던 글이 있어요 · "+peek+" ("+when+")";
+  bar.style.display="flex";
+}
 function edRestoreDraft(){
   var bar=document.getElementById("edDraftBar");
   var d=edLoadDraft();
@@ -4869,12 +4887,8 @@ function edRestoreDraft(){
   });
   renderEdImages();
   document.getElementById("edCrit").checked=(edState.board==="crit");
-  if(bar){
-    var min=Math.max(1,Math.round((Date.now()-(d.ts||Date.now()))/60000));
-    var when=min<60?(min+"분 전"):(Math.round(min/60)+"시간 전");
-    document.getElementById("edDraftBarMsg").textContent="쓰던 글을 불러왔어요 ("+when+")";
-    bar.style.display="flex";
-  }
+  if(bar)bar.style.display="none"; // 불러왔으면 안내 줄은 할 일이 끝났다
+  toast("쓰던 글을 불러왔어요","📄");
 }
 // 입력할 때마다(0.8초 잠잠해지면) 저장
 (function(){

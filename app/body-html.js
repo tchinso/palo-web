@@ -142,8 +142,11 @@ export const BODY_HTML = `
 
       <!-- 쓰다 만 글을 되살렸을 때만 보이는 안내 줄 -->
       <div class="ed-draftbar" id="edDraftBar" style="display:none">
-        <span id="edDraftBarMsg">쓰던 글을 불러왔어요</span>
-        <button type="button" onclick="edDropDraft()">새로 쓰기</button>
+        <span id="edDraftBarMsg">쓰던 글이 있어요</span>
+        <span class="ed-draftbar-btns">
+          <button type="button" class="load" onclick="edRestoreDraft()">불러오기</button>
+          <button type="button" onclick="edDropDraft()">지우기</button>
+        </span>
       </div>
 
       <!-- 제목 -->
