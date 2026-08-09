@@ -2311,3 +2311,25 @@ body.ed-page #toTop{display:none!important}
 .editor .ed-foot-cancel{flex:0 0 32%;background:var(--surface-2);color:var(--ink-2)}
 .editor .ed-foot-submit{background:var(--brand);color:#fff}
 .editor .ed-submit{display:none}
+
+/* ===== 알림 권유 배너 (홈 목록 맨 위) =====
+   ⚠️ 공지 줄과 비슷하되 '권유'라는 게 드러나게 브랜드 톤. 다만 광고처럼 보이면 안 되므로
+      높이는 공지와 비슷하게 유지하고 닫기(✕)를 항상 함께 둔다. */
+.notif-banner{display:flex;align-items:center;gap:11px;margin:10px 0 0;padding:12px 13px;
+  background:var(--brand-soft);border:1px solid rgba(224,122,166,.28);border-radius:14px}
+.notif-banner .nb-ic{font-size:20px;line-height:1;flex-shrink:0}
+.notif-banner .nb-tx{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.notif-banner .nb-tx b{font-size:13.5px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
+.notif-banner .nb-tx span{font-size:12px;color:var(--muted);line-height:1.45}
+.notif-banner .nb-go{flex-shrink:0;border:none;background:var(--brand);color:#fff;font-family:inherit;
+  font-size:12.5px;font-weight:800;padding:9px 14px;border-radius:10px;cursor:pointer;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.notif-banner .nb-go:active{transform:scale(.95)}
+.notif-banner .nb-x{flex-shrink:0;border:none;background:none;color:var(--muted-2);font-size:13px;
+  width:28px;height:28px;border-radius:8px;cursor:pointer;touch-action:manipulation}
+.notif-banner .nb-x:hover{background:rgba(255,255,255,.6);color:var(--ink-2)}
+@media(max-width:400px){
+  /* 좁은 화면에서는 설명 줄을 접어 한 줄 높이를 지킨다 */
+  .notif-banner{gap:9px;padding:11px}
+  .notif-banner .nb-tx span{display:none}
+}

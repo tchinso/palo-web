@@ -1418,6 +1418,7 @@ function renderList(){
   var sub=state.query?('"'+esc(state.query)+'" 검색 결과 '+arr.length+'건'):(state.sort==="new"?"방금 올라온 이야기부터":"반응 많은 순으로");
   var h=boardHeaderHTML(sub); // 게시판 탭 + 말머리·정렬·보기 줄
   if(state.board==="all"&&!state.query){
+    h+=notifBannerHTML(); // 알림을 아직 안 켠 사람에게만(홈 전체 글에서만 — 게시판마다 따라다니면 잔소리가 된다)
     if(LATEST_NOTICE)h+='<div class="notice" onclick="showNotice()"><span class="pin">공지</span><span class="nt">📢 '+esc(LATEST_NOTICE.title)+'</span></div>';
     h+='<div class="notice" onclick="openRules()"><span class="pin">공지</span><span class="nt">📌 이용 규칙 & 피드백 매너 (처음 오셨다면 꼭!)</span></div>';
   }
@@ -6608,6 +6609,69 @@ function pushSupported(){return ("Notification" in window)&&("serviceWorker" in 
 function isIOSDevice(){return /iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;}
 function isStandalonePWA(){return window.matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;}
 function notifPermState(){return (typeof Notification!=="undefined")?Notification.permission:"unsupported";}
+
+/* ===== 알림 권유 배너 (홈 목록 맨 위) ==================================
+   ⚠️ **아직 안 물어본 사람("default")에게만** 띄운다.
+      · granted  = 이미 켬 → 띄울 이유가 없다
+      · denied   = 거절함 → **다시 물어볼 수 없다.** 브라우저 설정에서만 되돌릴 수 있어
+                   배너를 띄워 봐야 눌러도 아무 일이 없고 짜증만 남는다
+   ⚠️ iOS 사파리는 **홈 화면에 추가해야만** 알림이 된다 → 그 경우엔 '알림 켜기'가 아니라
+      '홈 화면에 추가' 안내로 갈라야 한다(눌러도 안 되는 버튼을 보여주지 않는다).
+   ⚠️ 닫으면 7일간 다시 뜨지 않는다 — 권유는 한 번 거절당하면 반복할수록 손해다. */
+var NOTIF_BANNER_KEY="palo_notif_banner_until";
+function notifBannerHidden(){
+  try{
+    var until=parseInt(localStorage.getItem(NOTIF_BANNER_KEY)||"0",10);
+    return until>Date.now();
+  }catch(e){return false;}
+}
+function dismissNotifBanner(e){
+  if(e&&e.stopPropagation)e.stopPropagation();
+  try{localStorage.setItem(NOTIF_BANNER_KEY,String(Date.now()+7*24*3600*1000));}catch(err){}
+  var el=document.getElementById("notifBanner");
+  if(el)el.remove();
+}
+/* 배너를 보여줄 상황인지. 보여줄 만하면 그 '종류'를 돌려준다(ask | ios). */
+function notifBannerKind(){
+  if(!AUTH.user)return null;                       // 로그인해야 구독을 저장할 수 있다
+  if(notifBannerHidden())return null;
+  if(isIOSDevice()&&!isStandalonePWA())return "ios";  // 홈 화면 추가부터 안내
+  if(!pushSupported())return null;                 // 지원 안 하는 브라우저엔 권유할 게 없다
+  return (notifPermState()==="default")?"ask":null;
+}
+function notifBannerHTML(){
+  var kind=notifBannerKind();
+  if(!kind)return "";
+  if(kind==="ios"){
+    return '<div class="notif-banner" id="notifBanner">'+
+      '<span class="nb-ic">📲</span>'+
+      '<span class="nb-tx"><b>알림을 받으려면 홈 화면에 추가해 주세요</b>'+
+      '<span>아이폰은 홈 화면에 추가한 뒤에야 알림을 보낼 수 있어요.</span></span>'+
+      '<button type="button" class="nb-go" onclick="openNotifSettings(event)">방법 보기</button>'+
+      '<button type="button" class="nb-x" onclick="dismissNotifBanner(event)" aria-label="닫기">✕</button></div>';
+  }
+  return '<div class="notif-banner" id="notifBanner">'+
+    '<span class="nb-ic">🔔</span>'+
+    '<span class="nb-tx"><b>댓글이 달리면 알려드릴까요?</b>'+
+    '<span>내 글의 댓글·좋아요, 커미션 문의를 놓치지 않아요.</span></span>'+
+    '<button type="button" class="nb-go" onclick="notifBannerEnable(event)">켜기</button>'+
+    '<button type="button" class="nb-x" onclick="dismissNotifBanner(event)" aria-label="닫기">✕</button></div>';
+}
+async function notifBannerEnable(e){
+  if(e&&e.stopPropagation)e.stopPropagation();
+  await enablePushNotifications();
+  // 켰든 거절했든 이 배너는 할 일이 끝났다(거절이면 다시 물어볼 수 없다)
+  var el=document.getElementById("notifBanner");if(el)el.remove();
+  if(notifPermState()!=="granted")dismissNotifBanner();
+}
+function openNotifSettings(e){
+  if(e&&e.stopPropagation)e.stopPropagation();
+  openProfile();
+  setTimeout(function(){
+    var s=document.getElementById("notifSettingsSec");
+    if(s)s.scrollIntoView({behavior:"smooth",block:"center"});
+  },260);
+}
 async function enablePushNotifications(){
   if(!pushSupported()){toast("이 브라우저는 알림을 지원하지 않아요");return;}
   if(isIOSDevice()&&!isStandalonePWA()){toast("먼저 홈 화면에 추가한 뒤 그 아이콘으로 열어주세요","📲");return;}
