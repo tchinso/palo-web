@@ -2221,52 +2221,66 @@
   font-size:13px;font-weight:700;color:var(--ink);text-decoration:none;max-width:100%}
 
 /* ===================================================================
-   글쓰기 v2 — 디시식 "고정 없는" 레이아웃을 commi 분위기로
-   · 도구를 본문 바로 위에 두고 페이지와 함께 굴린다(fixed·sticky 없음)
-   · 본문은 내용만큼 늘어난다(안쪽 스크롤 없음)
-   · 등록은 폼 맨 아래에서 — 디시처럼 "다 쓰고 아래에서 제출"
-   · 대신 각 구역을 옅은 카드로 묶어 commi의 둥근·파스텔 결을 유지
+   글쓰기 v2 — 디시식 "고정 없는" 레이아웃
+   🚨 v2의 핵심은 도구 위치가 아니라 **구조**다.
+      v1은 `position:fixed` 오버레이 + 내부 스크롤 컨테이너 + `body{overflow:hidden}` 이다.
+      iOS에서 이 조합은 자판이 올라올 때 브라우저의 '커서를 보이게 스크롤' 동작이
+      내부 컨테이너와 싸워 **커서가 자판 뒤로 들어가고 화면이 튄다.**
+      DC에는 이 문제가 없는데, 애초에 오버레이가 아니라 **평범한 문서 페이지**이기 때문이다.
+      그래서 v2에서는 오버레이를 걷어내고 **문서 자체가 글쓰기 페이지**가 되게 한다:
+        · .editor를 흐름 안의 블록으로(고정 해제)
+        · 내부 스크롤 제거 → **문서가 스크롤**
+        · body 잠금 해제
+        · 뒤에 깔린 목록·헤더·푸터·탭바는 감춰 문서 높이를 글쓰기 높이와 일치시킨다
    =================================================================== */
 /* 상단 전환 버튼(둘을 비교하는 동안만 존재) */
 .ed-layout-switch{border:1.5px solid var(--line-2);background:var(--surface);color:var(--muted);
   font-family:inherit;font-size:11px;font-weight:800;padding:5px 9px;border-radius:9px;cursor:pointer;margin-left:8px}
 .ed-layout-switch:hover{border-color:var(--brand);color:#9c3566}
 
-/* 기본(v1)에서는 폼 끝 등록 영역을 숨긴다 — 상단 등록 버튼이 이미 있다 */
+/* ── 구조 전환: 문서가 곧 글쓰기 페이지 ── */
+body.ed-page{overflow:visible!important}                 /* 페이지 잠금 해제 — 문서가 굴러야 한다 */
+body.ed-page > div > header,
+body.ed-page > div > .wrap,
+body.ed-page > div > footer,
+body.ed-page .tabbar,
+body.ed-page #toTop{display:none!important}              /* 뒤 페이지를 치워 문서 높이를 글쓰기와 일치 */
+/* ⚠️ 닫혀 있을 때는 **완전히 없애야** 한다. v2는 문서 흐름 안에 있어서
+   `visibility:hidden`만으로는 자리(수백 px)가 그대로 남아 목록 아래에 빈 공간이 생긴다(실측 865px). */
+.editor.v2:not(.open){display:none}
+.editor.v2.open{position:static;inset:auto;height:auto;min-height:100vh;display:block;
+  opacity:1;visibility:visible;transform:none;transition:none}
+.editor.v2 .ed-scroll{flex:none;overflow:visible;display:block}   /* 내부 스크롤 제거 */
+.editor.v2 .ed-top{position:static}                               /* 상단바도 함께 굴러간다 */
+
+/* 폼 끝 제출(디시처럼 다 쓰고 아래에서) */
 .ed-foot{display:none}
-.editor.v2 .ed-foot{display:flex;gap:9px;margin:18px 0 8px}
+.editor.v2 .ed-foot{display:flex;gap:9px;margin:18px 0 28px}
 .editor.v2 .ed-foot button{flex:1;min-height:52px;border:none;border-radius:15px;
   font-family:inherit;font-size:15px;font-weight:800;cursor:pointer}
 .editor.v2 .ed-foot-cancel{flex:0 0 34%;background:var(--surface-2);color:var(--ink)}
 .editor.v2 .ed-foot-submit{background:linear-gradient(120deg,var(--brand),var(--grape));color:#fff;
   box-shadow:0 4px 14px rgba(224,122,166,.3)}
-/* v2에서는 상단 등록 버튼을 감춰 제출 자리를 하나로 (디시처럼 폼 끝에서) */
 .editor.v2 .ed-submit{display:none}
 
-/* 도구 묶음: 본문 위에 붙은 '툴바 상자'가 된다 */
+/* 도구 묶음: 본문 위에 붙은 툴바 상자 — 아무것도 고정하지 않는다 */
 .editor.v2 .ed-dock{position:static;transform:none!important;height:auto;
-  background:var(--surface-2);border:1.5px solid var(--line-2);border-top:1.5px solid var(--line-2);
+  background:var(--surface-2);border:1.5px solid var(--line-2);
   border-radius:14px 14px 0 0;border-bottom:none;box-shadow:none;
   padding-bottom:0;margin-top:14px}
-/* 서식 줄이 위, 삽입 줄이 아래 — 본문에 가까운 쪽이 자주 쓰는 삽입 도구 */
 .editor.v2 .ed-fmt{background:transparent;border-bottom:1px solid var(--line-2)}
 .editor.v2 .ed-dock-row{padding:5px 6px}
-/* v2는 라벨을 아이콘 옆에 눕혀 한 줄을 절약(가로 공간은 넉넉하다) */
 .editor.v2 .ed-dock-row button{flex-direction:row;gap:5px;padding:8px 4px}
 .editor.v2 .ed-dock-lbl{font-size:11.5px}
-/* T 버튼은 v2에서 필요 없다(서식 줄이 늘 펼쳐져 있다) */
-.editor.v2 #edFmtBtn{display:none}
-.editor.v2 .ed-fmt-close{display:none}
+.editor.v2 #edFmtBtn,.editor.v2 .ed-fmt-close{display:none}   /* 서식 줄이 늘 펼쳐져 있어 필요 없다 */
 
 /* 본문: 툴바 상자와 이어 붙인 한 덩어리, 내용만큼 늘어남 */
 .editor.v2 .ed-content{min-height:340px;border:1.5px solid var(--line-2);border-top:none;
   border-radius:0 0 14px 14px;background:var(--surface);padding:16px 14px;margin-top:0}
 .editor.v2 .ed-content:focus{border-color:var(--brand)}
-/* 제목도 상자로 — 디시의 '칸이 뚜렷한' 느낌 */
 .editor.v2 .ed-title-input{border:1.5px solid var(--line-2);border-radius:14px;background:var(--surface);
   padding:14px 14px;font-size:19px}
 .editor.v2 .ed-title-input:focus{border-color:var(--brand)}
-/* 첨부·옵션도 같은 카드 결로 */
 .editor.v2 #edImages:not(:empty){border:1.5px solid var(--line-2);border-radius:14px;
   background:var(--surface);padding:12px;margin-top:12px}
 .editor.v2 .ed-options{border:1.5px solid var(--line-2);border-radius:14px;background:var(--surface);

@@ -4800,7 +4800,12 @@ function openReviewFor(postId){
 }
 function closeWrite(){
   var _m=document.getElementById("writeModal");
-  if(_m){_m.style.height="";_m.style.top="";_m.style.bottom="";_m._vT=_m._vH=null;} // 다음에 열 때를 위해 인라인 크기 정리
+  if(_m){_m.style.height="";_m.style.top="";_m.style.bottom="";_m._vT=_m._vH=null;}
+  if(document.body.classList.contains("ed-page")){
+    document.body.classList.remove("ed-page"); // v2에서 감췄던 목록·탭바를 되살린다
+    var _back=document.body._edBackY||0;
+    try{window.scrollTo({top:_back,behavior:"auto"});}catch(e){window.scrollTo(0,_back);}
+  } // 다음에 열 때를 위해 인라인 크기 정리
   edSaveDraft(); // ⚠️ 나가기 전에 마지막 모습을 저장 — 실수로 닫아도 글이 사라지지 않는다
   editingPostId=null;
   document.getElementById("writeModal").classList.remove("open");
@@ -5287,6 +5292,24 @@ function edApplyLayout(){
     m.appendChild(dock);
   }
   if(v2)edToggleFmt(true);   // 공간이 넉넉하니 서식 줄을 늘 펼쳐 둔다(T를 누르는 수고 제거)
+  // 🚨 v2의 핵심: 오버레이를 걷어내고 **문서 자체가 글쓰기 페이지**가 되게 한다.
+  //    body 잠금을 풀어야 문서가 굴러가고, 그래야 iOS가 커서를 자판 위로 스스로 올려 준다
+  //    (내부 스크롤 컨테이너를 쓰면 브라우저의 그 동작과 싸워 화면이 튄다).
+  var opened=m.classList.contains("open");
+  var wasPage=document.body.classList.contains("ed-page");
+  document.body.classList.toggle("ed-page",v2&&opened);
+  document.body.style.overflow=(v2&&opened)?"":"hidden";
+  if(!opened)document.body.style.overflow="";
+  // ⚠️ v2는 문서가 스크롤되므로, 목록에서 한참 내려온 상태로 글쓰기를 열면
+  //    글쓰기 화면도 그 위치에서 시작해 제목이 화면 밖에 있다 → 열 때 맨 위로.
+  //    닫을 때는 보던 목록 위치로 되돌린다(DC에서 글쓰기를 취소하면 목록으로 돌아오는 것과 같게).
+  if(v2&&opened&&!wasPage){
+    document.body._edBackY=window.scrollY||0;
+    try{window.scrollTo({top:0,behavior:"auto"});}catch(e){window.scrollTo(0,0);}
+  }else if(wasPage&&!(v2&&opened)){
+    var back=document.body._edBackY||0;
+    try{window.scrollTo({top:back,behavior:"auto"});}catch(e){window.scrollTo(0,back);}
+  }
   var btn=document.getElementById("edLayoutSwitch");
   if(btn)btn.textContent=v2?"v2":"v1";
   edDockFollow();
