@@ -2145,3 +2145,18 @@
 .lg-gwrap .lg-gis{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   opacity:.001;overflow:hidden;border-radius:16px}
 .lg-gwrap .lg-gis>div{transform:scale(1.8);transform-origin:center}
+
+/* ===== 칭호 ===== */
+/* 닉네임 옆 작은 칩 — 등급 배지와 나란히 서되 색으로 구분(등급=회색 계열, 칭호=브랜드 계열) */
+.title-chip{display:inline-flex;align-items:center;gap:3px;margin-left:5px;padding:2px 8px;border-radius:999px;
+  background:rgba(224,122,166,.14);color:#9c3566;font-size:11px;font-weight:800;white-space:nowrap;vertical-align:middle}
+/* 칭호 선택 모달 */
+.title-list{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow-y:auto}
+.title-opt{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;
+  border:1.5px solid var(--line-2);background:var(--surface);border-radius:14px;padding:12px 14px;
+  font-family:inherit;cursor:pointer;transition:.12s}
+.title-opt:hover{border-color:var(--brand)}
+.title-opt.on{border-color:var(--brand);background:var(--brand-soft)}
+.title-opt-n{font-size:14px;font-weight:800;color:var(--ink)}
+.title-opt-n i{font-style:normal;font-size:11px;color:#9c3566;margin-left:4px}
+.title-opt-d{font-size:12px;color:var(--muted);line-height:1.5}

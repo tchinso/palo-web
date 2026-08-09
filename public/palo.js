@@ -220,7 +220,7 @@ function pfHeroHTML(p,isSelf,reviewStats,bookmarkCount){
   var coverStyle=p.cover_url?('background-image:url(\''+cmQ(p.cover_url)+'\');background-size:cover;background-position:center'):'';
   var editCoverBtn=isSelf?'<button type="button" class="pfh-cover-edit" onclick="document.getElementById(\'coverFile\').click()" title="커버 이미지 변경" aria-label="커버 이미지 변경">🖼</button>':'';
   var editAvaBtn=isSelf?'<button type="button" class="pfh-ava-edit" onclick="document.getElementById(\'avatarFile\').click()" title="프로필 이미지 변경" aria-label="프로필 이미지 변경">📷</button>':'';
-  var grade=p.level?levelBadgeHtml(p.level,'pfh-grade-badge'):'';
+  var grade=(p.level?levelBadgeHtml(p.level,'pfh-grade-badge'):'')+titleBadgeById(p.title_id,'pfh-grade-badge');
   var bio=p.bio?esc(p.bio).replace(/\n/g,'<br>'):(isSelf?'소개글을 적어보세요.':'');
   var links='';
   if(p.sns_twitter)links+='<a class="pfh-link" href="'+esc(pfSnsUrl('twitter',p.sns_twitter))+'" target="_blank" rel="noopener" title="트위터(X)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg></a>';
@@ -359,9 +359,16 @@ async function loadRealPosts(skipRender){
     preOr("camps",function(){return sb.rpc("get_servable_ads");}),
     preOr("adLocks",function(){return sb.from("user_ads").select("linked_post_id,linked_commission_id,status,expires_at").in("status",["pending","active"]);}),
     preOr("posts",function(){return sb.from("posts").select("*").order("created_at",{ascending:false});}),
-    preOr("profiles",function(){return sb.from("profiles").select("id,nickname,level,avatar_url");})
+    preOr("profiles",function(){return sb.from("profiles").select("id,nickname,level,avatar_url");}),
+    preOr("titles",function(){return sb.from("titles").select("id,name,emoji");}),
+    // ⚠️ 칭호 장착 정보(title_id)는 기존 프로필 조회에 합치지 않고 따로 부른다 —
+    //    titles.sql 실행 전에는 칼럼이 없어서, 합쳐 두면 프로필 조회 전체가 실패해
+    //    모든 닉네임이 '익명'으로 무너진다. 분리하면 칭호만 조용히 안 보이고 만다.
+    preOr("profileTitles",function(){return sb.from("profiles").select("id,title_id").not("title_id","is",null);})
   ]);
-  var noticeRes=wave1[0],lvRes=wave1[1],adRes=wave1[2],campRes=wave1[3],adLockRes=wave1[4],res=wave1[5],profRes=wave1[6];
+  var noticeRes=wave1[0],lvRes=wave1[1],adRes=wave1[2],campRes=wave1[3],adLockRes=wave1[4],res=wave1[5],profRes=wave1[6],titleRes=wave1[7],ptRes=wave1[8];
+  // 칭호 사전은 몇 줄 안 되므로 통째로 캐시 — 표시할 때마다 조회하지 않는다.
+  if(titleRes&&!titleRes.error)(titleRes.data||[]).forEach(function(t){TITLES_BY_ID[t.id]={name:t.name,emoji:t.emoji};});
   if(!noticeRes.error&&noticeRes.data.length)LATEST_NOTICE=noticeRes.data[0];
   if(!lvRes.error)LEVEL_THRESHOLDS=lvRes.data||[];
   if(!adRes.error)ACTIVE_ADS=adRes.data||[];
@@ -378,9 +385,11 @@ async function loadRealPosts(skipRender){
   var dbIds=res.data.map(function(row){return row.id});
   var profById={};
   if(!profRes.error)profRes.data.forEach(function(row){profById[row.id]={nickname:row.nickname,level:row.level,avatarUrl:row.avatar_url};});
+  if(ptRes&&!ptRes.error)(ptRes.data||[]).forEach(function(row){if(profById[row.id])profById[row.id].titleId=row.title_id;});
   function nameFor(uid){return uid&&profById[uid]?profById[uid].nickname:"익명";}
   function levelFor(uid){return uid&&profById[uid]?profById[uid].level:null;}
   function avatarFor(uid){return uid&&profById[uid]?profById[uid].avatarUrl:null;}
+  function titleIdFor(uid){return uid&&profById[uid]?(profById[uid].titleId||null):null;}
 
   // ── 2차: posts에 의존하는 댓글·좋아요·이미지를 병렬로 ──
   var wave2=await Promise.all([
@@ -406,7 +415,7 @@ async function loadRealPosts(skipRender){
   if(_emoIds.length)await ensureEmoticons(_emoIds);
   var commentsByPost={};
   (cmRes.data||[]).forEach(function(c){
-    (commentsByPost[c.post_id]=commentsByPost[c.post_id]||[]).push({n:nameFor(c.author_id),t:timeAgo(c.created_at),txt:c.content,dbId:c.id,authorId:c.author_id,ip:c.ip_masked||null,lv:levelFor(c.author_id),av:avatarFor(c.author_id),h:helpfulCountByComment[c.id]||0,_me:!!helpfulMine[c.id]});
+    (commentsByPost[c.post_id]=commentsByPost[c.post_id]||[]).push({n:nameFor(c.author_id),t:timeAgo(c.created_at),txt:c.content,dbId:c.id,authorId:c.author_id,ip:c.ip_masked||null,lv:levelFor(c.author_id),tt:titleIdFor(c.author_id),av:avatarFor(c.author_id),h:helpfulCountByComment[c.id]||0,_me:!!helpfulMine[c.id]});
   });
   var likesByPost={},likeTimesByPost={};
   (likeRes.data||[]).forEach(function(l){
@@ -426,7 +435,7 @@ async function loadRealPosts(skipRender){
     var bestAt=null;
     var lt=likeTimesByPost[row.id];
     if(lt&&lt.length>=BEST_LIKES){lt=lt.slice().sort();bestAt=lt[BEST_LIKES-1];}
-    return {id:100000+row.id,dbId:row.id,authorId:row.author_id,ipMasked:row.ip_masked||null,board:row.board,title:row.title,category:row.category,author:nameFor(row.author_id),authorLevel:levelFor(row.author_id),authorAvatar:avatarFor(row.author_id),
+    return {id:100000+row.id,dbId:row.id,authorId:row.author_id,ipMasked:row.ip_masked||null,board:row.board,title:row.title,category:row.category,author:nameFor(row.author_id),authorLevel:levelFor(row.author_id),authorTitleId:titleIdFor(row.author_id),authorAvatar:avatarFor(row.author_id),
       time:timeAgo(row.created_at),createdAt:row.created_at,likes:likers.length,_liked:likers.indexOf(myLikeId())>-1,bestAt:bestAt,
       views:row.views,thumb:"none",stage:row.stage,images:imagesByPost[row.id],polls:pollsByPost[row.id]||[],pollId:(pollsByPost[row.id]&&pollsByPost[row.id][0]?pollsByPost[row.id][0].id:null),
       isManagerPick:!!row.is_manager_pick,pickPosition:row.pick_position,pickedAt:row.picked_at,adLocked:!!adLockedIds[row.id],
@@ -1496,7 +1505,7 @@ function renderPostDetail(id){
   var liked=p._liked?" liked":"";
   var h='<div class="detail"><div class="d-grip"></div><button class="d-back" onclick="renderList()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>목록으로</button>'+
     '<div class="d-head"><div class="line1"><span class="cat '+c.cls+'">'+c.label+'</span>'+(p.isManagerPick?'<span class="pick-badge">📌 매니저 픽</span>':'')+(p.reviewedNickname?'<span class="pick-badge">🎨 @'+esc(p.reviewedNickname)+' 후기</span>':'')+'</div><h1 class="serif">'+esc(p.title)+'</h1>'+
-    '<div class="d-author"><div class="d-ava serif">'+avatarHTML(p.author,p.authorAvatar)+'</div><div class="d-au-info"><div class="n"'+(p.authorId?' style="cursor:pointer" onclick="openUserProfile(\''+p.authorId+'\')"':'')+'>'+esc(dispName(p.author))+anonIpHTML(p.ipMasked)+levelBadgeHtml(p.authorLevel,"lv-badge")+'</div><div class="meta">'+p.time+' · 조회 '+fmtViews(p.views)+'</div></div>'+
+    '<div class="d-author"><div class="d-ava serif">'+avatarHTML(p.author,p.authorAvatar)+'</div><div class="d-au-info"><div class="n"'+(p.authorId?' style="cursor:pointer" onclick="openUserProfile(\''+p.authorId+'\')"':'')+'>'+esc(dispName(p.author))+anonIpHTML(p.ipMasked)+levelBadgeHtml(p.authorLevel,"lv-badge")+titleBadgeById(p.authorTitleId)+'</div><div class="meta">'+p.time+' · 조회 '+fmtViews(p.views)+'</div></div>'+
     ((p.authorId&&(!AUTH.user||p.authorId!==AUTH.user.id))?('<button class="d-follow'+(FOLLOW.has(p.authorId)?' following':'')+'" id="followBtn" onclick="toggleFollow(\''+esc(p.authorId)+'\',\''+esc(p.author)+'\')">'+(FOLLOW.has(p.authorId)?'팔로잉 ✓':'＋ 팔로우')+'</button>'):'')+'</div></div>'+
     canvas+'<div class="d-content">'+(safeHtml?safeHtml:p.content.map(function(x){return'<p>'+esc(x)+'</p>'}).join(""))+'</div>'+
     (p.polls&&p.polls.length?p.polls.filter(function(pl){return !pl.anchor;}).map(function(pl){return '<div class="poll" id="pollBox-'+pl.id+'"></div>';}).join(''):'')+
@@ -1520,7 +1529,7 @@ function renderPostDetail(id){
     '<div class="cm-write"><div class="d-ava serif" id="cmAva">'+avatarHTML("나",AUTH.profile&&AUTH.profile.avatar_url)+'</div><div class="box"><textarea id="cmInput" placeholder="따뜻한 피드백을 남겨주세요. 사람보다 그림을 이야기해요."></textarea>'+
     '<div class="emo-strip">'+emoStripHTML()+'</div>'+
     '<div class="row"><span class="hint">인신공격·조롱은 삭제될 수 있어요</span><button class="send" onclick="addComment('+p.id+')">등록</button></div></div></div>'+
-    '<div class="ad d-ad" role="complementary" aria-label="광고"><span class="ad-label">AD</span><div class="ad-ph"><svg viewBox=\\"0 0 24 24\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"1.6\\" style=\\"width:22px;height:22px\\"><rect x=\\"3\\" y=\\"4\\" width=\\"18\\" height=\\"16\\" rx=\\"2\\"/><circle cx=\\"8.5\\" cy=\\"9.5\\" r=\\"1.6\\"/><path d=\\"m4 18 5-5 4 3 3-2 4 4\\"/></svg></div><div class="ad-body"><div class="ad-t">열심히 활동해서 포인트를 모아보세요!</div><div class="ad-d">포인트를 사용하여 이 자리에 광고를 집행할 수 있어요!</div></div></div>'+'<div class="cm-list" id="cmList">'+renderComments(p)+'</div></div></div>';
+    '<div class="ad d-ad" role="complementary" aria-label="광고"><span class="ad-label">AD</span><div class="ad-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:22px;height:22px"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="m4 18 5-5 4 3 3-2 4 4"/></svg></div><div class="ad-body"><div class="ad-t">열심히 활동해서 포인트를 모아보세요!</div><div class="ad-d">포인트를 사용하여 이 자리에 광고를 집행할 수 있어요!</div></div></div>'+'<div class="cm-list" id="cmList">'+renderComments(p)+'</div></div></div>';
   main.innerHTML=h;
   renderDetailAd();
   if(p.polls&&p.polls.length){
@@ -2561,7 +2570,7 @@ function renderComments(p){
       : '';
     var badge=isAccepted?'<div class="cm-accepted-badge">✅ 채택된 피드백</div>':'';
     var isReply=/^\s*@\S/.test(c.txt||''); // "@닉네임"으로 시작하면 답글
-    return '<div class="cm'+(isAccepted?' accepted':'')+(isReply?' reply':'')+'"><div class="d-ava serif">'+avatarHTML(c.n,c.av)+'</div><div class="cbody">'+badge+'<div class="ch"><span class="cn"'+(c.authorId?' style="cursor:pointer" onclick="openUserProfile(\''+c.authorId+'\')"':'')+'>'+esc(c.n)+anonIpHTML(c.ip)+'</span>'+levelBadgeHtml(c.lv,"lv-badge")+'<span class="ct">'+esc(c.t)+'</span></div><div class="ctext">'+withEmoticons(esc(c.txt).replace(/^@(\S+)/,'<b class="mention">@$1</b>'))+'</div><div class="cfoot"><span onclick="helpful('+p.id+','+ci+',this)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v9H4v-9zM7 11l4-8a2 2 0 0 1 3 2l-1 6h5a2 2 0 0 1 2 2l-1 6a2 2 0 0 1-2 1H7"/></svg>도움돼요'+(c.h?' <b>'+c.h+'</b>':'')+'</span><span onclick="replyTo(\''+esc(c.n)+'\')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>답글</span>'+(canDelete?'<span onclick="deleteComment('+p.id+','+ci+')">삭제</span>':'')+(canAdminDelete?'<span class="c-admindel" onclick="adminDeleteComment('+p.id+','+ci+')">🗑 관리자 삭제</span>':'')+acceptBtn+'</div></div></div>';
+    return '<div class="cm'+(isAccepted?' accepted':'')+(isReply?' reply':'')+'"><div class="d-ava serif">'+avatarHTML(c.n,c.av)+'</div><div class="cbody">'+badge+'<div class="ch"><span class="cn"'+(c.authorId?' style="cursor:pointer" onclick="openUserProfile(\''+c.authorId+'\')"':'')+'>'+esc(c.n)+anonIpHTML(c.ip)+'</span>'+levelBadgeHtml(c.lv,"lv-badge")+titleBadgeById(c.tt)+'<span class="ct">'+esc(c.t)+'</span></div><div class="ctext">'+withEmoticons(esc(c.txt).replace(/^@(\S+)/,'<b class="mention">@$1</b>'))+'</div><div class="cfoot"><span onclick="helpful('+p.id+','+ci+',this)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v9H4v-9zM7 11l4-8a2 2 0 0 1 3 2l-1 6h5a2 2 0 0 1 2 2l-1 6a2 2 0 0 1-2 1H7"/></svg>도움돼요'+(c.h?' <b>'+c.h+'</b>':'')+'</span><span onclick="replyTo(\''+esc(c.n)+'\')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>답글</span>'+(canDelete?'<span onclick="deleteComment('+p.id+','+ci+')">삭제</span>':'')+(canAdminDelete?'<span class="c-admindel" onclick="adminDeleteComment('+p.id+','+ci+')">🗑 관리자 삭제</span>':'')+acceptBtn+'</div></div></div>';
   }).join("");
 }
 async function acceptFeedback(postId,commentDbId,isCancel){
@@ -7013,9 +7022,57 @@ async function sendChatMessage(){
 
 /* ---------- 등급 시스템 (점수·등급은 서버 트리거가 계산 — profiles.score/level 그대로 신뢰) ---------- */
 var LEVEL_THRESHOLDS=[]; // {level,min_score,name}[], loadRealPosts()에서 DB로부터 채워짐 — 기준을 바꾸려면 level_thresholds 테이블만 수정하면 됨
+var TITLES_BY_ID={}; // {id:{name,emoji}} — titles 표 통째 캐시(몇 줄 안 됨). titles.sql 실행 전엔 빈 채로 남아 칭호만 안 보인다
+function titleBadgeById(tid,extraClass){
+  var t=tid&&TITLES_BY_ID[tid];
+  if(!t)return "";
+  return '<span class="title-chip'+(extraClass?" "+extraClass:"")+'">'+esc(t.emoji||"")+' '+esc(t.name)+'</span>';
+}
 function levelName(lv){
   var t=LEVEL_THRESHOLDS.find(function(x){return x.level===lv});
   return t?t.name:"새싹";
+}
+/* ===== 칭호 선택 =====
+   보유한 칭호 목록을 보여주고 하나를 골라 장착한다(또는 표시 안 함).
+   ⚠️ 서버 트리거가 '보유하지 않은 칭호'를 조용히 되돌리므로 여기서의 검증은 편의일 뿐이다. */
+function closeTitlePicker(){var m=document.getElementById("titlePickModal");if(m)m.remove();}
+async function openTitlePicker(){
+  if(!AUTH.user)return;
+  var res=await window.supabase.from("user_titles")
+    .select("title_id,earned_at,titles(name,emoji,description)")
+    .eq("user_id",AUTH.user.id).order("earned_at");
+  if(res.error){toast("칭호를 불러오지 못했어요: "+res.error.message);return;}
+  var mine=res.data||[];
+  var cur=AUTH.profile?AUTH.profile.title_id:null;
+  var h='<div class="rules-scrim open" id="titlePickModal" onclick="if(event.target===this)closeTitlePicker()"><div class="rules">'+
+    '<h3>🏷 칭호</h3>';
+  if(!mine.length){
+    h+='<p style="color:var(--ink-2);line-height:1.6;margin-bottom:16px">아직 받은 칭호가 없어요. 활동하면서 하나씩 모아 보세요!</p>';
+  }else{
+    h+='<div class="title-list">';
+    h+='<button type="button" class="title-opt'+(cur==null?' on':'')+'" onclick="equipTitle(null)">'+
+       '<span class="title-opt-n">표시 안 함</span><span class="title-opt-d">닉네임 옆에 칭호를 달지 않아요</span></button>';
+    mine.forEach(function(r){
+      var t=r.titles||{};
+      h+='<button type="button" class="title-opt'+(cur===r.title_id?' on':'')+'" onclick="equipTitle('+r.title_id+')">'+
+         '<span class="title-opt-n">'+esc(t.emoji||"")+' '+esc(t.name||"칭호")+(cur===r.title_id?' <i>장착 중</i>':'')+'</span>'+
+         (t.description?'<span class="title-opt-d">'+esc(t.description)+'</span>':'')+'</button>';
+    });
+    h+='</div>';
+  }
+  h+='<button class="r-ok" onclick="closeTitlePicker()" style="margin-top:14px">닫기</button></div></div>';
+  closeTitlePicker();
+  document.body.insertAdjacentHTML("beforeend",h);
+}
+async function equipTitle(tid){
+  if(!AUTH.user)return;
+  var res=await window.supabase.from("profiles").update({title_id:tid}).eq("id",AUTH.user.id).select("title_id").single();
+  if(res.error){toast("변경 실패: "+res.error.message);return;}
+  // 서버 트리거가 되돌렸을 수도 있으므로 서버가 확정한 값을 그대로 쓴다
+  if(AUTH.profile)AUTH.profile.title_id=res.data?res.data.title_id:tid;
+  closeTitlePicker();
+  toast(tid==null?"칭호를 내렸어요":"칭호를 달았어요","🏷");
+  if(document.getElementById("myProfileView"))openProfile();
 }
 function levelBadgeHtml(lv,extraClass){
   if(!lv)return "";
@@ -7195,6 +7252,7 @@ function renderMyProfile(){
      ,'notifSettingsSec');
   h+=pfSection('설정','프로필과 계정 정보를 관리해요',
      pfRow(pfMiniIcon('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>'),'닉네임 변경',"openNickModal()",{})+
+     pfRow(pfMiniIcon('<path d="M4 4h16v9H9l-5 3z"/><path d="M4 4v16"/>'),'칭호'+(AUTH.profile&&AUTH.profile.title_id&&TITLES_BY_ID[AUTH.profile.title_id]?' <span class="pf-item-count">'+esc(TITLES_BY_ID[AUTH.profile.title_id].name)+'</span>':''),"openTitlePicker()",{})+
      pfRow(pfMiniIcon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>'),'복구용 이메일',"openRecoveryEmail()",{}));
   h+=pfSection('약관','서비스 약관과 개인정보 처리방침을 확인해요',
      pfRow(pfMiniIcon('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>'),'이용약관',"location.href='/terms'",{})+
