@@ -8415,7 +8415,11 @@ function handleLoginError(){
   var code2=hp.get("error")||"";                       // 예: access_denied / server_error
   var desc=hp.get("error_description")||code2;
   if(!desc)return;
+  // ⚠️ 즉시 지우기만 하면 부팅 중 다른 코드(SDK 초기화 등)가 해시를 되살리는 경우가 있어(프로덕션 실측)
+  //    한 박자 뒤에 한 번 더 지운다 — 남겨 두면 새로고침마다 실패 안내가 또 뜬다.
+  var _clean=function(){try{if((location.hash||"").indexOf("error")>-1)history.replaceState({},"",location.pathname+location.search);}catch(_){}};
   try{history.replaceState({},"",location.pathname);}catch(_){}
+  setTimeout(_clean,1500);
   console.error("[로그인 실패 상세]",h); // 원문은 콘솔에 남겨 문의 대응에 쓴다
   var friendly=
     /access_denied/i.test(code2)||/cancell?ed|denied/i.test(desc)
