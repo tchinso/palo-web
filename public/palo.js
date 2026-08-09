@@ -3355,6 +3355,66 @@ async function cmOpenCommissionById(commissionId){
   window.scrollTo({top:0,behavior:'smooth'});
   cmLoadWorksamples(cmData[idx].id);
 }
+/* ===== 커미션 상세 상단 이미지 슬라이더 =====================================
+   예전엔 '첫 이미지를 배경으로 깐 빈 div + 하드코딩된 점 5개'였다 — 시안을 옮겨오면서
+   껍데기만 남은 것으로, 여러 장을 올려도 1장만 보이고 아무리 밀어도 넘어가지 않았다
+   (2026-08-10 사용자 신고). 이제 실제로 넘어가는 슬라이더를 만든다.
+   ⚠️ 상세 화면은 세 경로(cmOpenDetail·cmBackToDetail·등록 미리보기)에서 각각
+      innerHTML로 통째로 새로 그려진다. 그래서 렌더 뒤에 따로 초기화 함수를 부르는 방식은
+      한 군데만 빠뜨려도 조용히 죽는다 — 상태를 DOM에서 그때그때 읽는 인라인 핸들러로 둔다. */
+var CM_DOTS_MAX=10;  // 이보다 많으면 점 대신 '3 / 24' 카운터만 (점이 뭉개진다)
+function cmSliderHTML(imgs,idx){
+  if(!imgs||!imgs.length){
+    return '<div class="cm-slider" style="background:'+cmGrads[idx%cmGrads.length]+'"></div>';
+  }
+  var n=imgs.length;
+  // esc(cmQ(u)): cmQ로 JS 문자열 이스케이프 → esc로 속성 이스케이프. 순서가 바뀌면 안 된다.
+  // ⚠️ loading="lazy"를 쓰지 않는다. 가로 스크롤 컨테이너 안에서는 옆으로 밀어 화면에 들어와도
+  //    끝내 로드되지 않는 경우가 있어(실측), 밀 때마다 빈 칸이 나올 위험이 있다.
+  //    어차피 아래 샘플 그리드가 같은 이미지를 전부 즉시 불러오므로 실제 전송량은 그대로다.
+  var items=imgs.map(function(u){
+    return '<div class="cm-sl-item" onpointerdown="cmSlDown(event)" onclick="cmSlTap(event,\''+esc(cmQ(u))+'\')">'+
+      '<img src="'+esc(u)+'" alt="" draggable="false" decoding="async">'+
+    '</div>';
+  }).join('');
+  return '<div class="cm-slider">'+
+    '<div class="cm-sl-track" id="cmSlTrack" onscroll="cmSliderScroll(this)">'+items+'</div>'+
+    (n>1?(
+      '<div class="cm-sl-count" id="cmSlCount">1 / '+n+'</div>'+
+      '<button type="button" class="cm-sl-nav prev" onclick="cmSliderMove(-1)" aria-label="이전 이미지">‹</button>'+
+      '<button type="button" class="cm-sl-nav next" onclick="cmSliderMove(1)" aria-label="다음 이미지">›</button>'+
+      (n<=CM_DOTS_MAX?('<div class="cm-dots" id="cmSlDots">'+imgs.map(function(u,i){return i?'<i></i>':'<i class="on"></i>';}).join('')+'</div>'):'')
+    ):'')+
+  '</div>';
+}
+function cmSliderScroll(el){
+  if(!el)return;
+  var n=el.children.length,w=el.clientWidth||1;
+  var i=Math.round(el.scrollLeft/w);
+  if(i<0)i=0; else if(i>n-1)i=n-1;
+  var dots=document.getElementById("cmSlDots");
+  if(dots)for(var k=0;k<dots.children.length;k++)dots.children[k].className=(k===i)?"on":"";
+  var c=document.getElementById("cmSlCount");
+  if(c)c.textContent=(i+1)+" / "+n;
+}
+function cmSliderMove(dir){
+  var el=document.getElementById("cmSlTrack");
+  if(!el)return;
+  var n=el.children.length,w=el.clientWidth||1;
+  var i=Math.round(el.scrollLeft/w)+dir;
+  if(i<0)i=n-1; else if(i>n-1)i=0;   // 양 끝에서 순환
+  el.scrollTo({left:i*w,behavior:"smooth"});
+}
+/* 스와이프로 넘긴 것까지 '탭'으로 오해해 원본 뷰어가 열리는 것을 막는다.
+   가로로 10px 넘게 움직였으면 넘기려던 손짓으로 본다. */
+var _cmSlDownX=null;
+function cmSlDown(e){_cmSlDownX=e.clientX;}
+function cmSlTap(e,url){
+  var moved=(_cmSlDownX!==null&&Math.abs(e.clientX-_cmSlDownX)>10);
+  _cmSlDownX=null;
+  if(!moved)openImageViewer(url);
+}
+
 function cmDetailHTML(d,idx){
   var artist=d.artist||'나';
   var title=d.title||'제목 없음';
@@ -3366,10 +3426,10 @@ function cmDetailHTML(d,idx){
   var policyHTML=d.policy?('<p>'+esc(d.policy).replace(/\n/g,'<br>')+'</p>'):('<p>'+CM_DEFAULT_POLICY_HTML+'</p>');
   var tags=(d.tags&&d.tags.length)?d.tags:['두상','흉상','반신','드림'];
   var hasImages=!!(d.images&&d.images.length);
-  var sliderBg=hasImages?("url('"+cmQ(d.images[0])+"') center/cover"):cmGrads[idx%cmGrads.length];
+  var sliderHTML=cmSliderHTML(hasImages?d.images:null,idx);
   var samples='';
   if(hasImages){
-    samples=d.images.map(function(u){return '<div class="cm-s" style="background-image:url(\''+cmQ(u)+'\');background-size:cover;background-position:center"></div>';}).join('');
+    samples=d.images.map(function(u){return '<div class="cm-s tap" onclick="openImageViewer(\''+esc(cmQ(u))+'\')" style="background-image:url(\''+esc(cmQ(u))+'\');background-size:cover;background-position:center"></div>';}).join('');
   }else if(d.images){
     samples='<div class="cm-s" style="background:var(--brand-soft)"></div>';
   }else{
@@ -3394,7 +3454,7 @@ function cmDetailHTML(d,idx){
         '<svg onclick="cmShare('+(d.id!=null?d.id:'null')+')" style="cursor:pointer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M4 15v5h16v-5"/></svg>'+
         '<svg onclick="cmOpenMoreMenu('+(d.id!=null?d.id:'null')+')" style="cursor:pointer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>'+
       '</div></div>'+
-    '<div class="cm-slider" style="background:'+sliderBg+'"><div class="cm-dots"><i class="on"></i><i></i><i></i><i></i><i></i></div></div>'+
+    sliderHTML+
     '<div class="cm-d-body">'+
       satisfactionHTML+
       '<div class="cm-d-title">'+esc(title)+(showRevEvent?' <span class="cm-revevent-tag">🎁 리뷰 이벤트 중</span>':'')+'</div>'+
@@ -6648,8 +6708,20 @@ function notifCheckSubscribed(){
       }
     },function(){});
 }
+/* 디자인 확인용 강제 노출: 주소 뒤에 `?nb=ask`(알림 켜기) 또는 `?nb=ios`(홈 화면 추가)를 붙이면
+   조건을 전부 건너뛰고 그 배너를 띄운다. 주소에 직접 붙일 때만 켜지므로 일반 사용자에겐 영향이 없다.
+   ⚠️ 확인이 끝나면 이 블록과 아래 한 줄(`var f=...`)을 지울 것. */
+var _nbForce;
+function notifBannerForce(){
+  if(_nbForce===undefined){
+    try{var m=/[?&]nb=(ask|ios)(?:&|$)/.exec(location.search);_nbForce=m?m[1]:"";}
+    catch(e){_nbForce="";}
+  }
+  return _nbForce||null;
+}
 /* 배너를 보여줄 상황인지. 보여줄 만하면 그 '종류'를 돌려준다(ask | ios). */
 function notifBannerKind(){
+  var f=notifBannerForce(); if(f)return f;         // 디자인 확인용(위 주석 참고)
   if(!AUTH.user)return null;                       // 로그인해야 구독을 저장할 수 있다
   if(notifBannerHidden())return null;
   // ⚠️ **권한 판정이 iOS 분기보다 먼저 와야 한다.** 순서가 반대면 아이폰 사용자는
@@ -6662,23 +6734,26 @@ function notifBannerKind(){
   if(!pushSupported())return null;                 // 지원 안 하는 브라우저엔 권유할 게 없다
   return (st==="default")?"ask":null;
 }
+/* 종 아이콘 — 이모지는 기기마다 모양·크기가 제각각이라 배너 정렬이 흔들린다. SVG로 고정. */
+var NB_ICON_BELL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 20a1.9 1.9 0 0 1-3.4 0"/></svg>';
+var NB_ICON_PHONE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.6"/><path d="M12 7v6M9 10h6"/></svg>';
 function notifBannerHTML(){
   var kind=notifBannerKind();
   if(!kind)return "";
-  if(kind==="ios"){
-    return '<div class="notif-banner" id="notifBanner">'+
-      '<span class="nb-ic">📲</span>'+
-      '<span class="nb-tx"><b>알림을 받으려면 홈 화면에 추가해 주세요</b>'+
-      '<span>아이폰은 홈 화면에 추가한 뒤에야 알림을 보낼 수 있어요.</span></span>'+
-      '<button type="button" class="nb-go" onclick="openNotifSettings(event)">방법 보기</button>'+
-      '<button type="button" class="nb-x" onclick="dismissNotifBanner(event)" aria-label="닫기">✕</button></div>';
-  }
+  var ios=(kind==="ios");
   return '<div class="notif-banner" id="notifBanner">'+
-    '<span class="nb-ic">🔔</span>'+
-    '<span class="nb-tx"><b>댓글이 달리면 알려드릴까요?</b>'+
-    '<span>내 글의 댓글·좋아요, 커미션 문의를 놓치지 않아요.</span></span>'+
-    '<button type="button" class="nb-go" onclick="notifBannerEnable(event)">켜기</button>'+
-    '<button type="button" class="nb-x" onclick="dismissNotifBanner(event)" aria-label="닫기">✕</button></div>';
+    '<span class="nb-ic">'+(ios?NB_ICON_PHONE:NB_ICON_BELL)+'</span>'+
+    '<span class="nb-tx">'+
+      // 문구는 짧게 — 텍스트 칸이 좁아서(아이콘·버튼·닫기가 폭을 가져간다) 길면 3줄로 늘어진다
+      '<b>'+(ios?'홈 화면에 추가하면 알림을 받아요':'새 댓글을 바로 알려드려요')+'</b>'+
+      '<span>'+(ios?'아이폰은 홈 화면에 추가해야 알림을 보낼 수 있어요.':'내 글의 댓글·좋아요, 커미션 문의까지.')+'</span>'+
+    '</span>'+
+    '<button type="button" class="nb-go" onclick="'+(ios?'openNotifSettings(event)':'notifBannerEnable(event)')+'">'+
+      (ios?'방법 보기':'알림 켜기')+'</button>'+
+    '<button type="button" class="nb-x" onclick="dismissNotifBanner(event)" aria-label="닫기">'+
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'+
+    '</button>'+
+  '</div>';
 }
 async function notifBannerEnable(e){
   if(e&&e.stopPropagation)e.stopPropagation();

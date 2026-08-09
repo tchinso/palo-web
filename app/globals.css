@@ -1738,10 +1738,36 @@
   .cm-d-top .cm-left svg{width:24px;height:24px;color:var(--ink);cursor:pointer}
   .cm-d-top .cm-right{display:flex;gap:16px}
   .cm-d-top .cm-right svg{width:22px;height:22px;color:var(--ink-2);cursor:pointer}
+  /* 커미션 상세 상단 이미지 슬라이더.
+     ⚠️ 브라우저 기본 가로 스크롤 + scroll-snap으로 만든다(JS 드래그 구현 금지) —
+        iOS의 관성 스크롤·스냅이 그대로 살아나서 손맛이 가장 자연스럽다.
+     ⚠️ overscroll-behavior-x:contain 필수 — 없으면 첫/마지막 장에서 옆으로 더 밀 때
+        iOS가 '뒤로 가기' 제스처로 알아듣고 화면을 떠난다. */
   .cm-slider{position:relative;width:100%;aspect-ratio:1/1;background:var(--brand-soft);overflow:hidden}
-  .cm-dots{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px}
-  .cm-dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.55)}
-  .cm-dots i.on{background:#fff}
+  .cm-sl-track{display:flex;width:100%;height:100%;overflow-x:auto;overflow-y:hidden;
+    scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none}
+  .cm-sl-track::-webkit-scrollbar{display:none}
+  .cm-sl-item{flex:0 0 100%;width:100%;height:100%;scroll-snap-align:center;scroll-snap-stop:always;cursor:zoom-in}
+  .cm-sl-item img{width:100%;height:100%;object-fit:cover;display:block;user-select:none;-webkit-user-drag:none}
+  .cm-sl-count{position:absolute;top:12px;right:12px;z-index:2;pointer-events:none;
+    background:rgba(0,0,0,.46);color:#fff;font-size:11.5px;font-weight:700;
+    padding:4px 9px;border-radius:999px;backdrop-filter:blur(6px)}
+  /* 좌우 화살표는 마우스 환경에서만 — 터치에서는 스와이프가 있으니 화면만 가린다 */
+  .cm-sl-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:2;display:none;
+    align-items:center;justify-content:center;width:34px;height:34px;border:none;border-radius:50%;
+    background:rgba(0,0,0,.34);color:#fff;font-size:19px;line-height:1;cursor:pointer;
+    backdrop-filter:blur(6px);transition:background .15s}
+  .cm-sl-nav:hover{background:rgba(0,0,0,.55)}
+  .cm-sl-nav.prev{left:10px}
+  .cm-sl-nav.next{right:10px}
+  @media(hover:hover) and (pointer:fine){.cm-slider:hover .cm-sl-nav{display:flex}}
+  .cm-dots{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;
+    z-index:2;pointer-events:none}
+  /* 밝은 이미지 위에서도 점이 묻히지 않게 그림자를 깐다 */
+  .cm-dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.55);
+    box-shadow:0 0 3px rgba(0,0,0,.4);transition:background .15s,width .15s}
+  .cm-dots i.on{background:#fff;width:16px;border-radius:4px}
   .cm-d-body{padding:20px 18px}
   .cm-verify{display:flex;align-items:center;gap:6px;color:#3f8f5f;font-size:13.5px;font-weight:700;margin-bottom:10px}
   .cm-verify svg{width:17px;height:17px}
@@ -1762,6 +1788,8 @@
   .cm-desc{padding:20px 0;font-size:15px;line-height:1.9;color:var(--ink-2);white-space:pre-line;border-bottom:1px solid var(--line-2)}
   .cm-samples{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:18px 0}
   .cm-samples .cm-s{aspect-ratio:1/1;border-radius:12px}
+  /* 실제 등록된 이미지일 때만 눌러서 크게 볼 수 있다(데모용 그라데이션 칸은 제외) */
+  .cm-samples .cm-s.tap{cursor:zoom-in}
   .cm-acc{border:1px solid var(--line-2);border-radius:14px;margin-bottom:12px;overflow:hidden;background:var(--surface)}
   .cm-acc-h{display:flex;align-items:center;justify-content:space-between;padding:18px;cursor:pointer}
   .cm-acc-h b{font-size:16px;font-weight:800}
@@ -2314,21 +2342,46 @@ body.ed-page #toTop{display:none!important}
 /* ===== 알림 권유 배너 (홈 목록 맨 위) =====
    ⚠️ 공지 줄과 비슷하되 '권유'라는 게 드러나게 브랜드 톤. 다만 광고처럼 보이면 안 되므로
       높이는 공지와 비슷하게 유지하고 닫기(✕)를 항상 함께 둔다. */
-.notif-banner{display:flex;align-items:center;gap:11px;margin:10px 0 0;padding:12px 13px;
-  background:var(--brand-soft);border:1px solid rgba(224,122,166,.28);border-radius:14px}
-.notif-banner .nb-ic{font-size:20px;line-height:1;flex-shrink:0}
-.notif-banner .nb-tx{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
-.notif-banner .nb-tx b{font-size:13.5px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
-.notif-banner .nb-tx span{font-size:12px;color:var(--muted);line-height:1.45}
-.notif-banner .nb-go{flex-shrink:0;border:none;background:var(--brand);color:#fff;font-family:inherit;
-  font-size:12.5px;font-weight:800;padding:9px 14px;border-radius:10px;cursor:pointer;
+.notif-banner{position:relative;display:flex;align-items:center;gap:12px;margin:10px 0 0;
+  padding:13px 14px;border-radius:16px;overflow:hidden;
+  /* 앱 아이콘과 같은 핑크→라벤더→민트 흐름. 단색 브랜드 배경보다 '권유'가 부드럽게 읽힌다 */
+  background:linear-gradient(115deg,#fdeef6 0%,#f4eefc 46%,#e9f7fb 100%);
+  border:1px solid rgba(224,122,166,.22);
+  box-shadow:0 2px 10px rgba(224,122,166,.10)}
+/* 오른쪽 위로 은은하게 번지는 빛 — 납작한 카드에 깊이를 준다 */
+.notif-banner::after{content:"";position:absolute;top:-46px;right:-30px;width:130px;height:130px;
+  border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.85),transparent 68%);
+  pointer-events:none}
+.notif-banner>*{position:relative;z-index:1}
+.notif-banner .nb-ic{flex-shrink:0;width:38px;height:38px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--brand),#b98ae0);color:#fff;
+  box-shadow:0 3px 9px rgba(224,122,166,.36)}
+.notif-banner .nb-ic svg{width:20px;height:20px}
+.notif-banner .nb-tx{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.notif-banner .nb-tx b{font-size:13.5px;font-weight:800;color:var(--ink);letter-spacing:-.02em;line-height:1.35}
+/* 설명은 최대 2줄. 문구를 나중에 길게 고쳐도 배너 높이가 멋대로 늘어나지 않게 못을 박아 둔다 */
+.notif-banner .nb-tx span{font-size:11.5px;color:var(--ink-2);opacity:.72;line-height:1.45;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.notif-banner .nb-go{flex-shrink:0;border:none;font-family:inherit;color:#fff;
+  background:linear-gradient(135deg,var(--brand),var(--brand-2));
+  font-size:12.5px;font-weight:800;padding:9px 15px;border-radius:11px;cursor:pointer;white-space:nowrap;
+  box-shadow:0 2px 8px rgba(209,96,143,.34);transition:transform .12s,box-shadow .12s;
   touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-.notif-banner .nb-go:active{transform:scale(.95)}
-.notif-banner .nb-x{flex-shrink:0;border:none;background:none;color:var(--muted-2);font-size:13px;
-  width:28px;height:28px;border-radius:8px;cursor:pointer;touch-action:manipulation}
-.notif-banner .nb-x:hover{background:rgba(255,255,255,.6);color:var(--ink-2)}
+.notif-banner .nb-go:hover{box-shadow:0 4px 13px rgba(209,96,143,.44)}
+.notif-banner .nb-go:active{transform:scale(.96)}
+/* 닫기는 눈에 띄지 않게 — 권유 배너에서 ✕가 CTA보다 세면 닫기를 유도하는 꼴이 된다 */
+.notif-banner .nb-x{flex-shrink:0;border:none;background:none;color:var(--muted-2);
+  width:26px;height:26px;padding:0;border-radius:8px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,color .15s;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.notif-banner .nb-x svg{width:13px;height:13px}
+.notif-banner .nb-x:hover{background:rgba(255,255,255,.75);color:var(--ink-2)}
 @media(max-width:400px){
   /* 좁은 화면에서는 설명 줄을 접어 한 줄 높이를 지킨다 */
-  .notif-banner{gap:9px;padding:11px}
+  .notif-banner{gap:10px;padding:11px 12px}
+  .notif-banner .nb-ic{width:34px;height:34px;border-radius:11px}
+  .notif-banner .nb-ic svg{width:18px;height:18px}
   .notif-banner .nb-tx span{display:none}
+  .notif-banner .nb-go{padding:8px 13px;font-size:12px}
 }
