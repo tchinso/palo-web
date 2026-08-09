@@ -163,16 +163,45 @@ export const BODY_HTML = `
       </div>
 
       <!-- 서식 툴바 (제목 아래·본문 위, 스크롤해도 상단 고정) -->
-      <div class="ed-toolbar" id="edToolbar">
-        <button title="굵게" onmousedown="fmt(event,'bold')"><span class="ei" style="font-weight:900">B</span><span class="ed-tool-lbl">굵게</span></button>
-        <button title="기울임" onmousedown="fmt(event,'italic')"><span class="ei" style="font-style:italic;font-family:serif">I</span><span class="ed-tool-lbl">기울임</span></button>
-        <button title="밑줄" onmousedown="fmt(event,'underline')"><span class="ei" style="text-decoration:underline">U</span><span class="ed-tool-lbl">밑줄</span></button>
+      <!-- 서식·삽입 도구는 화면 하단 고정 도크(#edDock)로 옮겼다 — 키보드가 올라와도 손끝에 남아야 하므로 -->
+
+      <!-- 본문 (contenteditable) -->
+      <p class="ed-content-hint" id="edContentHint" style="display:none">한 줄 후기도 좋아요 — 내용 없이 별점만 남겨도 괜찮아요.</p>
+      <div id="wContent" class="ed-content" contenteditable="true"
+        ondragover="onEditorDragOver(event)" ondragleave="onEditorDragLeave(event)" ondrop="onEditorDrop(event)"
+        data-ph="이야기를 자유롭게 적어 주세요. 커서를 원하는 위치에 두고 위 🖼 버튼으로 그림을 그 자리에 넣을 수 있어요. 이미지 파일을 끌어다 놓아도 돼요."></div>
+      <input type="file" id="edFile" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="hidden" onchange="onImage(event)">
+      <div id="edImages" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"></div>
+
+      <!-- 투표는 위 도구바 📊 버튼으로 본문 원하는 위치에 삽입(여러 개 가능) -->
+
+      <!-- 옵션 -->
+      <div class="ed-options">
+        <label class="ed-opt"><input type="checkbox" id="edCrit"><span>크리틱(피드백) 받고 싶어요</span></label>
+        <label class="ed-opt"><input type="checkbox" id="edNotify" checked><span>댓글 알림 받기</span></label>
+      </div>
+      <p class="ed-guide"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg> 인신공격·도용·AI 무단 도배는 삭제될 수 있어요. 서로의 그림을 존중해 주세요.</p>
+    </div>
+  </div>
+
+  <!-- 하단 고정 도구 도크.
+       ⚠️ position:fixed 만으로는 모바일에서 키보드가 올라올 때 가려진다 →
+          palo.js(edDockFollow)가 visualViewport를 따라 위치를 계속 맞춘다. -->
+  <div class="ed-dock" id="edDock">
+    <!-- 글자 서식 패널: T 버튼을 누르거나 본문에서 텍스트를 선택하면 도크 바로 위에 뜬다 -->
+    <div class="ed-fmt" id="edFmtPanel" hidden>
+      <div class="ed-fmt-row">
+        <button type="button" title="굵게" onmousedown="fmt(event,'bold')"><span class="ei" style="font-weight:900">B</span></button>
+        <button type="button" title="기울임" onmousedown="fmt(event,'italic')"><span class="ei" style="font-style:italic;font-family:serif">I</span></button>
+        <button type="button" title="밑줄" onmousedown="fmt(event,'underline')"><span class="ei" style="text-decoration:underline">U</span></button>
         <span class="ed-div"></span>
-        <button title="글자색" onmousedown="fmt(event,'foreColor','#bf400c')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1-1.5-.5-.8 0-1.5 1-1.5h1a4 4 0 0 0 4-4c0-5-3-9-8-9z"/><circle cx="7.5" cy="10.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="10.5" r="1" fill="currentColor" stroke="none"/></svg><span class="ed-tool-lbl">글자색</span></button>
-        <button title="형광펜" onmousedown="fmt(event,'hiliteColor','#fbe9c8')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg><span class="ed-tool-lbl">형광펜</span></button>
+        <button type="button" title="글자색" onmousedown="fmt(event,'foreColor','#bf400c')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1-1.5-.5-.8 0-1.5 1-1.5h1a4 4 0 0 0 4-4c0-5-3-9-8-9z"/><circle cx="7.5" cy="10.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="10.5" r="1" fill="currentColor" stroke="none"/></svg></button>
+        <button type="button" title="형광펜" onmousedown="fmt(event,'hiliteColor','#fbe9c8')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
         <span class="ed-div"></span>
-        <!-- 글꼴·크기는 '고르면 바로 적용되는 메뉴'다. 고른 뒤 다시 첫 항목으로 돌아온다.
-             ⚠️ 드롭다운을 누르면 본문에서 포커스가 빠지므로, 적용 직전에 저장해 둔 커서를 되살린다. -->
+        <button type="button" title="목록" onmousedown="fmt(event,'insertUnorderedList')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <button type="button" title="인용" onmousedown="insertQuote(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h4v6H7c0-3 0-4 2-6M15 7h4v6h-4c0-3 0-4 2-6"/></svg></button>
+      </div>
+      <div class="ed-fmt-row">
         <select class="ed-sel" id="edFontSel" title="글꼴" aria-label="글꼴"
           onmousedown="edSaveForMenu(event)" onchange="edSetFont(this.value);this.selectedIndex=0">
           <option value="">글꼴</option>
@@ -194,33 +223,20 @@ export const BODY_HTML = `
           <option value="24">더 크게</option>
           <option value="30">제목만큼</option>
         </select>
-        <span class="ed-div"></span>
-        <button title="목록" onmousedown="fmt(event,'insertUnorderedList')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span class="ed-tool-lbl">목록</span></button>
-        <button title="인용" onmousedown="insertQuote(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h4v6H7c0-3 0-4 2-6M15 7h4v6h-4c0-3 0-4 2-6"/></svg><span class="ed-tool-lbl">인용</span></button>
-        <span class="ed-div"></span>
-        <button title="이미지" onmousedown="pickImage(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 3 3-2 4 4"/></svg><span class="ed-tool-lbl">이미지</span></button>
-        <span class="ed-div"></span>
-        <button title="이 위치에 투표 넣기" onmousedown="edInsertPoll(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="10"/></svg><span class="ed-tool-lbl">투표</span></button>
+        <button type="button" class="ed-fmt-close" onclick="edToggleFmt(false)">닫기</button>
       </div>
+    </div>
 
-      <!-- 본문 (contenteditable) -->
-      <p class="ed-content-hint" id="edContentHint" style="display:none">한 줄 후기도 좋아요 — 내용 없이 별점만 남겨도 괜찮아요.</p>
-      <div id="wContent" class="ed-content" contenteditable="true"
-        ondragover="onEditorDragOver(event)" ondragleave="onEditorDragLeave(event)" ondrop="onEditorDrop(event)"
-        data-ph="이야기를 자유롭게 적어 주세요. 커서를 원하는 위치에 두고 위 🖼 버튼으로 그림을 그 자리에 넣을 수 있어요. 이미지 파일을 끌어다 놓아도 돼요."></div>
-      <input type="file" id="edFile" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="hidden" onchange="onImage(event)">
-      <div id="edImages" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"></div>
-
-      <!-- 투표는 위 도구바 📊 버튼으로 본문 원하는 위치에 삽입(여러 개 가능) -->
-
-      <!-- 옵션 -->
-      <div class="ed-options">
-        <label class="ed-opt"><input type="checkbox" id="edCrit"><span>크리틱(피드백) 받고 싶어요</span></label>
-        <label class="ed-opt"><input type="checkbox" id="edNotify" checked><span>댓글 알림 받기</span></label>
-      </div>
-      <p class="ed-guide"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg> 인신공격·도용·AI 무단 도배는 삭제될 수 있어요. 서로의 그림을 존중해 주세요.</p>
+    <div class="ed-dock-row">
+      <button type="button" id="edFmtBtn" title="글자 서식" onmousedown="event.preventDefault()" onclick="edToggleFmt()"><span class="ei">T</span><span class="ed-dock-lbl">서식</span></button>
+      <button type="button" title="사진" onmousedown="pickImage(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 3 3-2 4 4"/></svg><span class="ed-dock-lbl">사진</span></button>
+      <button type="button" title="이모티콘" onmousedown="event.preventDefault()" onclick="edPickEmoticon()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span class="ed-dock-lbl">이모티콘</span></button>
+      <button type="button" title="링크" onmousedown="edSaveForMenu(event)" onclick="edInsertLink()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg><span class="ed-dock-lbl">링크</span></button>
+      <button type="button" title="파일" onmousedown="pickAttachFile(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.5 12.5 21a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.5 3.5 0 1 1 5 5L9.6 18.3a1.5 1.5 0 1 1-2.1-2.1l7.8-7.8"/></svg><span class="ed-dock-lbl">파일</span></button>
+      <button type="button" title="투표" onmousedown="edInsertPoll(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="10"/></svg><span class="ed-dock-lbl">투표</span></button>
     </div>
   </div>
+  <input type="file" id="edAttachFile" class="hidden" onchange="onAttachFile(event)">
 
 </div>
 

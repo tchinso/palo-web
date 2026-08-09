@@ -4733,7 +4733,8 @@ function openWrite(){
   document.getElementById("edSubmitBtn").textContent="등록";
   document.getElementById("writeModal").classList.add("open");document.body.style.overflow="hidden";
   document.getElementById("edBoardMenu").classList.remove("open");
-  edOfferDraft(); // 쓰던 글이 있으면 알리기만 — 채우는 건 [불러오기]를 눌렀을 때
+  edToggleFmt(false);      // 서식 패널은 접은 채로 시작
+  edDockFollow();  edOfferDraft(); // 쓰던 글이 있으면 알리기만 — 채우는 건 [불러오기]를 눌렀을 때
 }
 function openEditPost(id){
   var p=POSTS.find(function(x){return x.id===id});if(!p)return;
@@ -4756,7 +4757,7 @@ function openEditPost(id){
   document.getElementById("writeModal").classList.add("open");document.body.style.overflow="hidden";
   document.getElementById("edBoardMenu").classList.remove("open");
   var _db=document.getElementById("edDraftBar");if(_db)_db.style.display="none"; // 수정 화면엔 임시저장 안내가 안 뜬다
-}
+  edToggleFmt(false);edDockFollow();}
 var commissionReviewFilter=null;
 function openCommissionReviews(postId){
   commissionReviewFilter=null;
@@ -4798,6 +4799,8 @@ function openReviewFor(postId){
   renderCommissionSelected();
 }
 function closeWrite(){
+  var _m=document.getElementById("writeModal");
+  if(_m){_m.style.height="";_m.style.top="";_m.style.bottom="";} // 다음에 열 때를 위해 인라인 크기 정리
   edSaveDraft(); // ⚠️ 나가기 전에 마지막 모습을 저장 — 실수로 닫아도 글이 사라지지 않는다
   editingPostId=null;
   document.getElementById("writeModal").classList.remove("open");
@@ -5236,6 +5239,143 @@ function edImgDelete(){
   toast("그림을 뺐어요");
 }
 function pickImage(e){e.preventDefault();saveEditorSelection();document.getElementById("edFile").click()}
+
+/* ===== 하단 도구 도크 =====================================================
+   ⚠️ position:fixed 만으로는 모바일에서 키보드가 올라올 때 도크가 가려진다.
+      키보드는 '보이는 영역(visualViewport)'만 줄이고 레이아웃 뷰포트는 그대로 두기 때문에,
+      바닥에 붙인 요소가 키보드 뒤로 숨는다. visualViewport의 높이·스크롤을 따라
+      도크를 그만큼 끌어올려야 항상 손끝(키보드 바로 위)에 남는다. */
+function edDockFollow(){
+  var m=document.getElementById("writeModal");if(!m)return;
+  var vv=window.visualViewport;
+  if(!vv||!m.classList.contains("open")){m.style.height="";m.style.top="";m.style.bottom="";return;}
+  // ⚠️ 도크를 개별로 끌어올리지 않고 **글쓰기 화면 전체를 '보이는 영역'에 맞춘다.**
+  //    .editor가 세로 flex라 도크는 그 바닥(=키보드 바로 위)에 자연히 붙고,
+  //    본문 스크롤 영역도 알아서 줄어든다. 도크 하나만 옮기면 본문이 키보드에 가려진 채 남는다.
+  // ⚠️ .editor는 inset:0 이라 top·bottom이 둘 다 고정 → height를 줘도 무시된다.
+  //    bottom을 풀어야 height가 실제로 먹는다(실측으로 확인).
+  m.style.top=Math.round(vv.offsetTop)+"px";
+  m.style.bottom="auto";
+  m.style.height=Math.round(vv.height)+"px";
+}
+(function(){
+  var vv=window.visualViewport;if(!vv)return;
+  vv.addEventListener("resize",edDockFollow);
+  vv.addEventListener("scroll",edDockFollow);
+  window.addEventListener("resize",edDockFollow);
+})();
+
+/* 글자 서식 패널 열고 닫기. force=true/false를 주면 그 상태로 강제한다. */
+function edToggleFmt(force){
+  var p=document.getElementById("edFmtPanel"),b=document.getElementById("edFmtBtn");
+  if(!p)return;
+  var open=(force==null)?p.hasAttribute("hidden"):!!force;
+  if(open){p.removeAttribute("hidden");edEnsureWebFonts();}
+  else p.setAttribute("hidden","");
+  if(b)b.classList.toggle("on",open);
+  }
+/* 본문에서 글자를 선택하면 서식 패널을 자동으로 띄운다(선택 해제되면 손대지 않는다 —
+   사용자가 T로 열어 둔 것을 마음대로 닫지 않기 위해). */
+document.addEventListener("selectionchange",function(){
+  var ed=document.getElementById("wContent");if(!ed)return;
+  var m=document.getElementById("writeModal");
+  if(!m||!m.classList.contains("open"))return;
+  var sel=window.getSelection();if(!sel||!sel.rangeCount||sel.isCollapsed)return;
+  var r=sel.getRangeAt(0);
+  if(ed.contains(r.commonAncestorContainer))edToggleFmt(true);
+});
+/* 도크는 flex 자식이라 본문 영역이 알아서 줄어든다 — 여백 보정이 필요 없다.
+   (예전엔 fixed라 .ed-scroll에 padding-bottom을 계산해 넣어야 했다) */
+
+/* ── 링크 넣기 ── */
+function edInsertLink(){
+  var url=prompt("링크 주소를 입력해 주세요","https://");
+  if(!url)return;
+  url=url.trim();
+  if(!/^https?:\/\//i.test(url)){toast("http:// 또는 https:// 로 시작하는 주소만 넣을 수 있어요");return;}
+  var ed=document.getElementById("wContent");if(!ed)return;
+  restoreEditorSelection();
+  var sel=window.getSelection();if(!sel||!sel.rangeCount)return;
+  var r=sel.getRangeAt(0);
+  if(!ed.contains(r.commonAncestorContainer))return;
+  var a=document.createElement("a");
+  a.setAttribute("href",url);
+  if(sel.isCollapsed){
+    a.textContent=url;              // 고른 글자가 없으면 주소를 그대로 글자로
+    r.insertNode(a);
+  }else{
+    try{r.surroundContents(a);}
+    catch(e){a.appendChild(r.extractContents());r.insertNode(a);}
+  }
+  var after=document.createRange();after.setStartAfter(a);after.collapse(true);
+  sel.removeAllRanges();sel.addRange(after);
+  advanceSavedSelection();
+  edSaveDraftSoon();
+  toast("링크를 넣었어요","🔗");
+}
+
+/* ── 이모티콘 넣기 (본문은 contenteditable이라 댓글용 피커와 삽입 방식이 다르다) ── */
+function edPickEmoticon(){
+  saveEditorSelection();
+  openEmoticonPicker("__editor__");
+}
+function edInsertEmoticonImg(url){
+  var ed=document.getElementById("wContent");if(!ed)return;
+  restoreEditorSelection();
+  var img=document.createElement("img");
+  img.setAttribute("src",url);
+  // ⚠️ class는 살균기가 값까지 제한하지만, 크기는 style로 박아 둬야 글 상세에서도 그대로 보인다
+  img.setAttribute("style","width:120px;height:auto;display:inline-block;vertical-align:middle;margin:2px");
+  var sel=window.getSelection();if(!sel||!sel.rangeCount)return;
+  var r=sel.getRangeAt(0);
+  if(!ed.contains(r.commonAncestorContainer)){r=document.createRange();r.selectNodeContents(ed);r.collapse(false);}
+  r.deleteContents();r.insertNode(img);
+  var after=document.createRange();after.setStartAfter(img);after.collapse(true);
+  sel.removeAllRanges();sel.addRange(after);
+  advanceSavedSelection();
+  edSaveDraftSoon();
+}
+
+/* ── 파일 첨부 ── */
+function pickAttachFile(e){
+  e.preventDefault();
+  saveEditorSelection();
+  document.getElementById("edAttachFile").click();
+}
+function fmtBytes(n){
+  if(n<1024)return n+"B";
+  if(n<1024*1024)return (n/1024).toFixed(0)+"KB";
+  return (n/1024/1024).toFixed(1)+"MB";
+}
+async function onAttachFile(e){
+  var f=(e.target.files||[])[0];
+  e.target.value="";
+  if(!f)return;
+  if(f.size>MAX_IMAGE_BYTES){toast("40MB 이하 파일만 올릴 수 있어요");return;}
+  // 이미지를 고르면 그냥 본문 그림으로 넣어 준다(사용자가 '파일'로 골랐다고 첨부칩이 되면 어색하다)
+  if(ALLOWED_IMAGE_TYPES.indexOf(f.type)>-1){await uploadAndInsertImage(f);return;}
+  toast("파일 올리는 중…");
+  var url=await uploadToStorage(f,"file");
+  if(!url)return;
+  var ed=document.getElementById("wContent");if(!ed)return;
+  restoreEditorSelection();
+  var a=document.createElement("a");
+  a.setAttribute("href",url);
+  a.setAttribute("class","ed-file");
+  a.setAttribute("download","");
+  a.textContent="📎 "+f.name+" ("+fmtBytes(f.size)+")";
+  var sel=window.getSelection();if(!sel||!sel.rangeCount)return;
+  var r=sel.getRangeAt(0);
+  if(!ed.contains(r.commonAncestorContainer)){r=document.createRange();r.selectNodeContents(ed);r.collapse(false);}
+  r.deleteContents();
+  var br=document.createElement("br");
+  r.insertNode(br);r.insertNode(a);
+  var after=document.createRange();after.setStartAfter(br);after.collapse(true);
+  sel.removeAllRanges();sel.addRange(after);
+  advanceSavedSelection();
+  edSaveDraftSoon();
+  toast("파일을 첨부했어요","📎");
+}
 function loadImageFromFile(file){
   return new Promise(function(resolve,reject){
     var img=new Image();
@@ -5383,7 +5523,15 @@ function renderEmoticonPicker(){
 // 입력창 커서 위치에 토큰을 넣는다
 function pickEmoticon(id,target){
   noteEmoticonUsed(id);
-  var inp=document.getElementById(target||EMO_PICKER_TARGET||"cmInput");
+  var t=target||EMO_PICKER_TARGET;
+  // 글 본문은 <input>이 아니라 contenteditable이라 토큰이 아니라 <img>로 직접 넣는다
+  if(t==="__editor__"){
+    var e=EMO_BY_ID[id];
+    if(e&&e.url)edInsertEmoticonImg(e.url);
+    closeEmoticonPicker();
+    return;
+  }
+  var inp=document.getElementById(t||"cmInput");
   if(!inp){closeEmoticonPicker();return;}
   var tok="[[e:"+id+"]]";
   var s=inp.selectionStart==null?inp.value.length:inp.selectionStart;
@@ -6048,6 +6196,21 @@ function _hookDomPurify(){
       if(f)node.setAttribute("style",f);else node.removeAttribute("style");
     }
     var tag=node.tagName&&node.tagName.toLowerCase();
+    // 링크는 항상 새 창 + rel로 잠근다(opener 탈취·리퍼러 유출 방지). 우리 판단이지 작성자 선택이 아니다.
+    if(tag==="a"){
+      if(node.getAttribute("href")){
+        node.setAttribute("target","_blank");
+        node.setAttribute("rel","noopener noreferrer nofollow ugc");
+      }else{
+        node.removeAttribute("target");node.removeAttribute("rel");
+      }
+    }
+    // class는 우리가 쓰는 값만 남긴다(임의 클래스로 사이트 스타일을 흉내 내지 못하게)
+    if(node.hasAttribute&&node.hasAttribute("class")){
+      var keep=String(node.getAttribute("class")||"").split(/\s+/)
+        .filter(function(c){return c==="ed-file"||c==="emo";}).join(" ");
+      if(keep)node.setAttribute("class",keep);else node.removeAttribute("class");
+    }
     if((tag==="img"||tag==="video"||tag==="source")&&node.getAttribute("src")){
       var s=_safeMediaSrc(node.getAttribute("src"));
       if(s)node.setAttribute("src",s);else node.removeAttribute("src");
@@ -6059,8 +6222,11 @@ function sanitizePostHtml(html){
   if(!window.DOMPurify)return "";
   _hookDomPurify();
   var out=window.DOMPurify.sanitize(html,{
-    ALLOWED_TAGS:["b","strong","i","em","u","font","span","ul","ol","li","blockquote","br","div","p","img","video","source"],
-    ALLOWED_ATTR:["style","color","src","controls","alt","data-poll"]
+    // a: 링크 넣기 / class: 첨부 파일 칩 표시용(아래 ALLOWED_CLASSES로 값까지 제한)
+    ALLOWED_TAGS:["b","strong","i","em","u","font","span","ul","ol","li","blockquote","br","div","p","img","video","source","a"],
+    ALLOWED_ATTR:["style","color","src","controls","alt","data-poll","href","target","rel","class","download"],
+    // ⚠️ 링크는 http(s)와 mailto만. javascript:·data: 는 클릭 한 번에 스크립트가 도는 통로다.
+    ALLOWED_URI_REGEXP:/^(?:https?:|mailto:|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
   });
   // 글꼴을 쓴 글을 그릴 때만 웹폰트를 불러온다(안 쓰는 글에서는 한 바이트도 받지 않는다)
   if(out.indexOf("font-family")>-1&&typeof edEnsureWebFonts==="function")edEnsureWebFonts();

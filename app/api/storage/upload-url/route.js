@@ -10,7 +10,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient } from "@supabase/supabase-js";
 import {
-  r2Client, r2Configured, R2_BUCKET, FOLDERS, ALLOWED_TYPES, MAX_BYTES,
+  r2Client, r2Configured, R2_BUCKET, FOLDERS, ALLOWED_TYPES, ALLOWED_FILE_TYPES, MAX_BYTES,
   buildKey, publicUrlFor,
 } from "../../../../lib/r2";
 import { rateLimit } from "../../../../lib/client-ip";
@@ -38,8 +38,17 @@ export async function POST(request) {
   const size = Number(body?.size || 0);
 
   if (!FOLDERS.has(folder)) return bad("허용되지 않은 업로드 위치예요.");
-  if (!ALLOWED_TYPES.has(contentType)) return bad("이미지 파일만 올릴 수 있어요.");
-  if (!(size > 0) || size > MAX_BYTES) return bad("40MB 이하 이미지만 올릴 수 있어요.");
+  // "file" 폴더만 이미지가 아닌 문서를 받는다. 나머지 폴더는 예전 그대로 이미지 전용.
+  const isFileSlot = folder === "file";
+  const okType = isFileSlot
+    ? (ALLOWED_FILE_TYPES.has(contentType) || ALLOWED_TYPES.has(contentType))
+    : ALLOWED_TYPES.has(contentType);
+  if (!okType) {
+    return bad(isFileSlot
+      ? "올릴 수 없는 형식이에요. 문서·압축·이미지 파일만 첨부할 수 있어요."
+      : "이미지 파일만 올릴 수 있어요.");
+  }
+  if (!(size > 0) || size > MAX_BYTES) return bad("40MB 이하 파일만 올릴 수 있어요.");
 
   // 로그인 확인 — 익명 업로드를 막는다
   const authHeader = request.headers.get("authorization") || "";
@@ -69,6 +78,10 @@ export async function POST(request) {
         Bucket: R2_BUCKET,
         Key: objectKey,
         ContentType: contentType,
+        // ⚠️ 첨부 파일은 **브라우저에서 열리지 않고 반드시 내려받아지게** 한다.
+        //    우리 도메인에서 무언가가 렌더되면 그 자체로 피싱·스크립트 실행 통로가 된다.
+        //    (이미지 폴더에는 붙이지 않는다 — 본문에 그대로 보여야 하므로)
+        ...(isFileSlot ? { ContentDisposition: "attachment" } : {}),
       }),
       { expiresIn: URL_TTL_SEC }
     );

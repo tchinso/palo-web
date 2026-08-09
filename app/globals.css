@@ -2168,3 +2168,42 @@
 .title-opt-n{font-size:14px;font-weight:800;color:var(--ink)}
 .title-opt-n i{font-style:normal;font-size:11px;color:#9c3566;margin-left:4px}
 .title-opt-d{font-size:12px;color:var(--muted);line-height:1.5}
+
+/* ===== 글쓰기 하단 도구 도크 =====
+   ⚠️ fixed 만으로는 모바일 키보드가 올라올 때 가려진다 —
+      palo.js(edDockFollow)가 visualViewport를 따라 transform으로 끌어올린다. */
+.ed-dock{flex-shrink:0;z-index:70;
+  background:rgba(255,255,255,.94);-webkit-backdrop-filter:blur(14px) saturate(1.6);backdrop-filter:blur(14px) saturate(1.6);
+  border-top:1px solid var(--line-2);box-shadow:0 -6px 22px rgba(31,22,28,.10);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  transition:transform .12s ease-out} /* 키보드 여닫힘을 따라갈 때 툭 튀지 않게 */
+/* 삽입 도구 줄 — 6개가 한 줄에 균등 */
+.ed-dock-row{display:flex;align-items:stretch;gap:2px;padding:6px 6px}
+.ed-dock-row button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  border:none;background:none;border-radius:11px;padding:7px 2px;color:var(--ink-2);cursor:pointer;
+  font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:.12s}
+.ed-dock-row button:active{transform:scale(.94)}
+.ed-dock-row button.on{background:var(--brand-soft);color:#9c3566}
+.ed-dock-row .ic{width:21px;height:21px}
+.ed-dock-row .ei{font-size:18px;font-weight:900;line-height:21px;height:21px}
+.ed-dock-lbl{font-size:10px;font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+/* 글자 서식 패널 — 삽입 도구 줄 '바로 위' */
+.ed-fmt{border-bottom:1px solid var(--line-2);padding:7px 6px 4px;background:rgba(253,247,249,.7)}
+.ed-fmt[hidden]{display:none}
+.ed-fmt-row{display:flex;align-items:center;gap:3px;flex-wrap:wrap;margin-bottom:4px}
+.ed-fmt-row:last-child{margin-bottom:0}
+.ed-fmt button{display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:38px;
+  border:none;background:var(--surface);border-radius:10px;color:var(--ink-2);cursor:pointer;
+  font-family:inherit;touch-action:manipulation;box-shadow:0 1px 2px rgba(31,22,28,.06)}
+.ed-fmt button:active{transform:scale(.94)}
+.ed-fmt button .ic{width:18px;height:18px}
+.ed-fmt button .ei{font-size:15px;line-height:1}
+.ed-fmt .ed-div{width:1px;height:20px;background:var(--line-2);margin:0 3px;flex:none}
+.ed-fmt .ed-sel{height:38px;border:none;background:var(--surface);border-radius:10px;color:var(--ink);
+  font-family:inherit;font-size:12.5px;font-weight:700;padding:0 8px;cursor:pointer;
+  box-shadow:0 1px 2px rgba(31,22,28,.06)}
+.ed-fmt .ed-fmt-close{margin-left:auto;min-width:52px;font-size:12px;font-weight:800;color:var(--muted)}
+/* 첨부 파일 칩 — 본문과 글 상세에서 같은 모양 */
+.ed-file,.d-content .ed-file{display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);
+  border:1px solid var(--line-2);border-radius:10px;padding:7px 11px;margin:3px 0;
+  font-size:13px;font-weight:700;color:var(--ink);text-decoration:none;max-width:100%}

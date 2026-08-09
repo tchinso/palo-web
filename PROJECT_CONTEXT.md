@@ -1942,6 +1942,31 @@ Supabase Storage 용량 절약 + 로딩 속도 개선 목적. 전부 **브라우
 - 검증(dev 375·1280): 로고 통 34/30px·이미지 로드·흰 모서리 없음, 서체 실제 적용(폭 76.8→72.1px로
   시스템체와 다르게 렌더), 로고·글자 세로 중앙 차이 0.0px, 헤더·페이지 가로 넘침 없음, 드로어도 함께 교체.
 
+**글쓰기 도구를 하단 도크로 전면 개편 (2026-08-09, 사용자 요청)** — 코드만, SQL 없음.
+- **상단 sticky 툴바 제거 → 화면 하단 도크(`#edDock`)**: `T(서식) · 사진 · 이모티콘 · 링크 · 파일 · 투표` 6개.
+- ⚠️ **도크를 `position:fixed`로 하면 안 된다** — `.editor`가 여닫힘 애니메이션 때 `transform`을 갖는데
+  그 순간 **fixed의 기준(containing block)이 되어 도크가 12px 어긋난다**(실측으로 발견).
+  `.editor`가 이미 세로 flex이므로 **도크를 flex 자식**으로 두면 바닥에 자연히 붙고,
+  본문(`.ed-scroll`)도 알아서 줄어 **padding-bottom 계산이 아예 필요 없어진다**(기존 보정 코드 삭제).
+- ⚠️ **키보드 추종은 도크가 아니라 '글쓰기 화면 전체'를 `visualViewport`에 맞춘다**(`edDockFollow`).
+  도크만 끌어올리면 본문이 키보드에 가려진 채 남는다. 화면을 맞추면 상단바·본문·도크가 한꺼번에 정리된다.
+  ⚠️ `.editor`는 `inset:0`이라 top·bottom이 둘 다 고정 → **`bottom:auto`를 함께 주지 않으면 `height`가 무시된다**(실측).
+  닫을 때 인라인 top/bottom/height를 반드시 지운다.
+- **T 패널(`#edFmtPanel`)은 도크 삽입줄 '바로 위'**: 굵게/기울임/밑줄·글자색/형광펜·목록/인용·글꼴/크기.
+  **본문에서 글자를 선택하면 `selectionchange`로 자동으로 뜬다**(선택 해제 시엔 닫지 않는다 —
+  사용자가 T로 열어 둔 것을 마음대로 접으면 안 되므로).
+- **새 기능 3종**:
+  · **링크** — `<a>`/`href`를 살균기에 추가하되 `ALLOWED_URI_REGEXP`로 **http(s)·mailto만** 허용(`javascript:` 차단 검증),
+    훅에서 `target=_blank`+`rel=noopener noreferrer nofollow ugc`를 **강제**(작성자 선택이 아니다).
+  · **파일 첨부** — `lib/r2.js`에 `ALLOWED_FILE_TYPES`(pdf·zip·오피스·psd·ai 등) 신설, `file` 폴더에서만 허용.
+    🚨 **html·svg·js는 절대 넣지 않는다**(우리 도메인에서 렌더되면 피싱·XSS 통로). 그마저도 업로드 시
+    **`ContentDisposition: attachment`를 강제**해 브라우저에서 열리지 않고 내려받아진다. 이미지를 고르면 본문 그림으로 처리.
+  · **이모티콘** — 댓글용 피커는 `<input>`의 selectionStart를 쓰지만 본문은 contenteditable이라
+    `__editor__` 분기로 **`<img>` 직접 삽입**(토큰이 아니라). class는 살균기가 `ed-file`·`emo`만 남기므로 크기는 style로 박는다.
+- 검증(dev 375px): 도크 바닥 정렬·flex 구조·본문 안 가림·패널 열면 본문 축소·패널이 삽입줄 바로 위,
+  선택 시 패널 자동 표시, 링크 삽입/살균 유지/`javascript:` 차단/target·rel 강제, 첨부칩 살균 통과·임의 class 차단,
+  이모티콘 삽입, **키보드 336px 시뮬레이션에서 도크가 키보드 바로 위(476px)·상단바 유지·본문 안 가림**, 닫을 때 스타일 정리.
+
 ---
 
 ## 9. 로컬 개발 환경
