@@ -5112,11 +5112,15 @@ function edApplyInline(setStyle){
 function edSetSize(px){
   if(!px)return;
   edApplyInline(function(el){el.style.fontSize=px+"px";});
+  edFmtView("main");   // 고르면 기본 줄로 — 이어서 다른 서식을 쓰기 쉽게
+  edSaveDraftSoon();
 }
 function edSetFont(family){
   if(!family)return;
   edEnsureWebFonts();
   edApplyInline(function(el){el.style.fontFamily=family;});
+  edFmtView("main");
+  edSaveDraftSoon();
 }
 
 /* ===== 본문에 넣은 이미지 조절 ==============================================
@@ -5266,11 +5270,24 @@ function edDockFollow(){
 })();
 
 /* 글자 서식 패널 열고 닫기. force=true/false를 주면 그 상태로 강제한다. */
+/* 서식 패널 안에서 '기본 / 글꼴 / 크기' 세 화면을 같은 한 줄 자리에서 바꿔 낀다.
+   ⚠️ <select>의 네이티브 팝업을 쓰지 않는 이유 — 모바일에서 화면 절반을 덮는 별도 창이 뜨고,
+      그동안 본문이 안 보여 무엇에 적용되는지 알 수 없다. 여기서는 줄만 바뀌므로 본문이 계속 보인다. */
+function edFmtView(which){
+  var ids={main:"edFmtMain",font:"edFmtFont",size:"edFmtSize"};
+  Object.keys(ids).forEach(function(k){
+    var el=document.getElementById(ids[k]);if(!el)return;
+    if(k===which)el.removeAttribute("hidden");else el.setAttribute("hidden","");
+  });
+  if(which==="font")edEnsureWebFonts();
+  var sub=document.getElementById(ids[which]);
+  if(sub)sub.scrollLeft=0;  // 다시 열 때 항상 왼쪽부터
+}
 function edToggleFmt(force){
   var p=document.getElementById("edFmtPanel"),b=document.getElementById("edFmtBtn");
   if(!p)return;
   var open=(force==null)?p.hasAttribute("hidden"):!!force;
-  if(open){p.removeAttribute("hidden");edEnsureWebFonts();}
+  if(open){p.removeAttribute("hidden");edFmtView("main");}
   else p.setAttribute("hidden","");
   if(b)b.classList.toggle("on",open);
   }

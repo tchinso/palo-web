@@ -2177,32 +2177,44 @@
   border-top:1px solid var(--line-2);box-shadow:0 -6px 22px rgba(31,22,28,.10);
   padding-bottom:env(safe-area-inset-bottom,0px);
   transition:transform .12s ease-out} /* 키보드 여닫힘을 따라갈 때 툭 튀지 않게 */
-/* 삽입 도구 줄 — 6개가 한 줄에 균등 */
-.ed-dock-row{display:flex;align-items:stretch;gap:2px;padding:6px 6px}
-.ed-dock-row button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
-  border:none;background:none;border-radius:11px;padding:7px 2px;color:var(--ink-2);cursor:pointer;
+/* 삽입 도구 줄 — 6개가 한 줄에 균등.
+   ⚠️ 세로 공간이 곧 본문 공간이다(키보드까지 올라오면 본문이 화면의 3분의 1밖에 안 남는다) →
+      아이콘·글자·여백을 최소로 줄여 한 줄 52px 안에 넣는다. */
+.ed-dock-row{display:flex;align-items:stretch;gap:2px;padding:4px 6px}
+.ed-dock-row button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  border:none;background:none;border-radius:10px;padding:4px 2px;color:var(--ink-2);cursor:pointer;
   font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:.12s}
 .ed-dock-row button:active{transform:scale(.94)}
 .ed-dock-row button.on{background:var(--brand-soft);color:#9c3566}
-.ed-dock-row .ic{width:21px;height:21px}
-.ed-dock-row .ei{font-size:18px;font-weight:900;line-height:21px;height:21px}
-.ed-dock-lbl{font-size:10px;font-weight:700;letter-spacing:-.02em;white-space:nowrap}
-/* 글자 서식 패널 — 삽입 도구 줄 '바로 위' */
-.ed-fmt{border-bottom:1px solid var(--line-2);padding:7px 6px 4px;background:rgba(253,247,249,.7)}
+.ed-dock-row .ic{width:20px;height:20px}
+.ed-dock-row .ei{font-size:17px;font-weight:900;line-height:20px;height:20px}
+.ed-dock-lbl{font-size:9.5px;font-weight:700;letter-spacing:-.03em;white-space:nowrap;line-height:1.2}
+
+/* 글자 서식 패널 — 삽입 도구 줄 '바로 위', **항상 한 줄**.
+   글꼴·크기는 별도 창을 띄우지 않고 이 줄을 오른쪽으로 이어지는 목록으로 바꿔 낀다. */
+.ed-fmt{border-bottom:1px solid var(--line-2);background:rgba(253,247,249,.7)}
 .ed-fmt[hidden]{display:none}
-.ed-fmt-row{display:flex;align-items:center;gap:3px;flex-wrap:wrap;margin-bottom:4px}
-.ed-fmt-row:last-child{margin-bottom:0}
-.ed-fmt button{display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:38px;
+.ed-fmt-row{display:flex;align-items:center;gap:3px;padding:5px 6px;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.ed-fmt-row[hidden]{display:none}
+.ed-fmt-row::-webkit-scrollbar{display:none}
+.ed-fmt button{flex:none;display:inline-flex;align-items:center;justify-content:center;min-width:38px;height:36px;
   border:none;background:var(--surface);border-radius:10px;color:var(--ink-2);cursor:pointer;
-  font-family:inherit;touch-action:manipulation;box-shadow:0 1px 2px rgba(31,22,28,.06)}
+  font-family:inherit;font-size:13px;font-weight:700;padding:0 10px;white-space:nowrap;
+  touch-action:manipulation;box-shadow:0 1px 2px rgba(31,22,28,.06)}
 .ed-fmt button:active{transform:scale(.94)}
 .ed-fmt button .ic{width:18px;height:18px}
 .ed-fmt button .ei{font-size:15px;line-height:1}
-.ed-fmt .ed-div{width:1px;height:20px;background:var(--line-2);margin:0 3px;flex:none}
-.ed-fmt .ed-sel{height:38px;border:none;background:var(--surface);border-radius:10px;color:var(--ink);
-  font-family:inherit;font-size:12.5px;font-weight:700;padding:0 8px;cursor:pointer;
-  box-shadow:0 1px 2px rgba(31,22,28,.06)}
-.ed-fmt .ed-fmt-close{margin-left:auto;min-width:52px;font-size:12px;font-weight:800;color:var(--muted)}
+.ed-fmt .ed-div{width:1px;height:18px;background:var(--line-2);margin:0 2px;flex:none}
+/* '글꼴 ›' '크기 ›' — 오른쪽으로 펼쳐진다는 신호 */
+.ed-fmt .ed-fmt-more{color:var(--ink);font-weight:800}
+.ed-fmt .ed-fmt-more i{font-style:normal;color:var(--muted);margin-left:3px}
+.ed-fmt .ed-fmt-back{background:var(--brand-soft);color:#9c3566;font-size:17px;font-weight:900;min-width:34px;padding:0}
+.ed-fmt .ed-fmt-close{margin-left:auto;color:var(--muted);font-size:14px;min-width:34px;padding:0;
+  position:sticky;right:0;box-shadow:-8px 0 10px rgba(253,247,249,.9)} /* 가로로 밀려도 닫기는 남는다 */
+/* 하위 목록의 글꼴 미리보기 글자는 조금 더 크게(무슨 서체인지 보이게) */
+.ed-fmt-sub button{font-size:14px}
+
 /* 첨부 파일 칩 — 본문과 글 상세에서 같은 모양 */
 .ed-file,.d-content .ed-file{display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);
   border:1px solid var(--line-2);border-radius:10px;padding:7px 11px;margin:3px 0;

@@ -190,7 +190,8 @@ export const BODY_HTML = `
   <div class="ed-dock" id="edDock">
     <!-- 글자 서식 패널: T 버튼을 누르거나 본문에서 텍스트를 선택하면 도크 바로 위에 뜬다 -->
     <div class="ed-fmt" id="edFmtPanel" hidden>
-      <div class="ed-fmt-row">
+      <!-- 기본 줄. 글꼴·크기는 창을 띄우지 않고 이 줄을 오른쪽으로 밀어내며 목록을 편다 -->
+      <div class="ed-fmt-row" id="edFmtMain">
         <button type="button" title="굵게" onmousedown="fmt(event,'bold')"><span class="ei" style="font-weight:900">B</span></button>
         <button type="button" title="기울임" onmousedown="fmt(event,'italic')"><span class="ei" style="font-style:italic;font-family:serif">I</span></button>
         <button type="button" title="밑줄" onmousedown="fmt(event,'underline')"><span class="ei" style="text-decoration:underline">U</span></button>
@@ -200,30 +201,31 @@ export const BODY_HTML = `
         <span class="ed-div"></span>
         <button type="button" title="목록" onmousedown="fmt(event,'insertUnorderedList')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
         <button type="button" title="인용" onmousedown="insertQuote(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h4v6H7c0-3 0-4 2-6M15 7h4v6h-4c0-3 0-4 2-6"/></svg></button>
+        <span class="ed-div"></span>
+        <button type="button" class="ed-fmt-more" onmousedown="edSaveForMenu(event)" onclick="edFmtView('font')">글꼴 <i>›</i></button>
+        <button type="button" class="ed-fmt-more" onmousedown="edSaveForMenu(event)" onclick="edFmtView('size')">크기 <i>›</i></button>
+        <button type="button" class="ed-fmt-close" onclick="edToggleFmt(false)" aria-label="서식 닫기">✕</button>
       </div>
-      <div class="ed-fmt-row">
-        <select class="ed-sel" id="edFontSel" title="글꼴" aria-label="글꼴"
-          onmousedown="edSaveForMenu(event)" onchange="edSetFont(this.value);this.selectedIndex=0">
-          <option value="">글꼴</option>
-          <option value="'Nanum Gothic', sans-serif">나눔고딕</option>
-          <option value="'Nanum Myeongjo', serif">나눔명조</option>
-          <option value="'Nanum Pen Script', cursive">나눔손글씨</option>
-          <option value="'Gowun Dodum', sans-serif">고운돋움</option>
-          <option value="'Jua', sans-serif">주아</option>
-          <option value="'Do Hyeon', sans-serif">도현</option>
-          <option value="'Black Han Sans', sans-serif">검은고딕</option>
-        </select>
-        <select class="ed-sel" id="edSizeSel" title="글자 크기" aria-label="글자 크기"
-          onmousedown="edSaveForMenu(event)" onchange="edSetSize(this.value);this.selectedIndex=0">
-          <option value="">크기</option>
-          <option value="13">아주 작게</option>
-          <option value="15">작게</option>
-          <option value="17">보통</option>
-          <option value="20">크게</option>
-          <option value="24">더 크게</option>
-          <option value="30">제목만큼</option>
-        </select>
-        <button type="button" class="ed-fmt-close" onclick="edToggleFmt(false)">닫기</button>
+      <!-- 글꼴 목록: 같은 자리에서 오른쪽으로 이어지는 가로 목록 -->
+      <div class="ed-fmt-row ed-fmt-sub" id="edFmtFont" hidden>
+        <button type="button" class="ed-fmt-back" onclick="edFmtView('main')" aria-label="뒤로">‹</button>
+        <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetFont(&quot;'Nanum Gothic', sans-serif&quot;)" style="font-family:'Nanum Gothic',sans-serif">나눔고딕</button>
+        <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetFont(&quot;'Nanum Myeongjo', serif&quot;)" style="font-family:'Nanum Myeongjo',serif">나눔명조</button>
+        <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetFont(&quot;'Nanum Pen Script', cursive&quot;)" style="font-family:'Nanum Pen Script',cursive">나눔손글씨</button>
+        <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetFont(&quot;'Gowun Dodum', sans-serif&quot;)" style="font-family:'Gowun Dodum',sans-serif">고운돋움</button>
+        <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetFont(&quot;'Jua', sans-serif&quot;)" style="font-family:'Jua',sans-serif">주아</button>
+        <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetFont(&quot;'Do Hyeon', sans-serif&quot;)" style="font-family:'Do Hyeon',sans-serif">도현</button>
+        <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetFont(&quot;'Black Han Sans', sans-serif&quot;)" style="font-family:'Black Han Sans',sans-serif">검은고딕</button>
+      </div>
+      <!-- 크기 목록 -->
+      <div class="ed-fmt-row ed-fmt-sub" id="edFmtSize" hidden>
+        <button type="button" class="ed-fmt-back" onclick="edFmtView('main')" aria-label="뒤로">‹</button>
+        <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetSize('13')" style="font-size:12px">아주 작게</button>
+        <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetSize('15')" style="font-size:13px">작게</button>
+        <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetSize('17')" style="font-size:15px">보통</button>
+        <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetSize('20')" style="font-size:17px">크게</button>
+        <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetSize('24')" style="font-size:19px">더 크게</button>
+        <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetSize('30')" style="font-size:21px">제목만큼</button>
       </div>
     </div>
 
