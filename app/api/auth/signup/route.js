@@ -62,6 +62,12 @@ export async function POST(request) {
   if (nickname && (nickname.length < 2 || nickname.length > 12)) {
     return bad("닉네임은 2~12자로 입력해주세요.");
   }
+  // 문자 종류도 여기서 거른다(닉네임 변경 모달·DB 제약과 같은 규칙).
+  // 안 거르면 "😀😀" 같은 닉네임이 길이 검사만 통과한 뒤 가입 트리거에서 특수문자가
+  // 걷혀 말없이 '새싹작가'가 되어 버린다 — 죽지는 않지만 사용자가 어리둥절해진다.
+  if (nickname && !/^[가-힣a-zA-Z0-9]+$/.test(nickname)) {
+    return bad("닉네임에는 한글·영문·숫자만 사용할 수 있어요.");
+  }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
