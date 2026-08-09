@@ -4800,7 +4800,7 @@ function openReviewFor(postId){
 }
 function closeWrite(){
   var _m=document.getElementById("writeModal");
-  if(_m){_m.style.height="";_m.style.top="";_m.style.bottom="";} // 다음에 열 때를 위해 인라인 크기 정리
+  if(_m){_m.style.height="";_m.style.top="";_m.style.bottom="";_m._vT=_m._vH=null;} // 다음에 열 때를 위해 인라인 크기 정리
   edSaveDraft(); // ⚠️ 나가기 전에 마지막 모습을 저장 — 실수로 닫아도 글이 사라지지 않는다
   editingPostId=null;
   document.getElementById("writeModal").classList.remove("open");
@@ -5118,14 +5118,12 @@ function edApplyInline(setStyle){
 function edSetSize(px){
   if(!px)return;
   edApplyInline(function(el){el.style.fontSize=px+"px";});
-  edFmtView("main");   // 고르면 기본 줄로 — 이어서 다른 서식을 쓰기 쉽게
   edSaveDraftSoon();
 }
 function edSetFont(family){
   if(!family)return;
   edEnsureWebFonts();
   edApplyInline(function(el){el.style.fontFamily=family;});
-  edFmtView("main");
   edSaveDraftSoon();
 }
 
@@ -5258,15 +5256,20 @@ function pickImage(e){e.preventDefault();saveEditorSelection();document.getEleme
 function edDockFollow(){
   var m=document.getElementById("writeModal");if(!m)return;
   var vv=window.visualViewport;
-  if(!vv||!m.classList.contains("open")){m.style.height="";m.style.top="";m.style.bottom="";return;}
+  if(!vv||!m.classList.contains("open")){m.style.height="";m.style.top="";m.style.bottom="";m._vT=m._vH=null;return;}
   // ⚠️ 도크를 개별로 끌어올리지 않고 **글쓰기 화면 전체를 '보이는 영역'에 맞춘다.**
   //    .editor가 세로 flex라 도크는 그 바닥(=키보드 바로 위)에 자연히 붙고,
   //    본문 스크롤 영역도 알아서 줄어든다. 도크 하나만 옮기면 본문이 키보드에 가려진 채 남는다.
   // ⚠️ .editor는 inset:0 이라 top·bottom이 둘 다 고정 → height를 줘도 무시된다.
   //    bottom을 풀어야 height가 실제로 먹는다(실측으로 확인).
-  m.style.top=Math.round(vv.offsetTop)+"px";
+  // ⚠️ 같은 값이면 아무것도 쓰지 않는다 — 스크롤 중 매 이벤트마다 인라인 스타일을 다시 쓰면
+  //    그때마다 배치가 다시 계산돼 눈에 띄게 밀린다.
+  var top=Math.round(vv.offsetTop),h=Math.round(vv.height);
+  if(m._vT===top&&m._vH===h)return;
+  m._vT=top;m._vH=h;
+  m.style.top=top+"px";
   m.style.bottom="auto";
-  m.style.height=Math.round(vv.height)+"px";
+  m.style.height=h+"px";
 }
 (function(){
   var vv=window.visualViewport;if(!vv)return;
@@ -5292,8 +5295,15 @@ function edFmtView(which){
 function edToggleFmt(force){
   var p=document.getElementById("edFmtPanel"),b=document.getElementById("edFmtBtn");
   if(!p)return;
-  var open=(force==null)?p.hasAttribute("hidden"):!!force;
-  if(open){p.removeAttribute("hidden");edFmtView("main");}
+  var wasOpen=!p.hasAttribute("hidden");
+  var open=(force==null)?!wasOpen:!!force;
+  if(open){
+    p.removeAttribute("hidden");
+    // ⚠️ **이미 열려 있으면 보고 있던 줄(글꼴·크기 목록)을 건드리지 않는다.**
+    //    서식을 적용하면 커서가 복원되며 selectionchange가 다시 이 함수를 부르는데,
+    //    그때마다 기본 줄로 되돌리면 글꼴을 하나 고를 때마다 목록이 닫혀 버린다.
+    if(!wasOpen)edFmtView("main");
+  }
   else p.setAttribute("hidden","");
   if(b)b.classList.toggle("on",open);
   }

@@ -344,7 +344,7 @@
   .cm-accept-info{margin:10px 0 4px;padding:10px 13px;background:#eef6ff;border:1px solid #bcd9f5;border-radius:10px;color:#1c5b9c;font-size:12.5px;font-weight:600;line-height:1.55}
   .cm-accept-info b{font-weight:800}
 
-  .editor{position:fixed;inset:0;z-index:110;background:var(--bg);display:flex;flex-direction:column;opacity:0;visibility:hidden;transform:translateY(12px);transition:.2s}
+  .editor{position:fixed;inset:0;z-index:110;background:var(--bg);display:flex;flex-direction:column;opacity:0;visibility:hidden;transform:translateY(12px);/* ⚠️ transition은 여닫힘에 쓰는 속성에만 건다. 예전엔 `transition:.2s`(전체)라 키보드·스크롤로 top·height를 바꿀 때마다 0.2초 애니메이션이 걸려 패널이 뒤늦게 따라왔다. */transition:opacity .2s,transform .2s,visibility .2s}
   .editor.open{opacity:1;visibility:visible;transform:none}
   .ed-top{background:var(--surface);border-bottom:1.5px solid var(--line);flex-shrink:0}
   .ed-top-in{height:62px;display:flex;align-items:center;justify-content:space-between}
@@ -2175,8 +2175,8 @@
 .ed-dock{flex-shrink:0;z-index:70;
   background:rgba(255,255,255,.94);-webkit-backdrop-filter:blur(14px) saturate(1.6);backdrop-filter:blur(14px) saturate(1.6);
   border-top:1px solid var(--line-2);box-shadow:0 -6px 22px rgba(31,22,28,.10);
-  padding-bottom:env(safe-area-inset-bottom,0px);
-  transition:transform .12s ease-out} /* 키보드 여닫힘을 따라갈 때 툭 튀지 않게 */
+  padding-bottom:env(safe-area-inset-bottom,0px)}
+/* ⚠️ 도크에는 transition을 걸지 않는다 — 화면 크기를 따라갈 때 한 박자 늦게 붙어 '떨어진 것처럼' 보인다 */
 /* 삽입 도구 줄 — 6개가 한 줄에 균등.
    ⚠️ 세로 공간이 곧 본문 공간이다(키보드까지 올라오면 본문이 화면의 3분의 1밖에 안 남는다) →
       아이콘·글자·여백을 최소로 줄여 한 줄 52px 안에 넣는다. */
