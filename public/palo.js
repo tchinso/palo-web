@@ -3084,14 +3084,12 @@ function cmCardHTML(d,idx){
   var thumb=(d.images&&d.images[0])?("background-image:url('"+cmQ(d.images[0])+"');background-size:cover;background-position:center"):('background:'+cmGrads[idx%cmGrads.length]);
   var status=d.status==='open'?'<div class="cm-status open">오픈중</div>':'';
   var revBadge=d.reviewEventOn?'<div class="cm-revevent-badge">🎁 리뷰 이벤트</div>':'';
-  var tagsLine=(d.tags&&d.tags.length)?d.tags.map(function(t){return '#'+t;}).join(' '):'';
   var bookmarked=cmBookmarkIds&&cmBookmarkIds.has(d.id);
   return '<div class="cm-card" onclick="cmOpenDetail('+idx+')">'+
     '<div class="cm-thumb" style="'+thumb+'">'+status+revBadge+
       '<div class="cm-bookmark'+(bookmarked?' on':'')+'" onclick="event.stopPropagation();cmToggleBookmark('+d.id+',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12v18l-6-4-6 4z"/></svg></div></div>'+
     '<div class="cm-c-artist">'+esc(d.artist)+'</div>'+
     '<div class="cm-c-title">'+esc(d.title)+'</div>'+
-    (tagsLine?'<div class="cm-c-tags">'+esc(tagsLine)+'</div>':'')+
     '<div class="cm-c-meta">'+
       // 조회수는 글 목록 카드와 같은 축약(1000 → 1.0k) — 칸이 좁아 자릿수가 늘면 줄이 넘친다
       '<span title="조회수">'+CM_IC_VIEW+fmtViews(d.views||0)+'</span>'+

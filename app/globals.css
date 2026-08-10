@@ -1798,7 +1798,6 @@
     --cm-card-gap-x:10px;      /* 카드 가로 간격 */
     --cm-artist-fs:11.5px;
     --cm-title-fs:14px;
-    --cm-tags-fs:10.5px;
     --cm-meta-fs:10.5px}
   .cm-top{position:sticky;top:0;z-index:20;background:var(--bg);padding:10px var(--cm-padx) 0}
   /* 핑크 테두리 → 연한 회색 배경으로. 테두리는 투명하게 자리만 잡아 둬서
@@ -1839,8 +1838,9 @@
   .cm-chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   /* 아래 여백: 하단 탭 + 우측 하단 '만들기' 버튼에 마지막 카드가 가리지 않게.
      ⚠️ `1fr 1fr`이 아니라 `minmax(0,1fr)`이어야 한다. `1fr`은 사실 `minmax(auto,1fr)`이라
-        칸의 최소 너비가 내용의 min-content로 잡히는데, 카드 안 태그 줄(`.cm-c-tags`)이
-        `white-space:nowrap`이라 그 값이 186px까지 치솟는다(실측). 그러면 태그가 긴 카드의
+        칸의 최소 너비가 내용의 min-content로 잡히는데, 카드 안에 `white-space:nowrap`인
+        줄(예전엔 태그 줄, 지금은 작가명)이 있으면 그 값이 치솟는다(태그 줄일 때 186px 실측).
+        그러면 그 줄이 긴 카드의
         칸만 넓어지고 옆 칸이 좁아져서 **썸네일 크기가 카드마다 달라진다**
         (375px에서 189.6px vs 166.1px로 어긋났다 — 2026-08-10 사용자 신고).
         `overflow:hidden`·`text-overflow:ellipsis`는 min-content를 줄여주지 않으니 소용없다. */
@@ -1906,15 +1906,13 @@
   .cm-c-title{font-size:var(--cm-title-fs);font-weight:700;line-height:1.25;margin:0 2px 3px;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .cm-c-price{font-size:12.5px;font-weight:700;color:var(--brand-2);margin:0 2px}
-  /* 태그는 '있으면 좋은' 정보라 한 단계 더 흐리게 — 제목·작가명보다 뒤로 물러나 보이게 */
-  .cm-c-tags{font-size:var(--cm-tags-fs);color:var(--muted-2);margin:2px 2px 0;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  /* 태그 줄과 지표 줄을 한 줄로 합치는 건 실측해 보고 접었다 — 카드 폭이 171px뿐이라
-     지표(👁 💬 🔖)가 115px를 먹고 태그에 50px밖에 안 남아 두세 글자에서 잘린다.
-     대신 줄을 통째로 끄는 선택지를 남겨 둔다. 끄면 카드가 248 → 230px가 되어
-     812px 화면(아이폰 12 mini·X·11 Pro 등)에서도 4개가 들어온다(실측).
-     정보를 잃는 대신 화면을 얻는 교환이므로, 원하면 아래 한 줄의 주석만 풀면 된다. */
-  /* .cm-c-tags{display:none} */
+  /* 카드에 태그 줄(#미소녀 #LD …)은 두지 않는다.
+     ⚠️ 한 줄로 합치는 안은 실측 후 접었다 — 카드 폭이 171px뿐이라 지표(👁 💬 🔖)가
+        115px를 먹고 태그에 50px밖에 안 남아 두세 글자에서 잘린다.
+     ⚠️ 줄을 아예 없앤 이유: 이 줄 18px 때문에 812px 화면(아이폰 12 mini·X·11 Pro)에서
+        카드가 2개밖에 안 들어왔다. 빼면 카드가 248 → 230px가 되어 4개가 들어온다(실측).
+     되살리려면 palo.js의 cmCardHTML에 태그 줄을 다시 넣고 여기에 스타일을 주면 된다.
+     태그는 상단 '지금 많이 찾는 태그' 칩과 상세 화면에서 계속 볼 수 있다. */
   /* wrap: 숫자가 아주 커져도 한 줄을 고집하다 옆 카드 위로 삐져나오지 않게 접힌다.
      썸네일은 카드 맨 위라 이 줄이 두 줄이 되어도 격자 정렬은 흐트러지지 않는다. */
   .cm-c-meta{display:flex;flex-wrap:wrap;gap:2px 8px;margin:2px 2px 0;
