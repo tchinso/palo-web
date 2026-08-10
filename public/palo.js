@@ -3083,6 +3083,14 @@ async function openCommissionList(){
   window.scrollTo({top:0,behavior:"smooth"});
   refreshCommissions();
 }
+/* 커미션 카드 아래 지표 아이콘.
+   이모지(👁·💬·🔖)를 쓰다가 선 아이콘으로 바꿨다 — 이모지는 기기마다 모양·크기가 제각각이라
+   (특히 👁은 안드로이드에서 사실적인 눈알로 그려진다) 줄이 들쭉날쭉해 보였고,
+   커미션 상세 화면은 이미 같은 계열의 선 아이콘을 쓰고 있어 화면끼리 어긋나 있었다.
+   ⚠️ 글 목록 카드(`post-card-stats`)는 사용자 요청대로 이모지 그대로 뒀다. */
+var CM_IC_VIEW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>';
+var CM_IC_REVIEW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5a8.4 8.4 0 0 1-.9-3.8 8.4 8.4 0 0 1 8.4-9 8.4 8.4 0 0 1 8.6 8.3z"/></svg>';
+var CM_IC_BOOKMARK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>';
 function cmCardHTML(d,idx){
   var thumb=(d.images&&d.images[0])?("background-image:url('"+cmQ(d.images[0])+"');background-size:cover;background-position:center"):('background:'+cmGrads[idx%cmGrads.length]);
   var status=d.status==='open'?'<div class="cm-status open">오픈중</div>':'';
@@ -3095,7 +3103,12 @@ function cmCardHTML(d,idx){
     '<div class="cm-c-artist">'+esc(d.artist)+'</div>'+
     '<div class="cm-c-title">'+esc(d.title)+'</div>'+
     (tagsLine?'<div class="cm-c-tags">'+esc(tagsLine)+'</div>':'')+
-    '<div class="cm-c-meta"><span>👁 '+(d.views||0)+'</span><span>💬 '+(d.reviewCount||0)+'</span><span>🔖 '+(d.bookmarkCount||0)+'</span></div></div>';
+    '<div class="cm-c-meta">'+
+      // 조회수는 글 목록 카드와 같은 축약(1000 → 1.0k) — 칸이 좁아 자릿수가 늘면 줄이 넘친다
+      '<span title="조회수">'+CM_IC_VIEW+fmtViews(d.views||0)+'</span>'+
+      '<span title="후기">'+CM_IC_REVIEW+(d.reviewCount||0)+'</span>'+
+      '<span title="저장">'+CM_IC_BOOKMARK+(d.bookmarkCount||0)+'</span>'+
+    '</div></div>';
 }
 function cmFilteredIdx(){
   var q=(cmState.query||'').trim().toLowerCase();
