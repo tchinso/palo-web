@@ -557,12 +557,23 @@
   .dw-search input::placeholder{color:var(--muted-2)}
   .dw-search input:focus{outline:none;border-color:var(--brand);background:var(--surface)}
 
-  /* ── 가운데(여기만 스크롤) ── */
+  /* ── 가운데(여기만 스크롤) ──
+     ⚠️ 스크롤되는 칸(.dw-scroll) 안에 페이드를 넣으면 **내용과 함께 밀려 올라간다.**
+        그래서 감싸는 상자(.dw-scrollwrap)를 하나 두고 거기에 얹는다. */
+  .dw-scrollwrap{position:relative;flex:1;min-height:0;display:flex}
   .dw-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
     -webkit-overflow-scrolling:touch;scrollbar-width:thin}
   .dw-scroll::-webkit-scrollbar{width:3px}
   .dw-scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
   .dw-body{padding:2px 0 8px}
+  /* 아래가 옅게 흐려지며 "더 있다"고 알린다.
+     ⚠️ 맨 아래까지 내려가면 사라져야 한다. 계속 깔려 있으면 마지막 항목만 이유 없이
+        흐려 보이고, "끝까지 왔다"는 신호도 못 준다 → .more 클래스를 JS가 붙였다 뗀다.
+     ⚠️ pointer-events:none 없으면 이 투명한 띠가 마지막 항목의 터치를 가로챈다. */
+  .dw-scrollwrap::after{content:"";position:absolute;left:0;right:0;bottom:0;height:30px;
+    pointer-events:none;opacity:0;transition:opacity .2s;
+    background:linear-gradient(180deg,rgba(255,255,255,0),var(--surface))}
+  .dw-scrollwrap.more::after{opacity:1}
 
   /* ── 항목 — 가지런함의 핵심 ──
      ⚠️ .dw-ic 의 width:24px 고정이 전부다. 이모지는 글자마다 폭이 제각각이라

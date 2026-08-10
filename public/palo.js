@@ -6518,13 +6518,42 @@ async function _submitPostBody(){
 }
 /* drawer / sheet / toast */
 var drawer=document.getElementById('drawer'),scrim=document.getElementById('scrim');
+
+/* 아래쪽 페이드 켜고 끄기 — 더 내려갈 데가 남았을 때만 보인다.
+   ⚠️ 4px의 여유를 둔다. 브라우저가 소수점 높이를 다루다 보면 맨 아래에서도
+      1px쯤 남았다고 계산되는 일이 있어, 0으로 비교하면 페이드가 안 꺼진다. */
+function dwSyncFade(){
+  var sc=document.getElementById('dwScroll');
+  if(!sc||!sc.parentElement)return;
+  var more=(sc.scrollHeight-sc.scrollTop-sc.clientHeight)>4;
+  sc.parentElement.classList.toggle('more',more);
+}
+/* 메뉴를 열 때, 지금 보고 있는 게시판이 접혀 있으면 그 자리로 옮겨 준다.
+   ⚠️ 이미 보이는 항목이면 건드리지 않는다 — 멀쩡히 보이는데 목록이 움직이면 더 어수선하다.
+   ⚠️ 부드러운 스크롤을 쓰지 않는다. 메뉴가 미끄러져 들어오는 동안 목록까지 따로 움직이면
+      두 개가 겹쳐 보여서 오히려 산만하다. 열리기 전에 조용히 자리를 잡아 둔다. */
+function dwScrollToCurrent(){
+  var sc=document.getElementById('dwScroll');
+  if(!sc)return;
+  var on=sc.querySelector('.dw-item.on');
+  if(!on){sc.scrollTop=0;return;}
+  var top=on.offsetTop, bottom=top+on.offsetHeight;
+  if(top>=sc.scrollTop&&bottom<=sc.scrollTop+sc.clientHeight)return; // 이미 보임
+  sc.scrollTop=Math.max(0,top-(sc.clientHeight-on.offsetHeight)/2);  // 가운데쯤에 두기
+}
 // 열 때마다 다시 그린다 — 그래야 '지금 보고 있는 곳' 표시가 항상 맞는다
 // (커미션·채팅으로 옮겨간 것은 게시판을 고른 게 아니라서 renderNav가 다시 불리지 않는다)
 function openDrawer(){
   var nav=document.getElementById('boardNavM');
   if(nav)renderNav(nav);
+  dwScrollToCurrent();   // ⚠️ 다시 그린 **뒤에** 해야 항목 위치가 제대로 잡힌다
+  dwSyncFade();
   drawer.classList.add('open');scrim.classList.add('open');document.body.style.overflow='hidden';
 }
+(function(){
+  var sc=document.getElementById('dwScroll');
+  if(sc)sc.addEventListener('scroll',dwSyncFade,{passive:true}); // passive: 스크롤을 막지 않아 더 부드럽다
+})();
 function closeDrawer(){drawer.classList.remove('open');scrim.classList.remove('open');document.body.style.overflow=''}
 document.getElementById('menuBtn').addEventListener('click',openDrawer);
 document.getElementById('drawerClose').addEventListener('click',closeDrawer);
