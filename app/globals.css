@@ -500,10 +500,17 @@
   /* ===== 사이드 메뉴 열고 닫기 =====
      한 곳에서 시간·곡선을 정해 두고 메뉴와 뒤 배경이 **같은 값을 쓰게** 한다.
      둘이 조금이라도 어긋나면 배경이 먼저 걷히거나 늦게 걷혀서 눈에 띄게 어색하다. */
-  :root{--dw-dur:.26s;--dw-ease:cubic-bezier(.22,1,.36,1)}
+  /* 열 때는 느긋하게(쓱 밀려 나오는 느낌), 닫을 때는 조금 빠르게.
+     사람은 '나타나는 것'은 천천히 봐야 편안하고, '치우는 것'은 빨리 사라지길 기대한다.
+     ⚠️ 어느 쪽 시간이 쓰이는지는 **도착하는 상태**가 정한다 — 열 때는 .open에 적은 값,
+        닫을 때는 .open이 떨어져 나가므로 기본 규칙에 적은 값이 쓰인다.
+     ⚠️ 곡선을 easeOutQuint(.22,1,.36,1)에서 easeOutCubic으로 낮췄다. 전자는 초반에 확
+        튀어나갔다가 끝에서 길게 끄는 모양이라, 시간을 늘려도 시작이 계속 빠르게 느껴진다. */
+  :root{--dw-in:.34s;--dw-out:.26s;--dw-ease:cubic-bezier(.33,1,.68,1)}
   .scrim{position:fixed;inset:0;background:rgba(58,36,56,.4);z-index:70;opacity:0;visibility:hidden;
-    transition:opacity var(--dw-dur) var(--dw-ease),visibility var(--dw-dur)}
-  .scrim.open{opacity:1;visibility:visible}
+    transition:opacity var(--dw-out) var(--dw-ease),visibility var(--dw-out)}
+  .scrim.open{opacity:1;visibility:visible;
+    transition:opacity var(--dw-in) var(--dw-ease),visibility var(--dw-in)}
   /* ⚠️ left/right로 위치를 옮기지 않고 transform만 쓴다 — 위치 속성을 애니메이션하면
         매 프레임 레이아웃을 다시 계산해서 모바일에서 눈에 띄게 버벅인다.
      ⚠️ 닫혔을 때 visibility:hidden 까지 줘야 완전히 없는 셈이 된다. transform만으로
@@ -514,9 +521,10 @@
         뒤 본문이 따라 움직이지 않게 한다. */
   .drawer{position:fixed;top:0;left:0;bottom:0;width:82%;max-width:320px;background:var(--surface);
     z-index:80;transform:translateX(-100%);visibility:hidden;
-    transition:transform var(--dw-dur) var(--dw-ease),visibility var(--dw-dur);
+    transition:transform var(--dw-out) var(--dw-ease),visibility var(--dw-out);
     overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:20px}
-  .drawer.open{transform:translateX(0);visibility:visible}
+  .drawer.open{transform:translateX(0);visibility:visible;
+    transition:transform var(--dw-in) var(--dw-ease),visibility var(--dw-in)}
   /* 움직임을 줄여 달라고 설정한 사람에게는 미끄러지는 동작을 없앤다(멀미·어지럼 배려) */
   @media(prefers-reduced-motion:reduce){
     .scrim,.drawer{transition-duration:.01ms}
