@@ -1530,7 +1530,14 @@ Supabase Storage 용량 절약 + 로딩 속도 개선 목적. 전부 **브라우
 - **노출 지점 전수 확인(요구사항 3)**: 네비(`ADULT_BOARD_ENABLED=false`로 `BOARDS`에서 제거) · 홈 피드 클라(`filteredPosts()`가 `board==="all"`일 때 adult를 **무조건** 제외) · 홈 피드 SSR(`visibleFor`) · 검색(`doSearch`가 `state.board="all"`로 두므로 위 필터가 그대로 적용) · sitemap·RSS(`.neq('board','adult')`) — **모두 이미 막혀 있었고**, 새로 막은 곳은 `/board/adult` 메타데이터 하나다.
 - **검증 자동화**: `scripts/check-public-html.mjs` 신설(`npm run check:public-html`). 로그인하지 않은 채 GET해서 금지 문구를 센다. 상세 페이지 id는 **sitemap에서 뽑아** 검사한다(하드코딩하면 그 글이 지워진 날부터 조용히 검사에서 빠진다). 결과: `/`·`/board/free`·`/board/doodle`·`/board/adult`·sitemap·robots·rss·`/post/*`×2·`/commission/*`×2 **전부 0건**.
 - **⚠️ 일부러 손대지 않은 것 ①(법정 고지)**: `/terms`(성인×2)·`/privacy`(성인×2·19세×4·본인확인×28·연령 확인×6). 「청소년 보호법」·개인정보 처리방침상 **반드시 적어야 하는 내용**이라 지우면 고지 의무 위반이다. 검사 스크립트도 이 둘은 보고만 하고 실패로 치지 않는다.
-- **⚠️ 일부러 손대지 않은 것 ②(`palo.js` 잔여)**: `public/palo.js`는 HTML이 아니라 별도로 받아가는 JS 파일이라 이번 목표(HTML 소스) 밖이지만, 문자열은 남아 있다 — 성인×9·🔞×6·본인인증×4·에치치×3·19세×1(상당수는 주석). 심사 봇이 링크된 JS까지 훑으면 다시 걸릴 수 있다. 완전히 없애려면 게이트 모듈을 별도 파일로 분리해 필요할 때만 로드해야 하는데, `BOARDS`·`CATMAP`·`CHIP_EMOJI`의 게시판 이름·🔞까지 옮겨야 해서 범위가 커진다. **필요해지면 그때 진행.**
+- **후속(2026-08-10, 같은 날 이어서): `palo.js` 잔여 문자열도 제거 — `/agegate.js`로 분리**
+  - 1차 수정 뒤에도 `public/palo.js`에 성인×9·🔞×6·본인인증×4·에치치×3·19세×1이 남아 있었다. HTML은 아니지만 **링크된 JS라 심사 봇이 따라가 읽을 수 있어** 사용자 요청으로 마저 걷어냈다.
+  - **`public/agegate.js` 신설**: 게시판 이름(`에치치`)·이모지(🔞)·안내문·게이트 UI·포트원 본인확인 로직을 통째로 옮겼다. **이 문구를 담은 유일한 파일**이고, **어떤 HTML에서도 참조되지 않는다.** palo.js가 만든 script 태그로 **런타임에만** 받아온다 — ①게시판에 들어가려 할 때 ②`?adultVerify=1`로 돌아왔을 때 ③`ADULT_BOARD_ENABLED=true`일 때 부팅 시.
+  - **palo.js에서 뺀 것**: `BOARDS`의 게시판 항목 · `CATMAP` · `BOARD_EMOJI` · `CHIP_EMOJI` · `CHIP_GROUP` · `BOARD_GUIDE`의 각 adult 항목 + 게이트 구현부 전체(약 145줄). 남은 것은 얇은 로더(`loadAgeGate`/`openAdultGate`/`resumeAdultVerification`)와 `isAdultVerified()`뿐. **인증 로직은 그대로 옮기기만 했다 — 판정은 여전히 `/api/auth/adult-verify`가 내린다.**
+  - **게시판을 다시 열 때**: `ADULT_BOARD_ENABLED=true`만 바꾸면 된다. 그러면 부팅 때 `/agegate.js`를 받아와 `registerBoard()`가 위 6개 표를 채우고 메뉴·상단 탭을 다시 그린다. ⚠️ 표가 여섯 군데로 나뉘어 있어 **하나라도 빠지면 그 화면만 조용히 깨진다**(등록 함수 한 곳에 모아 뒀으니 거기만 고칠 것).
+  - **⚠️ 블록 주석 안에서 `**/`를 쓰면 거기서 주석이 닫힌다.** 설명에 `**/agegate.js**`라고 강조 표시를 넣었다가 `SyntaxError: Unexpected identifier`로 파일 전체가 죽었다(`node --check`로 잡음). 경로를 주석에 쓸 때 별표 강조를 붙이지 말 것.
+  - **검증 확장**: `scripts/check-public-html.mjs`가 이제 ①공개 경로 HTML ②**홈이 불러오는 JS·CSS 전부**(12개, palo.js 488KB 포함) ③**게이트 모듈이 HTML에서 참조되지 않는지**까지 본다. ③은 회귀 방지용 — 누군가 레이아웃에 `<script src="/agegate.js">`를 넣으면 즉시 실패한다.
+  - **남는 것(불가피)**: palo.js에 경로 문자열 `"/agegate.js"`와 영문 식별자(`adult` 5회, `adultVerify`, `adult_verified`, `/api/auth/adult-verify`)가 있다. 무언가는 그 파일을 가리켜야 하므로 참조 자체를 없앨 수는 없다. 한글 문구·🔞는 0건. 게시판 id `adult`는 DB(`posts.board`)·URL과 묶여 있어 바꾸려면 마이그레이션이 필요하다 — 건드리지 않았다.
 
 ### 🐛 커미션 목록 썸네일 크기가 카드마다 달랐던 문제 (2026-08-10)
 "커미션 탭에서 커미션별 미리보기 이미지 크기가 다르다"는 신고. `.cm-thumb`는 `width:100%;aspect-ratio:1/1`이라 코드만 보면 항상 정사각인데, **칸(그리드 열) 자체가 서로 달랐다.**

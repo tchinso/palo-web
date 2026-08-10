@@ -20,20 +20,20 @@ var BOARDS=[
     {id:"recruit",name:"구인",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"13.5\" cy=\"6.5\" r=\"1\"/><circle cx=\"17.5\" cy=\"10.5\" r=\"1\"/><circle cx=\"8.5\" cy=\"7.5\" r=\"1\"/><circle cx=\"6.5\" cy=\"12.5\" r=\"1\"/><path d=\"M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.4 0 2.5-1.1 2.5-2.5 0-.6-.2-1.2-.6-1.6-.4-.4-.6-.9-.6-1.4 0-1.1.9-2 2-2H16c3.3 0 6-2.7 6-6 0-5-4.5-8.5-10-8.5z\"/></svg>"},
     {id:"used",name:"중고",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 12l8-8h6a2 2 0 0 1 2 2v6l-8 8z\"/><circle cx=\"15\" cy=\"9\" r=\"1.4\" fill=\"currentColor\" stroke=\"none\"/></svg>"}]},
   {group:"기타",items:[
-    {id:"suggest",name:"버그·건의사항",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z\"/><path d=\"M12 9v3M12 15h.01\"/></svg>"},
-    {id:"adult",name:"에치치",icon:"<span class=\"ic\" style=\"font-size:18px;line-height:1\">🔞</span>"}]}
+    {id:"suggest",name:"버그·건의사항",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z\"/><path d=\"M12 9v3M12 15h.01\"/></svg>"}]}
 ];
-// 성인(에치치) 게시판 노출 스위치 — 네이버 로그인 검수 기간 동안 비공개.
-// 검수 승인 후 다시 열려면 이 값만 true로 바꾸면 됨(게시판 정의·라벨·안내문구는 그대로 남아 있음).
+/* 19+ 게시판 노출 스위치 — 네이버 로그인 검수 기간 동안 비공개.
+   ⚠️ 이 게시판의 이름·이모지·안내문·확인 UI는 이 파일에 없다. 전부 /agegate.js 에 있고,
+      켜져 있을 때만(아래 loadAgeGate) 받아와서 BOARDS·CATMAP·BOARD_EMOJI·CHIP_EMOJI·
+      CHIP_GROUP·BOARD_GUIDE에 끼워 넣는다.
+      이유: 광고 심사 봇이 링크된 JS까지 훑어서 사이트를 잘못된 업종으로 분류했다
+      (2026-08-10 틱톡 광고 거부). 화면에 안 뜨는 코드 때문에 광고가 막히지 않게 분리했다.
+   ⚠️ 다시 열 때는 이 값만 true로 바꾸면 된다 — 그 순간부터 /agegate.js를 부팅 때 받아온다. */
 var ADULT_BOARD_ENABLED=false;
-if(!ADULT_BOARD_ENABLED){
-  BOARDS.forEach(function(g){g.items=g.items.filter(function(b){return b.id!=="adult";});});
-  BOARDS=BOARDS.filter(function(g){return g.items.length;}); // 항목이 없어진 그룹은 메뉴에서 숨김
-}
 var CATMAP={talk:{label:"수다",cls:"talk-c"},ask:{label:"고민",cls:"help-c"},crit:{label:"피드백",cls:"crit-c"},
   wip:{label:"작업과정",cls:"crit-c"},doodle:{label:"낙서",cls:"talk-c"},tip:{label:"팁",cls:"tip-c"},challenge:{label:"챌린지",cls:"chal-c"},collab:{label:"협업",cls:"help-c"},
   sketch:{label:"그림공부",cls:"tip-c"},trade:{label:"거래",cls:"free-c"},used:{label:"중고",cls:"free-c"},
-  review:{label:"후기",cls:"free-c"},vote:{label:"투표",cls:"chal-c"},request:{label:"리퀘스트",cls:"free-c"},recruit:{label:"구인",cls:"free-c"},adult:{label:"에치치",cls:"help-c"},suggest:{label:"건의",cls:"chal-c"},ilchim:{label:"일침",cls:"crit-c"}};
+  review:{label:"후기",cls:"free-c"},vote:{label:"투표",cls:"chal-c"},request:{label:"리퀘스트",cls:"free-c"},recruit:{label:"구인",cls:"free-c"},suggest:{label:"건의",cls:"chal-c"},ilchim:{label:"일침",cls:"crit-c"}};
 
 var postsLoaded=false; // loadRealPosts()가 실제 글을 POSTS에 합친 뒤 true — 이 전에는 데모 글로 renderList()를 강제로 돌리지 않음(로그인 리다이렉트 직후 더미 글이 잠깐 보이는 버그 방지)
 var userLeftHome=false; // 초기 로딩이 끝나기 전에 사용자가 피드(홈) 밖 화면(커미션/채팅/글쓰기/프로필/글·유저 상세)으로 이동했으면 true — loadRealPosts() 완료 시 홈으로 강제 복귀시키지 않기 위함
@@ -587,7 +587,7 @@ async function initAuth(){
       try{history.replaceState({},"",location.pathname);}catch(e){} // 새로고침 시 또 뜨지 않게 주소 정리
     },400);
   }
-  // 모바일에서 성인 본인확인을 마치고 리다이렉트로 돌아온 경우 이어서 처리
+  // 모바일에서 확인을 마치고 리다이렉트로 돌아온 경우 이어서 처리
   if(typeof resumeAdultVerification==="function")resumeAdultVerification();
   // /board/adult 주소로 바로 들어온 경우 — 로그인 상태를 알게 된 지금 다시 판단한다
   // (딥링크 처리는 부팅 시점에 일어나서 그때는 인증 여부를 알 수 없다)
@@ -828,149 +828,63 @@ function openRecoveryEmail(){
 }
 function closeRecoveryEmail(){var m=document.getElementById("recoveryModal");if(m)m.classList.remove("open");document.body.style.overflow="";}
 
-/* ===== 성인 게시판 본인확인(연령 확인) =====
-   포트원(PortOne) V2 + KG이니시스 통합 본인인증.
-   ⚠️ 여기서 하는 건 "인증창을 띄우고 결과 id를 서버로 넘기는 것"까지다.
-      실제 합격 판정은 /api/auth/adult-verify 가 포트원 API로 다시 조회해서 내린다.
-      (브라우저가 보낸 값을 믿으면 콘솔에서 한 줄로 우회당한다.)                     */
-var PORTONE_STORE_ID="";    // 관리자 콘솔 → 결제 연동에서 확인 (계약 후 입력)
-var PORTONE_CHANNEL_KEY="";  // 채널 관리 탭의 KG이니시스 통합 본인인증 채널 키
-var ADULT_VERIFY_READY=!!(PORTONE_STORE_ID&&PORTONE_CHANNEL_KEY);
-
+/* ===== 19+ 게시판 게이트 로더 ==========================================
+   실제 UI와 확인 로직은 /agegate.js 에 있다 — 이 파일에는 그 문구가 한 줄도 없다.
+   (주의: 주석 안에서 별표 두 개 뒤에 슬래시가 오면 블록 주석이 거기서 닫힌다.)
+   ⚠️ 광고 심사 봇은 응답 HTML만이 아니라 링크된 JS까지 훑는다. 화면에 한 번도 안 뜨는
+      코드 때문에 사이트 전체가 잘못된 업종으로 분류됐다(2026-08-10 틱톡 광고 거부).
+      그래서 게시판 이름·안내문·인증 UI를 통째로 별도 파일로 뺐고, 필요할 때만 받아온다.
+   ⚠️ 옮긴 것은 위치뿐이다. 합격 판정은 여전히 서버(/api/auth/adult-verify)가 내린다. */
 function isAdultVerified(){return !!(AUTH.profile&&AUTH.profile.adult_verified);}
-function _adultHint(t){var h=document.getElementById("adultHint");if(h)h.textContent=t||"";}
-function _adultBusy(on,label){
-  var b=document.getElementById("adultStartBtn");if(!b)return;
-  b.disabled=!!on;b.textContent=on?(label||"확인 중…"):"본인인증 하기";
-}
-/* 모달 마크업을 **필요한 순간에 만들어 붙인다.**
-   ⚠️ 예전엔 app/body-html.js에 통째로 박혀 있었다. 화면에는 안 보였지만(display:none)
-      홈을 포함한 모든 페이지의 초기 HTML에 문구가 그대로 실려 나갔고, 광고 심사 봇이
-      화면이 아니라 소스를 읽는 탓에 사이트 전체가 성인 업종으로 분류됐다
-      (2026-08-10 틱톡 광고 거부). 안 보여줄 마크업은 애초에 보내지 않는다.
-   ⚠️ `.rules-scrim`은 display:none ↔ flex라 전환 애니메이션이 없다. 그래서 붙이자마자
-      바로 .open을 줘도 된다(트랜지션이 있었다면 리플로우를 한 번 강제해야 한다). */
-var _adultGateEl=null;
-function ensureAdultGate(){
-  if(_adultGateEl&&document.body.contains(_adultGateEl))return _adultGateEl;
-  var m=document.createElement("div");
-  m.className="rules-scrim";
-  m.id="adultModal";
-  m.addEventListener("click",function(e){if(e.target===m)closeAdultGate();});
-  m.innerHTML=
-    '<div class="rules">'+
-      // 문구는 예전 마크업 그대로 — 이번 작업은 '언제 그리는가'만 바꾸는 것이다
-      '<h3>🔞 성인 인증이 필요해요</h3>'+
-      '<p class="nick-hint" style="margin-bottom:10px">이 게시판은 <b>만 19세 이상</b>만 이용할 수 있어요. 청소년보호법에 따라 본인확인 기관을 통한 연령 확인이 필요합니다.</p>'+
-      '<div class="adult-privacy">'+
-        '<div class="adult-privacy-t">🔒 이렇게 처리해요</div>'+
-        '<ul>'+
-          '<li>이름·생년월일·휴대폰번호는 <b>저장하지 않아요</b></li>'+
-          '<li>나이 확인에만 사용하고 즉시 폐기해요</li>'+
-          '<li>중복 인증 방지용 암호화 값만 남겨요</li>'+
-          '<li>인증은 <b>계정당 한 번</b>만 하면 돼요</li>'+
-        '</ul>'+
-      '</div>'+
-      '<p class="login-hint" id="adultHint"></p>'+
-      '<button class="r-ok" id="adultStartBtn">본인인증 하기</button>'+
-      '<button class="r-no">나중에 할게요</button>'+
-    '</div>';
-  // onclick 속성 대신 여기서 연결 — 마크업이 문자열로 도는 자리라 속성 이스케이프가 헷갈린다
-  m.querySelector("#adultStartBtn").addEventListener("click",function(){startAdultVerification();});
-  m.querySelector(".r-no").addEventListener("click",function(){closeAdultGate();});
-  document.body.appendChild(m);
-  _adultGateEl=m;
-  return m;
-}
-function openAdultGate(){
-  var m=ensureAdultGate();
-  _adultHint("");_adultBusy(false);
-  m.classList.add("open");document.body.style.overflow="hidden";
-}
-function closeAdultGate(){
-  var m=document.getElementById("adultModal");if(m)m.classList.remove("open");
-  document.body.style.overflow="";
-}
 
-// 포트원 브라우저 SDK를 필요할 때만 불러온다(평소 로딩 속도에 영향 없게)
-function loadPortOneSdk(){
-  if(window.PortOne)return Promise.resolve();
-  return new Promise(function(resolve,reject){
+// palo.js가 배달된 버전을 그대로 따라가서 두 파일의 캐시가 어긋나지 않게 한다
+var _APP_V=(function(){
+  try{
+    var s=document.querySelector('script[src*="/palo.js?v="]');
+    var m=s&&/[?&]v=([^&]+)/.exec(s.getAttribute("src"));
+    return m?m[1]:"";
+  }catch(e){return "";}
+})();
+var _ageGateP=null;
+function loadAgeGate(){
+  if(window.__ageGateLoaded)return Promise.resolve();
+  if(_ageGateP)return _ageGateP;
+  _ageGateP=new Promise(function(resolve,reject){
     var s=document.createElement("script");
-    s.src="https://cdn.portone.io/v2/browser-sdk.js";
+    s.src="/agegate.js"+(_APP_V?("?v="+_APP_V):"");
     s.onload=function(){resolve();};
-    s.onerror=function(){reject(new Error("sdk"));};
+    s.onerror=function(){_ageGateP=null;reject(new Error("agegate"));}; // 실패하면 다음에 다시 시도
     document.head.appendChild(s);
   });
+  return _ageGateP;
 }
-
-// 인증 결과 id를 서버로 보내 최종 판정을 받는다
-async function _submitAdultVerification(verificationId){
-  var sess=await window.supabase.auth.getSession();
-  var token=sess.data.session?sess.data.session.access_token:null;
-  if(!token){_adultHint("로그인이 필요해요.");_adultBusy(false);return false;}
-  var res=await fetch("/api/auth/adult-verify",{
-    method:"POST",
-    headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
-    body:JSON.stringify({identityVerificationId:verificationId})
-  });
-  var j=null;try{j=await res.json();}catch(e){}
-  if(!res.ok||!j||!j.ok){
-    _adultHint((j&&j.message)||"인증에 실패했어요. 잠시 후 다시 시도해주세요.");
-    _adultBusy(false);return false;
-  }
-  // 프로필을 다시 읽어 adult_verified를 반영(이 값으로 게시판 접근이 열린다)
-  var pr=await window.supabase.from("profiles").select("*").eq("id",AUTH.user.id).single();
-  if(!pr.error)AUTH.profile=pr.data;
-  closeAdultGate();
-  toast("성인 인증이 완료됐어요","🔞");
-  return true;
+function openAdultGate(){
+  loadAgeGate().then(function(){window.__ageGate.open();},
+                     function(){toast("잠시 후 다시 시도해주세요");});
 }
-
-async function startAdultVerification(){
-  if(!AUTH.user){_adultHint("먼저 로그인해주세요.");return;}
-  if(!ADULT_VERIFY_READY){_adultHint("본인확인 서비스가 아직 연결되지 않았어요.");return;}
-  _adultHint("");_adultBusy(true,"인증창을 여는 중…");
-  try{
-    await loadPortOneSdk();
-    // 이 건을 구분하는 고유값. 서버가 이 id로 포트원에 결과를 조회한다.
-    var vid="adult-"+AUTH.user.id.slice(0,8)+"-"+Date.now();
-    var r=await window.PortOne.requestIdentityVerification({
-      storeId:PORTONE_STORE_ID,
-      channelKey:PORTONE_CHANNEL_KEY,
-      identityVerificationId:vid,
-      // 모바일은 대부분 리다이렉트 방식으로 동작한다. 돌아왔을 때 이어서 처리하려고 표시를 남긴다.
-      redirectUrl:location.origin+"/?adultVerify=1"
+/* 게시판을 열어 둔 경우에만 이름·이모지·안내문을 받아와 메뉴에 채워 넣는다.
+   ⚠️ 표를 채운 뒤에는 이미 그려진 메뉴·상단 탭을 다시 그려야 반영된다. */
+if(ADULT_BOARD_ENABLED){
+  loadAgeGate().then(function(){
+    window.__ageGate.registerBoard();
+    ["boardNav","boardNavM","boardNavS"].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el&&typeof renderNav==="function")renderNav(el);
     });
-    // code가 있으면 인증창에서 실패하거나 사용자가 취소한 것
-    if(r&&r.code){
-      _adultHint(r.message||"인증이 취소됐어요.");_adultBusy(false);return;
-    }
-    _adultBusy(true,"확인 중…");
-    await _submitAdultVerification((r&&r.identityVerificationId)||vid);
-  }catch(e){
-    _adultHint("인증창을 열지 못했어요. 잠시 후 다시 시도해주세요.");
-    _adultBusy(false);
-  }
+    if(typeof renderChips==="function")renderChips();
+  },function(){});
 }
 
-// 모바일 리다이렉트로 돌아온 경우 처리(주소에 결과가 실려 온다).
-// 주소는 renderList()의 pushState 등으로 곧 정리되므로 스크립트가 뜨자마자 붙잡아 둔다.
+// 모바일은 인증창이 새 페이지로 열려서 끝나면 ?adultVerify=1 로 돌아온다.
+// 주소는 renderList()의 pushState 등으로 곧 정리되므로 스크립트가 뜨자마자 붙잡아 둔다
+// (값만 여기서 보관하고, 처리는 /agegate.js가 한다).
 var _adultReturnQS=(function(){
   try{return /(^|[?&])adultVerify=1/.test(location.search)?location.search:"";}catch(e){return "";}
 })();
-async function resumeAdultVerification(){
+function resumeAdultVerification(){
   if(!_adultReturnQS)return;
-  var q=new URLSearchParams(_adultReturnQS);
-  var vid=q.get("identityVerificationId");
-  _adultReturnQS="";
-  if(!vid)return;
-  try{history.replaceState({},"",location.pathname);}catch(e){}
-  if(!AUTH.user)return;
-  openAdultGate();_adultBusy(true,"확인 중…");
-  var code=q.get("code");
-  if(code){_adultHint(q.get("message")||"인증이 취소됐어요.");_adultBusy(false);return;}
-  await _submitAdultVerification(vid);
+  var qs=_adultReturnQS;_adultReturnQS="";
+  loadAgeGate().then(function(){window.__ageGate.resume(qs);},function(){});
 }
 async function saveRecoveryEmail(){
   var inp=document.getElementById("recoveryInput"),hint=document.getElementById("recoveryHint"),btn=document.getElementById("recoverySaveBtn");
@@ -1127,7 +1041,7 @@ function catFor(p){return CATMAP[p.board]||{label:"글",cls:"free-c"}}
 // 색은 따로 정하지 않고 CATMAP의 말머리 색(talk-c·help-c…)을 그대로 가져와,
 // 고를 때 본 색과 글에 붙는 말머리 색이 어긋나지 않게 한다.
 var BOARD_EMOJI={talk:"💬",doodle:"✏️",wip:"🎨",sketch:"📖",ask:"❓",vote:"🗳️",crit:"👀",ilchim:"⚡",
-  collab:"🤝",challenge:"🏁",tip:"💡",request:"🎁",recruit:"📢",used:"📦",suggest:"🛠️",adult:"🔞",
+  collab:"🤝",challenge:"🏁",tip:"💡",request:"🎁",recruit:"📢",used:"📦",suggest:"🛠️",
   review:"⭐",trade:"💰",all:"📋"};
 function boardEmoji(id){return BOARD_EMOJI[id]||"📄";}
 function boardCls(id){return (CATMAP[id]&&CATMAP[id].cls)||"free-c";}
@@ -1170,7 +1084,7 @@ function renderNav(el){
 }
 // 상단 게시판 탭에 붙는 이모지(게시판 성격에 맞춤). 왼쪽 서랍 메뉴는 기존 선 아이콘 그대로.
 var CHIP_EMOJI={all:"📋",talk:"💬",doodle:"✏️",wip:"🎨",sketch:"📚",ask:"❓",vote:"📊",crit:"💡",
-  collab:"🤝",challenge:"🏆",tip:"📁",request:"🙏",recruit:"🔍",used:"📦",suggest:"🛠",adult:"🔞",ilchim:"💢"};
+  collab:"🤝",challenge:"🏆",tip:"📁",request:"🙏",recruit:"🔍",used:"📦",suggest:"🛠",ilchim:"💢"};
 // 성격이 비슷한 게시판끼리 같은 색 계열로 묶음 — 색만 봐도 대략 어떤 종류인지 알 수 있게(파스텔 톤)
 // g-all 전체(중립) / g-talk 이야기·소통(핑크) / g-art 그림·작업(퍼플) / g-trade 거래(블루) / g-event 함께·이벤트(그린) / g-etc 기타(그레이)
 var CHIP_GROUP={all:"g-all",
@@ -1178,7 +1092,7 @@ var CHIP_GROUP={all:"g-all",
   doodle:"g-art",wip:"g-art",sketch:"g-art",crit:"g-art",ilchim:"g-art",
   request:"g-trade",recruit:"g-trade",used:"g-trade",
   collab:"g-event",challenge:"g-event",tip:"g-event",
-  suggest:"g-etc",adult:"g-etc"};
+  suggest:"g-etc"};
 function chipsHTML(){
   var flat=[{id:"all",name:"전체 글"}];
   BOARDS.forEach(function(g){g.items.forEach(function(b){if(b.id!=="all")flat.push(b)})});
@@ -2708,10 +2622,10 @@ async function toggleLike(id){
   if(wasLiked)toast("좋아요를 눌렀어요","♥");
 }
 function selectBoard(id,skipRender){
-  // 성인 게시판은 본인확인을 마친 계정만 들어갈 수 있다(서버 RLS로도 막혀 있고, 여기선 안내를 띄운다)
+  // 19+ 게시판은 확인을 마친 계정만 들어갈 수 있다(서버 RLS로도 막혀 있고, 여기선 안내를 띄운다)
   if(id==="adult"&&!isAdultVerified()){
     closeDrawer();closeSheet();
-    if(!AUTH.user){openLoginModal();toast("로그인 후 이용할 수 있어요","🔞");}
+    if(!AUTH.user){openLoginModal();toast("로그인 후 이용할 수 있어요","🔒");}
     else openAdultGate();
     return; // 게시판을 바꾸지 않고 그대로 머문다
   }
@@ -5029,7 +4943,7 @@ function buildBoardMenu(){
 }
 function toggleBoardMenu(e){e.stopPropagation();document.getElementById("edBoardMenu").classList.toggle("open")}
 function pickBoard(id){
-  // 미인증 계정이 성인 게시판을 고르면 여기서 막는다(DB 정책으로도 저장이 거부된다)
+  // 확인하지 않은 계정이 19+ 게시판을 고르면 여기서 막는다(DB 정책으로도 저장이 거부된다)
   if(id==="adult"&&!isAdultVerified()){openAdultGate();return;}
   if(id==="review"&&!AUTH.user){toast("로그인 후 후기를 작성할 수 있어요");return;}
   edState.board=id;edState.tag=null;buildBoardMenu();refreshBoardLabel();renderEdTags();
@@ -5054,7 +4968,6 @@ var BOARD_GUIDE={
   request:"리퀘스트 글을 올려보세요! 원하는 사람들이 댓글로 캐릭터와 설명을 달아줄 거예요!",
   recruit:"커미션 작가를 구인해요. 거래는 당사자끼리 직접 진행해요.",
   used:"중고 장비를 사고팔아요. 거래 책임은 당사자에게 있어요.",
-  adult:"성인 대상 게시판이에요. 청소년은 이용할 수 없어요.",
   suggest:"버그 제보·건의사항을 남겨주세요. 운영에 참고할게요.",
   ilchim:"돌려 말하지 않는 솔직한 지적을 주고받는 곳이에요. 그림에 대해서만 말하고, 사람을 깎아내리지 말아주세요.",
   review:"커미션 이용 후기를 남기는 곳이에요."
