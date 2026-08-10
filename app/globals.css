@@ -1401,7 +1401,9 @@
   /* 알림 켜기 안내처럼 목록 안에 들어오는 다른 요소도 같은 여백을 쓰게 */
   .pf-list > *:not(.pf-item):not(.pf-toggle-row){padding-left:18px;padding-right:18px}
   /* 2x2 타일 */
-  .pf-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  /* minmax(0,1fr): .cm-grid와 같은 이유 — 타일 안 설명(`.pf-tile-s`)이 nowrap이라
+     문구가 길어지면 한쪽 칸만 넓어진다. 지금 문구로는 안 터지지만 미리 막아 둔다. */
+  .pf-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
   .pf-tile{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;
     background:var(--surface);border:none;border-radius:18px;padding:15px 14px;cursor:pointer;
     font-family:inherit;transition:.14s;min-width:0}
@@ -1676,10 +1678,17 @@
   .cm-chip{white-space:nowrap;padding:9px 18px;border-radius:20px;border:1.5px solid var(--line);
     background:var(--surface);font-size:14px;font-weight:600;color:var(--ink-2);cursor:pointer}
   .cm-chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
-  /* 아래 여백: 하단 탭 + 우측 하단 '만들기' 버튼에 마지막 카드가 가리지 않게 */
-  .cm-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 12px;
+  /* 아래 여백: 하단 탭 + 우측 하단 '만들기' 버튼에 마지막 카드가 가리지 않게.
+     ⚠️ `1fr 1fr`이 아니라 `minmax(0,1fr)`이어야 한다. `1fr`은 사실 `minmax(auto,1fr)`이라
+        칸의 최소 너비가 내용의 min-content로 잡히는데, 카드 안 태그 줄(`.cm-c-tags`)이
+        `white-space:nowrap`이라 그 값이 186px까지 치솟는다(실측). 그러면 태그가 긴 카드의
+        칸만 넓어지고 옆 칸이 좁아져서 **썸네일 크기가 카드마다 달라진다**
+        (375px에서 189.6px vs 166.1px로 어긋났다 — 2026-08-10 사용자 신고).
+        `overflow:hidden`·`text-overflow:ellipsis`는 min-content를 줄여주지 않으니 소용없다. */
+  .cm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px;
     padding:14px 18px calc(96px + var(--cm-tabbar-h,0px))}
-  .cm-card{cursor:pointer}
+  /* 그리드 아이템의 자동 최소 크기(min-width:auto)도 같은 이유로 0으로 눌러 둔다 */
+  .cm-card{cursor:pointer;min-width:0}
   .cm-thumb{position:relative;width:100%;aspect-ratio:1/1;border-radius:var(--r);overflow:hidden;background:var(--brand-soft);border:1px solid var(--line)}
   .cm-bookmark{position:absolute;bottom:9px;right:9px;width:32px;height:32px;background:rgba(255,255,255,.85);
     border-radius:50%;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
