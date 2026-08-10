@@ -843,8 +843,47 @@ function _adultBusy(on,label){
   var b=document.getElementById("adultStartBtn");if(!b)return;
   b.disabled=!!on;b.textContent=on?(label||"확인 중…"):"본인인증 하기";
 }
+/* 모달 마크업을 **필요한 순간에 만들어 붙인다.**
+   ⚠️ 예전엔 app/body-html.js에 통째로 박혀 있었다. 화면에는 안 보였지만(display:none)
+      홈을 포함한 모든 페이지의 초기 HTML에 문구가 그대로 실려 나갔고, 광고 심사 봇이
+      화면이 아니라 소스를 읽는 탓에 사이트 전체가 성인 업종으로 분류됐다
+      (2026-08-10 틱톡 광고 거부). 안 보여줄 마크업은 애초에 보내지 않는다.
+   ⚠️ `.rules-scrim`은 display:none ↔ flex라 전환 애니메이션이 없다. 그래서 붙이자마자
+      바로 .open을 줘도 된다(트랜지션이 있었다면 리플로우를 한 번 강제해야 한다). */
+var _adultGateEl=null;
+function ensureAdultGate(){
+  if(_adultGateEl&&document.body.contains(_adultGateEl))return _adultGateEl;
+  var m=document.createElement("div");
+  m.className="rules-scrim";
+  m.id="adultModal";
+  m.addEventListener("click",function(e){if(e.target===m)closeAdultGate();});
+  m.innerHTML=
+    '<div class="rules">'+
+      // 문구는 예전 마크업 그대로 — 이번 작업은 '언제 그리는가'만 바꾸는 것이다
+      '<h3>🔞 성인 인증이 필요해요</h3>'+
+      '<p class="nick-hint" style="margin-bottom:10px">이 게시판은 <b>만 19세 이상</b>만 이용할 수 있어요. 청소년보호법에 따라 본인확인 기관을 통한 연령 확인이 필요합니다.</p>'+
+      '<div class="adult-privacy">'+
+        '<div class="adult-privacy-t">🔒 이렇게 처리해요</div>'+
+        '<ul>'+
+          '<li>이름·생년월일·휴대폰번호는 <b>저장하지 않아요</b></li>'+
+          '<li>나이 확인에만 사용하고 즉시 폐기해요</li>'+
+          '<li>중복 인증 방지용 암호화 값만 남겨요</li>'+
+          '<li>인증은 <b>계정당 한 번</b>만 하면 돼요</li>'+
+        '</ul>'+
+      '</div>'+
+      '<p class="login-hint" id="adultHint"></p>'+
+      '<button class="r-ok" id="adultStartBtn">본인인증 하기</button>'+
+      '<button class="r-no">나중에 할게요</button>'+
+    '</div>';
+  // onclick 속성 대신 여기서 연결 — 마크업이 문자열로 도는 자리라 속성 이스케이프가 헷갈린다
+  m.querySelector("#adultStartBtn").addEventListener("click",function(){startAdultVerification();});
+  m.querySelector(".r-no").addEventListener("click",function(){closeAdultGate();});
+  document.body.appendChild(m);
+  _adultGateEl=m;
+  return m;
+}
 function openAdultGate(){
-  var m=document.getElementById("adultModal");if(!m)return;
+  var m=ensureAdultGate();
   _adultHint("");_adultBusy(false);
   m.classList.add("open");document.body.style.overflow="hidden";
 }

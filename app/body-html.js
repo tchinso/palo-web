@@ -1,6 +1,12 @@
 // 서버에서 글 목록을 못 그렸을 때 쓰는 자리표시(예전 동작)
 export const FEED_SKELETON = `<div class="list"><div class="skel-row"><div class="skel-main"><div class="skel-line t"></div><div class="skel-line m"></div></div><div class="skel-thumb"></div></div><div class="skel-row"><div class="skel-main"><div class="skel-line t"></div><div class="skel-line m"></div></div><div class="skel-thumb"></div></div><div class="skel-row"><div class="skel-main"><div class="skel-line t"></div><div class="skel-line m"></div></div><div class="skel-thumb"></div></div><div class="skel-row"><div class="skel-main"><div class="skel-line t"></div><div class="skel-line m"></div></div><div class="skel-thumb"></div></div><div class="skel-row"><div class="skel-main"><div class="skel-line t"></div><div class="skel-line m"></div></div><div class="skel-thumb"></div></div></div>`;
 
+// ⚠️ 여기 넣은 것은 **홈을 포함한 모든 페이지의 초기 HTML**에 그대로 실려 나간다.
+//    화면에 안 보이는(display:none) 마크업도 소스에는 남는다.
+//    그래서 연령 확인 모달(#adultModal)은 여기 두지 않는다 — 소스에 그 문구가 박혀 있으면
+//    광고 심사 봇이 화면이 아니라 소스를 읽고 사이트 전체를 성인 업종으로 분류한다
+//    (2026-08-10 틱톡 광고 거부). palo.js의 ensureAdultGate()가 필요한 순간에만 만들어 붙인다.
+//    ⚠️ 이 파일 안에서는 HTML 주석(<!-- -->)도 소스에 나가므로, 설명은 이렇게 밖에 적을 것.
 export const BODY_HTML = `
 
 <header>
@@ -402,24 +408,6 @@ export const BODY_HTML = `
       <button class="emo-picker-x" onclick="closeEmoticonPicker()" aria-label="닫기">×</button>
     </div>
     <div id="emoPickerBody"></div>
-  </div>
-</div>
-<div class="rules-scrim" id="adultModal" onclick="if(event.target===this)closeAdultGate()">
-  <div class="rules">
-    <h3>🔞 성인 인증이 필요해요</h3>
-    <p class="nick-hint" style="margin-bottom:10px">이 게시판은 <b>만 19세 이상</b>만 이용할 수 있어요. 청소년보호법에 따라 본인확인 기관을 통한 연령 확인이 필요합니다.</p>
-    <div class="adult-privacy">
-      <div class="adult-privacy-t">🔒 이렇게 처리해요</div>
-      <ul>
-        <li>이름·생년월일·휴대폰번호는 <b>저장하지 않아요</b></li>
-        <li>나이 확인에만 사용하고 즉시 폐기해요</li>
-        <li>중복 인증 방지용 암호화 값만 남겨요</li>
-        <li>인증은 <b>계정당 한 번</b>만 하면 돼요</li>
-      </ul>
-    </div>
-    <p class="login-hint" id="adultHint"></p>
-    <button class="r-ok" id="adultStartBtn" onclick="startAdultVerification()">본인인증 하기</button>
-    <button class="r-no" onclick="closeAdultGate()">나중에 할게요</button>
   </div>
 </div>
 <div class="rules-scrim" id="nickModal" onclick="if(event.target===this)closeNick()">
