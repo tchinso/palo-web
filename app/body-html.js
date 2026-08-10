@@ -89,9 +89,6 @@ export const BODY_HTML = `
   </div>
   <div class="dw-scrollwrap"><div class="dw-scroll" id="dwScroll"><div class="dw-body" id="boardNavM"></div></div></div>
   <div class="dw-foot">
-    <button class="dw-f" onclick="dwOpenNotice()">공지사항</button>
-    <button class="dw-f" onclick="selectBoard('suggest')">버그 · 건의사항</button>
-    <a class="dw-f" href="mailto:yssj1202@gmail.com" onclick="closeDrawer()">문의하기</a>
     <div class="dw-f-legal"><a href="/terms" onclick="closeDrawer()">이용약관</a><span>·</span><a href="/privacy" onclick="closeDrawer()">개인정보 처리방침</a></div>
   </div>
 </nav>

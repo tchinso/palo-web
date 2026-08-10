@@ -1071,9 +1071,9 @@ function fmtViews(n){return n>=1000?(n/1000).toFixed(1)+"k":n}
    데스크톱 왼쪽 사이드바(#boardNav)·시트(#boardNavS)와 **마크업이 다르다.**
    그래서 renderNav가 드로어일 때만 이쪽으로 넘긴다 — 호출하는 곳 5군데를 안 건드리려고
    함수를 새로 부르게 하지 않고 여기서 갈랐다.
-   ⚠️ 전체 글·버그 건의는 그룹 목록에서 빼고 각각 '주요 메뉴'와 '하단'에 따로 둔다.
+   ⚠️ 전체 글만 그룹 목록에서 빼고 '주요 메뉴'에 따로 둔다(게시판이 아니라 모아보기라서).
       id로 빼야 한다(그룹 이름으로 빼면 나중에 그 그룹에 게시판이 추가됐을 때 같이 사라진다). */
-var DW_SKIP=["all","suggest"];
+var DW_SKIP=["all"];
 function _dwScreenKey(){var t=screenStack[screenStack.length-1];return t?t.key:"";}
 function _dwItem(on,icon,name,onclick,badge){
   return '<div class="dw-item'+(on?" on":"")+'" onclick="'+onclick+'">'+
@@ -1101,14 +1101,6 @@ function renderDrawerNav(el){
     });
   });
   el.innerHTML=h;
-}
-/* 하단 '공지사항' — 메뉴를 먼저 닫고 연다.
-   ⚠️ showNotice()는 공지가 없으면 조용히 아무 일도 안 한다. 그대로 두면 사용자는
-      "눌렀는데 반응이 없다"고 느끼므로, 없을 때는 없다고 알려 준다. */
-function dwOpenNotice(){
-  closeDrawer();
-  if(!LATEST_NOTICE){toast("아직 공지가 없어요");return;}
-  showNotice();
 }
 function renderNav(el){
   if(!el)return;
