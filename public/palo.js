@@ -1,26 +1,25 @@
 var BOARDS=[
   {group:"이야기",items:[
     {id:"all",name:"전체 글",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"2\"/><path d=\"M3 7l2-3h6l2 3\"/></svg>"},
-    {id:"talk",name:"수다",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z\"/></svg>"}]},
+    {id:"talk",name:"수다",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z\"/></svg>"},
+    {id:"ask",name:"질문 · 시세문의",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .9-1 1.7M12 17h.01\"/></svg>"},
+    {id:"vote",name:"투표 · 수요조사",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"6\" y1=\"20\" x2=\"6\" y2=\"14\"/><line x1=\"12\" y1=\"20\" x2=\"12\" y2=\"4\"/><line x1=\"18\" y1=\"20\" x2=\"18\" y2=\"10\"/></svg>"}]},
   {group:"그리는 중",items:[
-    {id:"doodle",name:"낙서",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 15c2.5-6 5 5 8-1s4-6 10 1\"/></svg>"},
     {id:"wip",name:"작업물",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 20h4L18 10l-4-4L4 16v4z\"/><path d=\"M13 7l4 4\"/></svg>"},
-    {id:"sketch",name:"그림공부",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 6C10 4 6 4 3 5v14c3-1 7-1 9 1 2-2 6-2 9-1V5c-3-1-7-1-9 1z\"/><path d=\"M12 6v14\"/></svg>"}]},
-  {group:"궁금해요",items:[
-    {id:"ask",name:"질문/시세문의",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .9-1 1.7M12 17h.01\"/></svg>"},
-    {id:"vote",name:"투표/수요조사",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"6\" y1=\"20\" x2=\"6\" y2=\"14\"/><line x1=\"12\" y1=\"20\" x2=\"12\" y2=\"4\"/><line x1=\"18\" y1=\"20\" x2=\"18\" y2=\"10\"/></svg>"},
+    {id:"doodle",name:"낙서 · 크로키",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 15c2.5-6 5 5 8-1s4-6 10 1\"/></svg>"},
     {id:"crit",name:"피드백 요청",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>"},
+    {id:"sketch",name:"그림공부",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 6C10 4 6 4 3 5v14c3-1 7-1 9 1 2-2 6-2 9-1V5c-3-1-7-1-9 1z\"/><path d=\"M12 6v14\"/></svg>"},
     {id:"ilchim",name:"일침",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M13 2L4.5 12.5h6L11 22l8.5-10.5h-6z\"/></svg>"}]},
   {group:"함께",items:[
-    {id:"collab",name:"협업/팀원모집",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75\"/></svg>"},
     {id:"challenge",name:"챌린지",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 3v18\"/><path d=\"M5 4h13l-2 4 2 4H5\"/></svg>"},
-    {id:"tip",name:"자료/TIP",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 4 2 9l10 5 10-5-10-5z\"/><path d=\"M6 11v5c0 1 3 2 6 2s6-1 6-2v-5\"/></svg>"}]},
+    {id:"tip",name:"자료 · TIP",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 4 2 9l10 5 10-5-10-5z\"/><path d=\"M6 11v5c0 1 3 2 6 2s6-1 6-2v-5\"/></svg>"},
+    {id:"collab",name:"협업 · 팀원모집",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75\"/></svg>"}]},
   {group:"거래",trade:true,items:[
     {id:"request",name:"리퀘스트",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 11V6a2 2 0 0 0-4 0v5\"/><path d=\"M14 10V4a2 2 0 0 0-4 0v6\"/><path d=\"M10 10.5V6a2 2 0 0 0-4 0v8\"/><path d=\"M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2a8 8 0 0 1-8-8\"/></svg>"},
     {id:"recruit",name:"구인",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"13.5\" cy=\"6.5\" r=\"1\"/><circle cx=\"17.5\" cy=\"10.5\" r=\"1\"/><circle cx=\"8.5\" cy=\"7.5\" r=\"1\"/><circle cx=\"6.5\" cy=\"12.5\" r=\"1\"/><path d=\"M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.4 0 2.5-1.1 2.5-2.5 0-.6-.2-1.2-.6-1.6-.4-.4-.6-.9-.6-1.4 0-1.1.9-2 2-2H16c3.3 0 6-2.7 6-6 0-5-4.5-8.5-10-8.5z\"/></svg>"},
     {id:"used",name:"중고",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 12l8-8h6a2 2 0 0 1 2 2v6l-8 8z\"/><circle cx=\"15\" cy=\"9\" r=\"1.4\" fill=\"currentColor\" stroke=\"none\"/></svg>"}]},
   {group:"기타",items:[
-    {id:"suggest",name:"버그·건의사항",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z\"/><path d=\"M12 9v3M12 15h.01\"/></svg>"}]}
+    {id:"suggest",name:"버그 · 건의사항",icon:"<svg class=\"ic\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z\"/><path d=\"M12 9v3M12 15h.01\"/></svg>"}]}
 ];
 /* 19+ 게시판 노출 스위치 — 네이버 로그인 검수 기간 동안 비공개.
    ⚠️ 이 게시판의 이름·이모지·안내문·확인 UI는 이 파일에 없다. 전부 /agegate.js 에 있고,
@@ -1068,7 +1067,52 @@ function postThumbHTML(p){
 }
 function fmtViews(n){return n>=1000?(n/1000).toFixed(1)+"k":n}
 
+/* ===== 사이드 메뉴(드로어) 목록 그리기 ==================================
+   데스크톱 왼쪽 사이드바(#boardNav)·시트(#boardNavS)와 **마크업이 다르다.**
+   그래서 renderNav가 드로어일 때만 이쪽으로 넘긴다 — 호출하는 곳 5군데를 안 건드리려고
+   함수를 새로 부르게 하지 않고 여기서 갈랐다.
+   ⚠️ 전체 글·버그 건의는 그룹 목록에서 빼고 각각 '주요 메뉴'와 '하단'에 따로 둔다.
+      id로 빼야 한다(그룹 이름으로 빼면 나중에 그 그룹에 게시판이 추가됐을 때 같이 사라진다). */
+var DW_SKIP=["all","suggest"];
+function _dwScreenKey(){var t=screenStack[screenStack.length-1];return t?t.key:"";}
+function _dwItem(on,icon,name,onclick,badge){
+  return '<div class="dw-item'+(on?" on":"")+'" onclick="'+onclick+'">'+
+    '<span class="dw-ic">'+icon+'</span><span class="dw-nm">'+esc(name)+'</span>'+
+    (badge?'<span class="dw-badge">'+badge+'</span>':'')+'</div>';
+}
+var DW_IC_ALL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/></svg>';
+var DW_IC_CM='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-3.2-6.4"/><path d="M21 4v5h-5"/></svg>';
+var DW_IC_CHAT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.7 8.7 0 0 1-3.8-.9L3 20.5l1.5-4.9A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"/></svg>';
+function renderDrawerNav(el){
+  var scr=_dwScreenKey();
+  var onFeed=!scr;                       // 화면 스택이 비어 있으면 글 목록(홈)을 보고 있는 것
+  var h='<div class="dw-main">'+
+    _dwItem(onFeed&&state.board==="all",DW_IC_ALL,"전체 글","selectBoard('all')")+
+    _dwItem(scr.indexOf("cm")===0,DW_IC_CM,"커미션","closeDrawer();openCommissionList()")+
+    _dwItem(scr==="chatList"||scr==="chatRoom",DW_IC_CHAT,"채팅","closeDrawer();openChatList('home')")+
+  '</div><div class="dw-div"></div>';
+  BOARDS.forEach(function(g){
+    var items=g.items.filter(function(b){return DW_SKIP.indexOf(b.id)<0;});
+    if(!items.length)return;             // 남는 게 없는 그룹은 소제목도 그리지 않는다
+    h+='<p class="dw-ghead">'+esc(g.group)+'</p>';
+    items.forEach(function(b){
+      var ic=CHIP_EMOJI[b.id]||"📄";
+      h+=_dwItem(onFeed&&state.board===b.id,ic,b.name,"selectBoard('"+b.id+"')");
+    });
+  });
+  el.innerHTML=h;
+}
+/* 하단 '공지사항' — 메뉴를 먼저 닫고 연다.
+   ⚠️ showNotice()는 공지가 없으면 조용히 아무 일도 안 한다. 그대로 두면 사용자는
+      "눌렀는데 반응이 없다"고 느끼므로, 없을 때는 없다고 알려 준다. */
+function dwOpenNotice(){
+  closeDrawer();
+  if(!LATEST_NOTICE){toast("아직 공지가 없어요");return;}
+  showNotice();
+}
 function renderNav(el){
+  if(!el)return;
+  if(el.id==="boardNavM")return renderDrawerNav(el);
   var h="";
   BOARDS.forEach(function(g){
     h+='<div class="bn-group'+(g.trade?' trade':'')+'"><p class="bn-gl">'+g.group+'</p>';
@@ -6474,7 +6518,13 @@ async function _submitPostBody(){
 }
 /* drawer / sheet / toast */
 var drawer=document.getElementById('drawer'),scrim=document.getElementById('scrim');
-function openDrawer(){drawer.classList.add('open');scrim.classList.add('open');document.body.style.overflow='hidden'}
+// 열 때마다 다시 그린다 — 그래야 '지금 보고 있는 곳' 표시가 항상 맞는다
+// (커미션·채팅으로 옮겨간 것은 게시판을 고른 게 아니라서 renderNav가 다시 불리지 않는다)
+function openDrawer(){
+  var nav=document.getElementById('boardNavM');
+  if(nav)renderNav(nav);
+  drawer.classList.add('open');scrim.classList.add('open');document.body.style.overflow='hidden';
+}
 function closeDrawer(){drawer.classList.remove('open');scrim.classList.remove('open');document.body.style.overflow=''}
 document.getElementById('menuBtn').addEventListener('click',openDrawer);
 document.getElementById('drawerClose').addEventListener('click',closeDrawer);

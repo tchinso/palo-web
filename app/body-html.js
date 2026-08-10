@@ -78,14 +78,22 @@ export const BODY_HTML = `
 
 <!-- drawer -->
 <div class="scrim" id="scrim"></div>
-<nav class="drawer" id="drawer" aria-label="게시판 메뉴">
-  <div class="dh"><span class="brand"><span class="logo"><img src="/logo-inapp.png" alt="" width="34" height="34"></span><span class="mark">commi</span></span>
-    <button class="dclose" id="drawerClose" aria-label="닫기"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
-  <div class="search" style="max-width:none;margin:0 0 16px">
+<nav class="drawer" id="drawer" aria-label="메뉴">
+  <div class="dw-top">
+    <button class="dw-close" id="drawerClose" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <span class="dw-title">바로 가기</span>
+  </div>
+  <div class="dw-search">
     <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     <input type="text" id="searchInputM" placeholder="검색 후 Enter">
   </div>
-  <nav class="board-nav" id="boardNavM" style="border:none;box-shadow:none"><div class="bn-group"><p class="bn-gl">이야기</p><div class="bn-a on" onclick="selectBoard('all')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M3 7l2-3h6l2 3"></path></svg>전체 글</div><div class="bn-a" onclick="selectBoard('talk')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"></path></svg>수다<span class="cnt">5</span></div><div class="bn-a" onclick="selectBoard('ask')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .9-1 1.7M12 17h.01"></path></svg>물어보기<span class="cnt">3</span></div></div><div class="bn-group"><p class="bn-gl">그리는 중</p><div class="bn-a" onclick="selectBoard('wip')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18 10l-4-4L4 16v4z"></path><path d="M13 7l4 4"></path></svg>작업물<span class="cnt">2</span></div><div class="bn-a" onclick="selectBoard('crit')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>봐주세요<span class="cnt">3</span></div><div class="bn-a" onclick="selectBoard('sketch')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6C10 4 6 4 3 5v14c3-1 7-1 9 1 2-2 6-2 9-1V5c-3-1-7-1-9 1z"></path><path d="M12 6v14"></path></svg>스케치북<span class="cnt">1</span></div></div><div class="bn-group"><p class="bn-gl">함께</p><div class="bn-a" onclick="selectBoard('challenge')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18"></path><path d="M5 4h13l-2 4 2 4H5"></path></svg>챌린지<span class="cnt">1</span></div><div class="bn-a" onclick="selectBoard('tip')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2 9l10 5 10-5-10-5z"></path><path d="M6 11v5c0 1 3 2 6 2s6-1 6-2v-5"></path></svg>팁 · 강좌<span class="cnt">4</span></div></div><div class="bn-group trade"><p class="bn-gl">거래</p><div class="bn-a" onclick="selectBoard('trade')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12l3 3 5-5"></path><path d="M3 10l5-5 4 3 4-3 5 5-6 8H9z"></path></svg>커미션 구인구직<span class="cnt">1</span></div><div class="bn-a" onclick="selectBoard('used')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l8-8h6a2 2 0 0 1 2 2v6l-8 8z"></path><circle cx="15" cy="9" r="1.4" fill="currentColor" stroke="none"></circle></svg>중고</div></div></nav>
+  <div class="dw-scroll"><div class="dw-body" id="boardNavM"></div></div>
+  <div class="dw-foot">
+    <button class="dw-f" onclick="dwOpenNotice()">공지사항</button>
+    <button class="dw-f" onclick="selectBoard('suggest')">버그 · 건의사항</button>
+    <a class="dw-f" href="mailto:yssj1202@gmail.com" onclick="closeDrawer()">문의하기</a>
+    <div class="dw-f-legal"><a href="/terms" onclick="closeDrawer()">이용약관</a><span>·</span><a href="/privacy" onclick="closeDrawer()">개인정보 처리방침</a></div>
+  </div>
 </nav>
 
 <!-- board sheet (게시판 탭) -->
