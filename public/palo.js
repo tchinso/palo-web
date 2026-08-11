@@ -323,10 +323,17 @@ function closeNotice(){document.getElementById("noticeModal").classList.remove("
 // 네트워크를 기다리지 않고 즉시 화면에 뿌린 뒤(백그라운드에서 최신으로 교체). content_html은
 // 인라인 이미지로 커질 수 있어 저장에서 제외(목록엔 안 쓰이고, 새로고침되면 다시 채워짐).
 var FEED_CACHE_KEY="palo_feed_v1";
+/* ⚠️ 글만 담으면 안 된다. 공지(📢)는 DB에서 와야 그려지는데, 캐시로 목록을 즉시 그리는
+      순간에는 아직 없어서 **글은 바로 뜨는데 공지만 늦게 튀어나온다**(2026-08-11 신고).
+      이용 규칙(📌)이 즉시 보였던 건 palo.js에 기본값이 박혀 있었기 때문이다 —
+      공지도 같은 출발선에 세우려면 함께 저장해야 한다.
+      이용 규칙도 같이 담는다. 관리자가 고친 내용이 다음 방문에 바로 보이게. */
 function saveFeedCache(real){
   try{
     var slim=real.map(function(p){var c={};for(var k in p){if(k!=="html")c[k]=p[k];}return c;});
-    localStorage.setItem(FEED_CACHE_KEY,JSON.stringify({t:Date.now(),posts:slim}));
+    localStorage.setItem(FEED_CACHE_KEY,JSON.stringify({
+      t:Date.now(),posts:slim,notice:LATEST_NOTICE||null,rules:SITE_RULES
+    }));
   }catch(e){/* 용량 초과 등은 무시 — 캐시는 있으면 좋고 없어도 그만 */}
 }
 function loadFeedCache(){
@@ -335,7 +342,7 @@ function loadFeedCache(){
     var o=JSON.parse(raw);
     if(!o||!Array.isArray(o.posts))return null;
     if(Date.now()-(o.t||0)>24*3600*1000)return null; // 24시간 지난 캐시는 버림
-    return o.posts;
+    return o;   // {posts, notice, rules}
   }catch(e){return null;}
 }
 async function loadRealPosts(skipRender){
@@ -373,7 +380,10 @@ async function loadRealPosts(skipRender){
   if(rulesRes&&!rulesRes.error&&rulesRes.data)applySiteRules(rulesRes.data.value);
   // 칭호 사전은 몇 줄 안 되므로 통째로 캐시 — 표시할 때마다 조회하지 않는다.
   if(titleRes&&!titleRes.error)(titleRes.data||[]).forEach(function(t){TITLES_BY_ID[t.id]={name:t.name,emoji:t.emoji};});
-  if(!noticeRes.error&&noticeRes.data.length)LATEST_NOTICE=noticeRes.data[0];
+  /* ⚠️ 조회에 성공했으면 결과가 비어 있어도 반영해야 한다(= null로 되돌린다).
+        예전엔 '있을 때만' 넣었는데, 이제 캐시에서 공지를 미리 채우므로 그대로 두면
+        관리자가 공지를 지워도 캐시본이 영원히 남는다. 조회 실패(error)일 때만 유지한다. */
+  if(!noticeRes.error)LATEST_NOTICE=(noticeRes.data&&noticeRes.data.length)?noticeRes.data[0]:null;
   if(!lvRes.error)LEVEL_THRESHOLDS=lvRes.data||[];
   if(!adRes.error)ACTIVE_ADS=adRes.data||[];
   if(!campRes.error)ACTIVE_CAMPAIGNS=campRes.data||[];
@@ -8793,9 +8803,16 @@ loadReadCache();
   if(getPostIdFromPath()||getUserIdFromPath()||getCommissionIdFromPath()||userLeftHome)return;
   if(!window.__paloHasBackend)return; // 백엔드 없는 로컬 데모는 기존 폴백에 맡김
   var cached=loadFeedCache();
-  if(cached&&cached.length){
-    POSTS=cached.concat(POSTS.filter(function(p){return !p.dbId;}));
-    try{renderChips();renderHot();renderTrend();renderList();}catch(e){}
+  if(cached&&cached.posts&&cached.posts.length){
+    POSTS=cached.posts.concat(POSTS.filter(function(p){return !p.dbId;}));
+    // ⚠️ 그리기 **전에** 공지·규칙을 채운다. 뒤에 채우면 배너가 한 박자 늦게 튀어나온다.
+    // ⚠️ try 안에 함께 둔다. 여기는 캐시로 첫 화면을 그리는 가장 빠른 경로라,
+    //    낡은 캐시 모양 때문에 예외가 나면 목록 자체가 안 그려진다.
+    try{
+      if(!LATEST_NOTICE&&cached.notice)LATEST_NOTICE=cached.notice;
+      if(cached.rules)applySiteRules(cached.rules);
+      renderChips();renderHot();renderTrend();renderList();
+    }catch(e){}
   }
 })();
 // palo.js는 이제 하이드레이션 전에 실행된다(위 primeFromCache가 캐시 피드를 즉시 그림).
