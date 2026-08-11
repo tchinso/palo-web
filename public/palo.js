@@ -1072,23 +1072,23 @@ function fmtViews(n){return n>=1000?(n/1000).toFixed(1)+"k":n}
    데스크톱 왼쪽 사이드바(#boardNav)·시트(#boardNavS)와 **마크업이 다르다.**
    그래서 renderNav가 드로어일 때만 이쪽으로 넘긴다 — 호출하는 곳 5군데를 안 건드리려고
    함수를 새로 부르게 하지 않고 여기서 갈랐다.
-   ⚠️ 전체 글만 그룹 목록에서 빼고 '주요 메뉴'에 따로 둔다(게시판이 아니라 모아보기라서).
-      id로 빼야 한다(그룹 이름으로 빼면 나중에 그 그룹에 게시판이 추가됐을 때 같이 사라진다). */
-var DW_SKIP=["all"];
+   ⚠️ 지금은 아무 게시판도 빼지 않는다. '전체 글'도 원래 자리인 '이야기' 그룹에 그대로 둔다
+      (예전엔 주요 메뉴로 올렸다가 '이야기' 그룹에 수다 하나만 남아 허전해져서 되돌렸다).
+      다시 뺄 일이 생기면 여기에 id를 넣으면 된다 — 그룹 이름으로 빼면 나중에 그 그룹에
+      게시판이 추가됐을 때 같이 사라지므로 반드시 id로 할 것. */
+var DW_SKIP=[];
 function _dwScreenKey(){var t=screenStack[screenStack.length-1];return t?t.key:"";}
 function _dwItem(on,icon,name,onclick,badge){
   return '<div class="dw-item'+(on?" on":"")+'" onclick="'+onclick+'">'+
     '<span class="dw-ic">'+icon+'</span><span class="dw-nm">'+esc(name)+'</span>'+
     (badge?'<span class="dw-badge">'+badge+'</span>':'')+'</div>';
 }
-var DW_IC_ALL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/></svg>';
 var DW_IC_CM='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-3.2-6.4"/><path d="M21 4v5h-5"/></svg>';
 var DW_IC_CHAT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.7 8.7 0 0 1-3.8-.9L3 20.5l1.5-4.9A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"/></svg>';
 function renderDrawerNav(el){
   var scr=_dwScreenKey();
   var onFeed=!scr;                       // 화면 스택이 비어 있으면 글 목록(홈)을 보고 있는 것
   var h='<div class="dw-main">'+
-    _dwItem(onFeed&&state.board==="all",DW_IC_ALL,"전체 글","selectBoard('all')")+
     _dwItem(scr.indexOf("cm")===0,DW_IC_CM,"커미션","closeDrawer();openCommissionList()")+
     _dwItem(scr==="chatList"||scr==="chatRoom",DW_IC_CHAT,"채팅","closeDrawer();openChatList('home')")+
   '</div><div class="dw-div"></div>';
