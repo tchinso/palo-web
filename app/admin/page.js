@@ -458,6 +458,7 @@ function NoticeManagement() {
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);   // null이면 새 공지 작성, 값이 있으면 그 공지 수정
   const contentRef = useRef(null);
 
   async function load() {
@@ -481,24 +482,41 @@ function NoticeManagement() {
     document.execCommand('bold');
   }
 
-  async function handleCreate() {
+  /* 등록과 수정을 한 함수로 처리한다.
+     ⚠️ 수정은 update라 created_at을 건드리지 않는다. 이게 중요한 이유는 홈 배너가
+        '가장 최근 공지 한 건'만 보여주기 때문 — 고칠 때마다 등록 시각이 바뀌면
+        예전 공지가 갑자기 홈으로 올라온다. */
+  async function handleSave() {
     if (!title.trim()) {
       await notify('제목을 입력해주세요');
       return;
     }
     const html = contentRef.current.innerHTML.trim();
     setSaving(true);
-    const { error } = await supabase
-      .from('notices')
-      .insert({ title: title.trim(), content: html || null });
+    const payload = { title: title.trim(), content: html || null };
+    const { error } = editingId
+      ? await supabase.from('notices').update(payload).eq('id', editingId)
+      : await supabase.from('notices').insert(payload);
     setSaving(false);
     if (error) {
-      await notify('등록 실패: ' + error.message);
+      await notify((editingId ? '수정' : '등록') + ' 실패: ' + error.message);
       return;
     }
-    setTitle('');
-    contentRef.current.innerHTML = '';
+    cancelEdit();
     load();
+  }
+
+  function startEdit(n) {
+    setEditingId(n.id);
+    setTitle(n.title || '');
+    if (contentRef.current) contentRef.current.innerHTML = n.content || '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setTitle('');
+    if (contentRef.current) contentRef.current.innerHTML = '';
   }
 
   async function handleDelete(id) {
@@ -509,11 +527,22 @@ function NoticeManagement() {
       return;
     }
     setNotices((prev) => prev.filter((n) => n.id !== id));
+    if (editingId === id) cancelEdit();   // 지운 공지를 계속 편집 중인 상태로 두지 않는다
   }
 
   return (
     <div>
-      <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 10, marginBottom: 20 }}>
+      <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 10, marginBottom: 20,
+        border: editingId ? '1.5px solid var(--brand)' : undefined }}>
+        {editingId && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700,
+            color: 'var(--brand-2)' }}>
+            공지를 수정하고 있어요
+            <button onClick={cancelEdit}
+              style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--muted)',
+                fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>새 공지 쓰기로</button>
+          </div>
+        )}
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -554,19 +583,33 @@ function NoticeManagement() {
             공지 내용 (선택). 굵게 하고 싶은 부분을 드래그해서 선택한 뒤 B 버튼을 눌러줘.
           </div>
         </div>
-        <button style={{ ...btnStyle, alignSelf: 'flex-end' }} onClick={handleCreate} disabled={saving}>
-          {saving ? '등록 중...' : '공지 등록'}
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignSelf: 'flex-end' }}>
+          {editingId && (
+            <button style={{ ...dangerBtnStyle, color: 'var(--ink-2)', borderColor: 'var(--line-2)' }}
+              onClick={cancelEdit} disabled={saving}>취소</button>
+          )}
+          <button style={btnStyle} onClick={handleSave} disabled={saving}>
+            {saving ? '저장 중...' : editingId ? '수정 저장' : '공지 등록'}
+          </button>
+        </div>
       </div>
       {loading ? (
         <p style={{ color: 'var(--muted)' }}>불러오는 중...</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {notices.length === 0 && <p style={{ color: 'var(--muted)' }}>등록된 공지가 없어요.</p>}
-          {notices.map((n) => (
-            <div key={n.id} style={rowStyle}>
+          {notices.map((n, idx) => (
+            <div key={n.id} style={{ ...rowStyle,
+              border: editingId === n.id ? '1.5px solid var(--brand)' : rowStyle.border }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700 }}>{n.title}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 700 }}>{n.title}</span>
+                  {/* 홈 배너는 '가장 최근 공지 한 건'만 보여준다 — 어느 것이 실제로 보이는지 표시 */}
+                  {idx === 0 && (
+                    <span style={{ fontSize: 10.5, fontWeight: 800, color: '#fff',
+                      background: 'var(--brand)', borderRadius: 6, padding: '2px 7px' }}>홈에 표시 중</span>
+                  )}
+                </div>
                 {n.content && (
                   <div
                     style={{ fontSize: 13, color: 'var(--ink-2)', marginTop: 4, lineHeight: 1.6 }}
@@ -577,7 +620,11 @@ function NoticeManagement() {
                   {new Date(n.created_at).toLocaleString('ko-KR')}
                 </div>
               </div>
-              <button style={dangerBtnStyle} onClick={() => handleDelete(n.id)}>삭제</button>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <button style={{ ...dangerBtnStyle, color: 'var(--ink-2)', borderColor: 'var(--line-2)' }}
+                  onClick={() => startEdit(n)}>수정</button>
+                <button style={dangerBtnStyle} onClick={() => handleDelete(n.id)}>삭제</button>
+              </div>
             </div>
           ))}
         </div>
