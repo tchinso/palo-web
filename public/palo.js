@@ -364,9 +364,13 @@ async function loadRealPosts(skipRender){
     // ⚠️ 칭호 장착 정보(title_id)는 기존 프로필 조회에 합치지 않고 따로 부른다 —
     //    titles.sql 실행 전에는 칼럼이 없어서, 합쳐 두면 프로필 조회 전체가 실패해
     //    모든 닉네임이 '익명'으로 무너진다. 분리하면 칭호만 조용히 안 보이고 만다.
-    preOr("profileTitles",function(){return sb.from("profiles").select("id,title_id").not("title_id","is",null);})
+    preOr("profileTitles",function(){return sb.from("profiles").select("id,title_id").not("title_id","is",null);}),
+    // 이용 규칙(관리자가 고칠 수 있음). ⚠️ site-rules.sql 실행 전에는 표가 없어 오류가 오는데,
+    //    그때는 palo.js의 기본 문구를 그대로 쓰면 되므로 조용히 넘긴다.
+    preOr("rules",function(){return sb.from("site_settings").select("value").eq("key","rules").maybeSingle();})
   ]);
-  var noticeRes=wave1[0],lvRes=wave1[1],adRes=wave1[2],campRes=wave1[3],adLockRes=wave1[4],res=wave1[5],profRes=wave1[6],titleRes=wave1[7],ptRes=wave1[8];
+  var noticeRes=wave1[0],lvRes=wave1[1],adRes=wave1[2],campRes=wave1[3],adLockRes=wave1[4],res=wave1[5],profRes=wave1[6],titleRes=wave1[7],ptRes=wave1[8],rulesRes=wave1[9];
+  if(rulesRes&&!rulesRes.error&&rulesRes.data)applySiteRules(rulesRes.data.value);
   // 칭호 사전은 몇 줄 안 되므로 통째로 캐시 — 표시할 때마다 조회하지 않는다.
   if(titleRes&&!titleRes.error)(titleRes.data||[]).forEach(function(t){TITLES_BY_ID[t.id]={name:t.name,emoji:t.emoji};});
   if(!noticeRes.error&&noticeRes.data.length)LATEST_NOTICE=noticeRes.data[0];
@@ -1410,7 +1414,7 @@ function renderList(){
   if(state.board==="all"&&!state.query){
     h+=notifBannerHTML(); // 알림을 아직 안 켠 사람에게만(홈 전체 글에서만 — 게시판마다 따라다니면 잔소리가 된다)
     if(LATEST_NOTICE)h+='<div class="notice" onclick="showNotice()"><span class="pin">공지</span><span class="nt">📢 '+esc(LATEST_NOTICE.title)+'</span></div>';
-    h+='<div class="notice" onclick="openRules()"><span class="pin">공지</span><span class="nt">📌 이용 규칙 & 피드백 매너 (처음 오셨다면 꼭!)</span></div>';
+    h+='<div class="notice" onclick="openRules()"><span class="pin">공지</span><span class="nt">📌 '+esc(SITE_RULES.title)+'</span></div>';
   }
   if(arr.length===0){
     // 추천글이 비었을 때는 문턱(좋아요 10개)을 여기서 자연스럽게 알린다 — 상시 안내문은 두지 않는다
@@ -8442,7 +8446,44 @@ async function doWithdraw(){
   }
 }
 // ===== 이용규칙 =====
-function openRules(){document.getElementById("rulesModal").classList.add("open");document.body.style.overflow="hidden";}
+/* ===== 이용 규칙 — 관리자 페이지에서 고칠 수 있다 =========================
+   ⚠️ 아래 기본값은 지우면 안 된다. DB 조회가 실패하거나(표가 아직 없거나 네트워크 오류)
+      아직 안 왔을 때 이 값으로 그린다. 규칙은 처음 온 사람에게 보여줘야 하는 내용이라
+      "못 불러왔으니 아무것도 안 보여준다"가 가장 나쁜 결과다.
+   ⚠️ 항목은 '제목 한 줄 + 설명 한 줄' 구조를 지킨다. 375px 화면에서 한 줄에 들어가는
+      한글은 19자뿐이라(실측), 그보다 길게 쓰면 두 줄로 흘러 위계가 무너진다. */
+var SITE_RULES={
+  title:"이용 규칙 & 피드백 매너",
+  items:[
+    {t:"AI 생성물 금지",          d:"AI로 만든 그림은 올릴 수 없어요"},
+    {t:"사람 말고 그림을 이야기해요", d:"인신공격·조롱은 바로 삭제돼요"},
+    {t:"피드백은 구체적으로",       d:"어디를 어떻게 바꿀지 적어주세요"},
+    {t:"도용 금지",               d:"남의 그림 무단 사용·AI 학습 제재"},
+    {t:"거래는 당사자끼리",         d:"commi는 거래를 중개하지 않아요"},
+    {t:"댓글 달리면 수정 제한",      d:"질문·투표·피드백 글은 신중하게"},
+    {t:"처음이라면 인사 한 줄",      d:"수다 게시판에서 환영할게요 🎨"}
+  ]
+};
+/* DB에서 받은 값을 SITE_RULES에 반영. 형태가 어긋나면 기본값을 그대로 둔다
+   (관리자가 실수로 빈 목록을 저장해도 화면이 비어버리지 않게). */
+function applySiteRules(v){
+  if(!v||typeof v!=="object")return;
+  if(typeof v.title==="string"&&v.title.trim())SITE_RULES.title=v.title.trim();
+  if(Array.isArray(v.items)){
+    var ok=v.items.filter(function(x){return x&&typeof x.t==="string"&&x.t.trim();});
+    if(ok.length)SITE_RULES.items=ok.map(function(x){return {t:String(x.t),d:String(x.d||"")};});
+  }
+  renderRulesModal();
+}
+function renderRulesModal(){
+  var m=document.getElementById("rulesModal");if(!m)return;
+  var h3=m.querySelector("h3"),ol=m.querySelector("ol");
+  if(h3)h3.textContent="📌 "+SITE_RULES.title;
+  if(ol)ol.innerHTML=SITE_RULES.items.map(function(x){
+    return "<li><b>"+esc(x.t)+"</b>"+(x.d?"<span>"+esc(x.d)+"</span>":"")+"</li>";
+  }).join("");
+}
+function openRules(){renderRulesModal();document.getElementById("rulesModal").classList.add("open");document.body.style.overflow="hidden";}
 function closeRules(){document.getElementById("rulesModal").classList.remove("open");document.body.style.overflow="";}
 
 // ===== 팔로우 =====

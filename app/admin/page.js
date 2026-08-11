@@ -310,6 +310,148 @@ function UserManagement() {
   );
 }
 
+/* ── 이용 규칙 편집 ──────────────────────────────────────────────────────
+   홈 상단 "📌 …" 배너를 눌렀을 때 열리는 규칙 목록을 여기서 고친다.
+   ⚠️ 항목은 '제목 + 설명' 두 줄 구조를 지킨다. 375px 화면에서 한 줄에 들어가는
+      한글은 19자뿐이라(실측), 그보다 길면 두 줄로 흘러 목록 위계가 무너진다.
+      그래서 글자 수를 세어 보여주고 넘치면 표시해 준다.
+   ⚠️ 목록 전체를 한 번에 저장한다(site_settings의 jsonb 한 칸). 저장 도중 일부만
+      반영되는 상태가 없다. */
+const RULE_LINE_MAX = 19;
+
+function RulesManagement() {
+  const { confirmDialog, notify } = useDialog();
+  const [title, setTitle] = useState('이용 규칙 & 피드백 매너');
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [missing, setMissing] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('site_settings').select('value').eq('key', 'rules').maybeSingle();
+    if (error) {
+      setMissing(true);                 // 표가 아직 없는 경우(SQL 미실행)
+    } else if (data && data.value) {
+      const v = data.value;
+      if (typeof v.title === 'string') setTitle(v.title);
+      if (Array.isArray(v.items)) setItems(v.items.map((x) => ({ t: x.t || '', d: x.d || '' })));
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  function setItem(i, key, val) {
+    setItems((prev) => prev.map((x, n) => (n === i ? { ...x, [key]: val } : x)));
+  }
+  function move(i, dir) {
+    setItems((prev) => {
+      const n = i + dir;
+      if (n < 0 || n >= prev.length) return prev;
+      const copy = prev.slice();
+      [copy[i], copy[n]] = [copy[n], copy[i]];
+      return copy;
+    });
+  }
+  async function remove(i) {
+    if (!(await confirmDialog('이 항목을 지울까요?'))) return;
+    setItems((prev) => prev.filter((_, n) => n !== i));
+  }
+
+  async function save() {
+    const clean = items
+      .map((x) => ({ t: (x.t || '').trim(), d: (x.d || '').trim() }))
+      .filter((x) => x.t);
+    if (!title.trim()) { await notify('제목을 입력해주세요'); return; }
+    if (!clean.length) { await notify('규칙을 최소 한 개는 남겨주세요'); return; }
+    setSaving(true);
+    const { error } = await supabase
+      .from('site_settings')
+      .upsert({ key: 'rules', value: { title: title.trim(), items: clean } }, { onConflict: 'key' });
+    setSaving(false);
+    if (error) { await notify('저장 실패: ' + error.message); return; }
+    await notify('저장했어요. 앱을 새로고침하면 반영됩니다.');
+    load();
+  }
+
+  const label = { fontSize: 12, fontWeight: 800, color: 'var(--muted)', marginBottom: 6 };
+  const count = (s, max) => {
+    const n = (s || '').length;
+    return (
+      <span style={{ fontSize: 11, fontWeight: 700, color: n > max ? '#c0392b' : 'var(--muted-2)' }}>
+        {n}/{max}{n > max ? ' · 두 줄로 흘러요' : ''}
+      </span>
+    );
+  };
+
+  if (loading) return <div style={{ padding: 20, color: 'var(--muted)' }}>불러오는 중…</div>;
+
+  if (missing) {
+    return (
+      <div style={{ padding: 20, lineHeight: 1.7, color: 'var(--ink-2)' }}>
+        <b style={{ color: 'var(--ink)' }}>아직 준비가 안 됐어요.</b>
+        <div style={{ marginTop: 8, fontSize: 14 }}>
+          Supabase에서 <code>docs/sql/site-rules.sql</code>을 한 번 실행해주세요.
+          그전까지는 앱에 기본 규칙이 그대로 보입니다.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '4px 0 40px' }}>
+      <div style={{ padding: '0 16px 16px' }}>
+        <div style={label}>배너·모달 제목</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)}
+            placeholder="이용 규칙 & 피드백 매너" />
+        </div>
+        <div style={{ marginTop: 6, fontSize: 12, color: 'var(--muted)' }}>
+          홈에는 <b>📌 {title || '…'}</b> 로 보여요. 이모지는 자동으로 붙습니다.
+        </div>
+      </div>
+
+      {items.map((x, i) => (
+        <div key={i} style={{ padding: '14px 16px', borderTop: '1px solid var(--line)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontWeight: 900, color: 'var(--brand)', fontSize: 13 }}>{i + 1}</span>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+              <button onClick={() => move(i, -1)} disabled={i === 0}
+                style={{ ...dangerBtnStyle, color: 'var(--ink-2)', borderColor: 'var(--line-2)',
+                  padding: '6px 10px', opacity: i === 0 ? 0.4 : 1 }}>↑</button>
+              <button onClick={() => move(i, 1)} disabled={i === items.length - 1}
+                style={{ ...dangerBtnStyle, color: 'var(--ink-2)', borderColor: 'var(--line-2)',
+                  padding: '6px 10px', opacity: i === items.length - 1 ? 0.4 : 1 }}>↓</button>
+              <button onClick={() => remove(i)} style={{ ...dangerBtnStyle, padding: '6px 10px' }}>삭제</button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <input style={inputStyle} value={x.t} placeholder="제목 (예: AI 생성물 금지)"
+              onChange={(e) => setItem(i, 't', e.target.value)} />
+            {count(x.t, RULE_LINE_MAX)}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <input style={{ ...inputStyle, height: 40, fontSize: 13 }} value={x.d}
+              placeholder="설명 (비워도 돼요)"
+              onChange={(e) => setItem(i, 'd', e.target.value)} />
+            {count(x.d, RULE_LINE_MAX)}
+          </div>
+        </div>
+      ))}
+
+      <div style={{ display: 'flex', gap: 10, padding: '18px 16px 0', borderTop: '1px solid var(--line)' }}>
+        <button onClick={() => setItems((p) => p.concat([{ t: '', d: '' }]))}
+          style={{ ...dangerBtnStyle, color: 'var(--ink-2)', borderColor: 'var(--line-2)' }}>+ 규칙 추가</button>
+        <button onClick={save} disabled={saving} style={{ ...btnStyle, marginLeft: 'auto' }}>
+          {saving ? '저장 중…' : '저장'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function NoticeManagement() {
   const { confirmDialog, notify } = useDialog();
   const [notices, setNotices] = useState([]);
@@ -901,6 +1043,22 @@ function AdminDashboard({ profile }) {
           공지 작성
         </button>
         <button
+          onClick={() => setTab('rules')}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: '10px 4px',
+            marginLeft: 16,
+            fontWeight: 800,
+            fontSize: 14,
+            cursor: 'pointer',
+            color: tab === 'rules' ? 'var(--brand)' : 'var(--muted)',
+            borderBottom: tab === 'rules' ? '2px solid var(--brand)' : '2px solid transparent',
+          }}
+        >
+          이용 규칙
+        </button>
+        <button
           onClick={() => setTab('stats')}
           style={{
             background: 'none',
@@ -920,6 +1078,7 @@ function AdminDashboard({ profile }) {
       {tab === 'posts' && <PostManagement />}
       {tab === 'users' && <UserManagement />}
       {tab === 'notices' && <NoticeManagement />}
+      {tab === 'rules' && <RulesManagement />}
       {tab === 'stats' && <StatsPanel />}
     </div>
   );
