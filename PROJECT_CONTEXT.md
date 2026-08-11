@@ -289,7 +289,13 @@ grant execute on function public.conversation_is_reported(bigint) to authenticat
 
 **`notices`:**
 - select: 누구나
-- insert/delete: `notices_insert_admin` / `notices_delete_admin` — `is_admin()`만
+- insert/delete/**update**: `notices_insert_admin` / `notices_delete_admin` / `notices_update_admin` — 전부 `is_admin()`만
+  - ⚠️ **update 정책은 2026-08-11에야 추가됐다**(`docs/sql/notices-update.sql`). 그전까지 관리자 페이지에
+    '수정'을 붙였더니 RLS가 막아 **오류 없이 0행이 처리**되고 화면엔 저장됐다고 떴다. RLS에 걸린 UPDATE는
+    예외가 아니라 '해당 행 없음'으로 조용히 지나간다. **쓰기 경로를 새로 만들 때는 그 동작(insert/update/delete)에
+    맞는 정책이 있는지 반드시 먼저 확인할 것.**
+  - 그래서 관리자 페이지의 저장은 전부 `.select()`를 붙여 **실제로 몇 행이 바뀌었는지 확인**하고,
+    0행이면 성공이라고 말하지 않는다(`app/admin/page.js`의 공지·이용 규칙 저장).
 
 **`conversations`:**
 - select/insert: `conversations_participant` — `auth.uid() = user1_id or auth.uid() = user2_id`인 사람만 (자기가 참여한 방만 보이고 만들 수 있음)

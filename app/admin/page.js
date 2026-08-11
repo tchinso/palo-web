@@ -367,11 +367,17 @@ function RulesManagement() {
     if (!title.trim()) { await notify('제목을 입력해주세요'); return; }
     if (!clean.length) { await notify('규칙을 최소 한 개는 남겨주세요'); return; }
     setSaving(true);
-    const { error } = await supabase
+    /* 공지 저장과 같은 이유로 .select()를 붙인다 — RLS가 막으면 오류 없이 0행이 된다 */
+    const { data, error } = await supabase
       .from('site_settings')
-      .upsert({ key: 'rules', value: { title: title.trim(), items: clean } }, { onConflict: 'key' });
+      .upsert({ key: 'rules', value: { title: title.trim(), items: clean } }, { onConflict: 'key' })
+      .select();
     setSaving(false);
     if (error) { await notify('저장 실패: ' + error.message); return; }
+    if (!data || data.length === 0) {
+      await notify('저장되지 않았어요 — 권한(RLS)에 막힌 것으로 보여요. site-rules.sql을 다시 확인해주세요.');
+      return;
+    }
     await notify('저장했어요. 앱을 새로고침하면 반영됩니다.');
     load();
   }
@@ -494,12 +500,23 @@ function NoticeManagement() {
     const html = contentRef.current.innerHTML.trim();
     setSaving(true);
     const payload = { title: title.trim(), content: html || null };
-    const { error } = editingId
-      ? await supabase.from('notices').update(payload).eq('id', editingId)
-      : await supabase.from('notices').insert(payload);
+    /* ⚠️ .select()를 붙여 '실제로 몇 행이 바뀌었는지'를 받아온다.
+          RLS가 막으면 오류 없이 0행이 처리되고 성공처럼 보인다(2026-08-11에 실제로 겪음 —
+          notices에 UPDATE 정책이 없어 저장했다는 안내만 뜨고 아무것도 안 바뀌었다).
+          바뀐 행이 없으면 성공이라고 말하지 않는다. */
+    const { data, error } = editingId
+      ? await supabase.from('notices').update(payload).eq('id', editingId).select()
+      : await supabase.from('notices').insert(payload).select();
     setSaving(false);
     if (error) {
       await notify((editingId ? '수정' : '등록') + ' 실패: ' + error.message);
+      return;
+    }
+    if (!data || data.length === 0) {
+      await notify(
+        (editingId ? '수정' : '등록') +
+        '되지 않았어요 — 권한(RLS)에 막힌 것으로 보여요. notices-update.sql을 실행해주세요.'
+      );
       return;
     }
     cancelEdit();
