@@ -458,7 +458,7 @@ function RulesManagement() {
   );
 }
 
-function NoticeManagement() {
+function NoticeManagement({ onGoRules }) {
   const { confirmDialog, notify } = useDialog();
   const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -609,6 +609,19 @@ function NoticeManagement() {
             {saving ? '저장 중...' : editingId ? '수정 저장' : '공지 등록'}
           </button>
         </div>
+      </div>
+      {/* 홈에서는 공지와 이용 규칙이 둘 다 '공지' 딱지를 달고 나란히 보인다.
+          그래서 여기서 이용 규칙을 찾는 게 자연스러운데 실제로는 다른 탭에 있다 —
+          헤매지 않도록 길을 알려 준다(2026-08-11 사용자가 실제로 여기서 찾았다). */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+        margin: '0 0 14px', padding: '11px 14px', borderRadius: 12,
+        background: 'var(--surface-2)', fontSize: 13, color: 'var(--ink-2)' }}>
+        <span>홈에 함께 보이는 <b>📌 이용 규칙 &amp; 피드백 매너</b>는 여기 목록에 없어요.</span>
+        <button onClick={onGoRules}
+          style={{ marginLeft: 'auto', background: 'none', border: 'none', padding: 0,
+            color: 'var(--brand-2)', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+          이용 규칙 탭에서 고치기 →
+        </button>
       </div>
       {loading ? (
         <p style={{ color: 'var(--muted)' }}>불러오는 중...</p>
@@ -1141,7 +1154,7 @@ function AdminDashboard({ profile }) {
       </div>
       {tab === 'posts' && <PostManagement />}
       {tab === 'users' && <UserManagement />}
-      {tab === 'notices' && <NoticeManagement />}
+      {tab === 'notices' && <NoticeManagement onGoRules={() => setTab('rules')} />}
       {tab === 'rules' && <RulesManagement />}
       {tab === 'stats' && <StatsPanel />}
     </div>
