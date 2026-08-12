@@ -187,6 +187,108 @@ var SETTINGS={cm:true,like:true,notice:true,chat:true,cminquiry:true};
 try{var _savedPrefs=JSON.parse(localStorage.getItem("palo_notif_prefs")||"null");if(_savedPrefs&&typeof _savedPrefs==="object")Object.assign(SETTINGS,_savedPrefs);}catch(e){}
 var notifFilter="all";var pfTab="mine";
 function dispName(a){return a==="나"?ME.nick:a}
+
+/* ===== 사용자 뮤트 · 메모 =================================================
+   둘 다 "내가 저 사람에 대해 가진 것"이라 한 표(user_notes)에 (나, 상대) 한 쌍으로 저장한다.
+   ⚠️ 메모는 **나만 본다.** 서버 정책(owner_id = auth.uid())이 보장하지만, 화면에서도
+      남에게 보일 자리에 절대 넣지 않는다.
+   ⚠️ 로그인해야 쓸 수 있다. 비로그인은 전부 빈 상태로 동작한다(기능이 없는 것처럼). */
+var MY_NOTES={};            // target_id → {memo, muted}
+var _unmuted=new Set();     // 이번 화면에서 '보기'를 눌러 잠깐 펼쳐 둔 사람들(새로고침하면 초기화)
+function noteOf(uid){return (uid&&MY_NOTES[uid])||null;}
+function isMuted(uid){var n=noteOf(uid);return !!(n&&n.muted)&&!_unmuted.has(uid);}
+function memoOf(uid){var n=noteOf(uid);return (n&&n.memo)?n.memo:"";}
+/* 닉네임 뒤에 붙는 메모 딱지. 목록·상세·댓글 어디서나 같은 모양으로 쓴다. */
+function memoBadge(uid){
+  var m=memoOf(uid);
+  return m?(' <span class="memo-tag" title="'+esc(m)+'">📝'+esc(m)+'</span>'):'';
+}
+async function loadMyNotes(){
+  MY_NOTES={};
+  if(!AUTH.user||!window.supabase)return;
+  var r=await window.supabase.from("user_notes").select("target_id,memo,muted").eq("owner_id",AUTH.user.id);
+  if(r.error)return;   // 표가 아직 없으면(SQL 미실행) 조용히 넘어간다 — 기능만 안 보일 뿐
+  (r.data||[]).forEach(function(n){MY_NOTES[n.target_id]={memo:n.memo||"",muted:!!n.muted};});
+}
+/* 뮤트·메모를 저장한다. 둘 다 비면(메모 없음 + 뮤트 해제) 행을 지운다 — 빈 행을 쌓아 두지 않는다. */
+async function saveMyNote(uid,patch){
+  if(!AUTH.user||!window.supabase){toast("로그인이 필요해요","🔒");return false;}
+  if(uid===AUTH.user.id){toast("자기 자신에게는 쓸 수 없어요");return false;}
+  var cur=noteOf(uid)||{memo:"",muted:false};
+  var next={memo:("memo" in patch)?patch.memo:cur.memo,
+            muted:("muted" in patch)?patch.muted:cur.muted};
+  var res;
+  if(!next.memo&&!next.muted){
+    res=await window.supabase.from("user_notes").delete()
+      .eq("owner_id",AUTH.user.id).eq("target_id",uid);
+    if(!res.error)delete MY_NOTES[uid];
+  }else{
+    res=await window.supabase.from("user_notes")
+      .upsert({owner_id:AUTH.user.id,target_id:uid,memo:next.memo||null,muted:next.muted},
+              {onConflict:"owner_id,target_id"}).select();
+    // ⚠️ .select()로 실제 반영 여부를 확인한다 — RLS에 막히면 오류 없이 0행이 된다
+    if(!res.error&&(!res.data||!res.data.length)){
+      toast("저장되지 않았어요. user-notes.sql을 실행해주세요");return false;
+    }
+    if(!res.error)MY_NOTES[uid]=next;
+  }
+  if(res.error){
+    toast(/relation|does not exist/i.test(res.error.message)
+      ?"먼저 user-notes.sql을 실행해주세요":"저장에 실패했어요");
+    return false;
+  }
+  return true;
+}
+function toggleMute(uid){
+  var on=!(noteOf(uid)||{}).muted;
+  saveMyNote(uid,{muted:on}).then(function(ok){
+    if(!ok)return;
+    _unmuted.delete(uid);   // 상태가 바뀌었으니 '이번만 펼침'은 초기화
+    toast(on?"뮤트했어요 🔕":"뮤트를 풀었어요");
+    if(typeof renderUserNoteBox==="function")renderUserNoteBox(uid);
+    renderList();
+  });
+}
+/* 프로필의 뮤트·메모 상자. 매번 통째로 다시 그린다(상태가 몇 개 안 돼 그게 더 단순하다). */
+function renderUserNoteBox(uid){
+  var box=document.getElementById("uNoteBox");
+  if(!box)return;
+  if(!AUTH.user){box.innerHTML='<div class="unote-hint">로그인하면 뮤트·메모를 쓸 수 있어요.</div>';return;}
+  var muted=!!(noteOf(uid)||{}).muted, memo=memoOf(uid);
+  box.innerHTML=
+    '<div class="unote-row">'+
+      '<button class="unote-mute'+(muted?" on":"")+'" onclick="toggleMute(\''+esc(uid)+'\')">'+
+        (muted?"🔕 뮤트 해제":"🔕 뮤트")+'</button>'+
+      '<span class="unote-hint">'+(muted?"이 사람의 글·댓글이 접혀서 보여요":"글·댓글을 접어서 가릴 수 있어요")+'</span>'+
+    '</div>'+
+    '<div class="unote-memo">'+
+      '<textarea id="uNoteMemo" maxlength="60" rows="2" placeholder="이 사람에 대한 메모 (나만 봐요)">'+esc(memo)+'</textarea>'+
+      '<div class="unote-foot"><span class="unote-hint">닉네임 옆에 작게 붙어요 · 60자까지</span>'+
+        '<button class="unote-save" onclick="saveUserMemo(\''+esc(uid)+'\')">저장</button></div>'+
+    '</div>';
+}
+function saveUserMemo(uid){
+  var el=document.getElementById("uNoteMemo");if(!el)return;
+  var v=el.value.trim().slice(0,60);
+  saveMyNote(uid,{memo:v}).then(function(ok){
+    if(!ok)return;
+    toast(v?"메모를 저장했어요 📝":"메모를 지웠어요");
+    renderUserNoteBox(uid);
+  });
+}
+
+/* 목록·댓글에서 '보기'를 눌렀을 때 — 이번만 펼친다(뮤트 자체는 그대로).
+   ⚠️ 지금 열린 글을 가리키는 전역이 따로 없어서, 댓글 쪽에서는 글 id를 넘겨받아 그 글의
+      댓글만 다시 그린다(renderComments). 화면 전체를 다시 그리면 스크롤이 맨 위로 튄다. */
+function revealMuted(uid,postId){
+  _unmuted.add(uid);
+  if(postId!=null){
+    var p=POSTS.filter(function(x){return x.id===postId;})[0];
+    var el=document.getElementById("cmList");
+    if(p&&el){el.innerHTML=renderComments(p);return;}
+  }
+  renderList();
+}
 // 비회원(익명) 글·댓글에만 붙는 IP 앞자리 표시(디시식). ip는 비회원일 때만 채워지므로 로그인 유저는 자동으로 빈 값.
 function anonIpHTML(ip){return ip?(' <span class="anon-ip">('+esc(ip)+')</span>'):'';}
 function avatarHTML(name,avatarUrl){
@@ -644,6 +746,7 @@ async function applySession(session){
     // 이미 알림 권한을 켠 유저면 로그인 시 이 계정으로 구독을 확실히 저장(기기별 1회)
     if(typeof subscribeToPush==="function"&&notifPermState()==="granted")subscribeToPush();
     loadMyFollows(); // 내 팔로우 목록 로드
+    loadMyNotes().then(function(){renderList();}); // 뮤트·메모(오면 목록을 다시 그려 반영)
     loadMyEmoticons(); // 담아둔 이모티콘 팩
     maybeShowConsent(); // 신규 가입자면 약관·개인정보 동의 창 표시
     maybeRegisterReferral(); // 초대 링크를 타고 왔다면 이번 로그인에서 초대 관계를 확정
@@ -653,6 +756,7 @@ async function applySession(session){
     unsubscribeFromNotifications();
     NOTIFS=NOTIFS.filter(function(n){return !n.dbId});
     FOLLOW=new Set();FOLLOW_NAME={}; // 로그아웃 시 팔로우 비움
+    MY_NOTES={};_unmuted=new Set();  // 뮤트·메모도 함께 비움(다른 사람 것이 남으면 안 된다)
     syncNotifBadge();
   }
   if(document.getElementById("myProfileView"))openProfile();
@@ -1456,6 +1560,13 @@ function renderList(){
   h+='<div class="list">';
   var postsSinceAd=0,adGap=10+Math.floor(Math.random()*6); // 광고 간격: 10~15개 게시글마다 랜덤
   visible.forEach(function(p,idx){
+    // 뮤트한 사람의 글은 자리만 남기고 접는다 — 지우지 않는 이유는 '보기'로 펼칠 수 있어야 해서다.
+    if(isMuted(p.authorId)){
+      h+='<div class="muted-row" onclick="revealMuted(\''+esc(p.authorId)+'\')">'+
+         '<span class="mr-ic">🔕</span><span class="mr-tx">뮤트한 사람의 글</span>'+
+         '<span class="mr-go">보기</span></div>';
+      return;
+    }
     var c=catFor(p);
     var isHot=p.likes>=90;
     var thumb=postThumbHTML(p);
@@ -1464,7 +1575,7 @@ function renderList(){
         '<div class="ptitle">'+(p.isManagerPick?'<span class="pick-badge">📌 매니저 픽</span> ':'')+esc(p.title)+'</div>'+
         '<div class="pmeta">'+
           '<span class="cat '+c.cls+'">'+c.label+'</span>'+
-          '<span class="who"'+(p.authorId?' style="cursor:pointer" onclick="event.stopPropagation();openUserProfile(\''+p.authorId+'\')"':'')+'>'+esc(dispName(p.author))+anonIpHTML(p.ipMasked)+'</span>'+
+          '<span class="who"'+(p.authorId?' style="cursor:pointer" onclick="event.stopPropagation();openUserProfile(\''+p.authorId+'\')"':'')+'>'+esc(dispName(p.author))+anonIpHTML(p.ipMasked)+memoBadge(p.authorId)+'</span>'+
           '<span class="sep"></span><span class="mt">'+p.time+'</span>'+
           '<span class="sep"></span><span class="mv">조회 '+fmtViews(p.views)+'</span>'+
           (p.likes?'<span class="sep"></span><span class="ml">추천 '+p.likes+'</span>':'')+
@@ -1513,7 +1624,7 @@ function renderPostDetail(id){
   var liked=p._liked?" liked":"";
   var h='<div class="detail"><div class="d-grip"></div><button class="d-back" onclick="renderList()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>목록으로</button>'+
     '<div class="d-head"><div class="line1"><span class="cat '+c.cls+'">'+c.label+'</span>'+(p.isManagerPick?'<span class="pick-badge">📌 매니저 픽</span>':'')+(p.reviewedNickname?'<span class="pick-badge">🎨 @'+esc(p.reviewedNickname)+' 후기</span>':'')+'</div><h1 class="serif">'+esc(p.title)+'</h1>'+
-    '<div class="d-author"><div class="d-ava serif">'+avatarHTML(p.author,p.authorAvatar)+'</div><div class="d-au-info"><div class="n"'+(p.authorId?' style="cursor:pointer" onclick="openUserProfile(\''+p.authorId+'\')"':'')+'>'+esc(dispName(p.author))+anonIpHTML(p.ipMasked)+levelBadgeHtml(p.authorLevel,"lv-badge")+titleBadgeById(p.authorTitleId)+'</div><div class="meta">'+p.time+' · 조회 '+fmtViews(p.views)+'</div></div>'+
+    '<div class="d-author"><div class="d-ava serif">'+avatarHTML(p.author,p.authorAvatar)+'</div><div class="d-au-info"><div class="n"'+(p.authorId?' style="cursor:pointer" onclick="openUserProfile(\''+p.authorId+'\')"':'')+'>'+esc(dispName(p.author))+anonIpHTML(p.ipMasked)+memoBadge(p.authorId)+levelBadgeHtml(p.authorLevel,"lv-badge")+titleBadgeById(p.authorTitleId)+'</div><div class="meta">'+p.time+' · 조회 '+fmtViews(p.views)+'</div></div>'+
     ((p.authorId&&(!AUTH.user||p.authorId!==AUTH.user.id))?('<button class="d-follow'+(FOLLOW.has(p.authorId)?' following':'')+'" id="followBtn" onclick="toggleFollow(\''+esc(p.authorId)+'\',\''+esc(p.author)+'\')">'+(FOLLOW.has(p.authorId)?'팔로잉 ✓':'＋ 팔로우')+'</button>'):'')+'</div></div>'+
     canvas+'<div class="d-content">'+(safeHtml?safeHtml:p.content.map(function(x){return'<p>'+esc(x)+'</p>'}).join(""))+'</div>'+
     (p.polls&&p.polls.length?p.polls.filter(function(pl){return !pl.anchor;}).map(function(pl){return '<div class="poll" id="pollBox-'+pl.id+'"></div>';}).join(''):'')+
@@ -2567,6 +2678,14 @@ function renderComments(p){
   if(isFeedback&&accId)list.sort(function(a,b){return ((a.c.dbId===accId)?0:1)-((b.c.dbId===accId)?0:1);});
   return list.map(function(item){
     var c=item.c,ci=item.ci;
+    // 뮤트한 사람의 댓글도 자리를 남기고 접는다 — 통째로 지우면 답글 흐름이 끊긴다.
+    // ⚠️ 글 id를 함께 넘긴다. '지금 열린 글'을 가리키는 전역이 없어서, 펼칠 때 이 값으로
+    //    그 글의 댓글만 다시 그린다(화면 전체를 다시 그리면 스크롤이 맨 위로 튄다).
+    if(isMuted(c.authorId)){
+      return '<div class="muted-row cmt" onclick="revealMuted(\''+esc(c.authorId)+'\','+p.id+')">'+
+        '<span class="mr-ic">🔕</span><span class="mr-tx">뮤트한 사람의 댓글</span>'+
+        '<span class="mr-go">보기</span></div>';
+    }
     var canDelete=c.dbId&&AUTH.user&&c.authorId===AUTH.user.id;
     // 관리자는 남의 댓글도 지울 수 있어야 한다(지금까진 버튼 자체가 없었다).
     // 본인 댓글은 위 '삭제'로 조용히 지우고, 남의 댓글은 사유를 받아 보관본을 남기는 경로로 보낸다.
@@ -2578,7 +2697,7 @@ function renderComments(p){
       : '';
     var badge=isAccepted?'<div class="cm-accepted-badge">✅ 채택된 피드백</div>':'';
     var isReply=/^\s*@\S/.test(c.txt||''); // "@닉네임"으로 시작하면 답글
-    return '<div class="cm'+(isAccepted?' accepted':'')+(isReply?' reply':'')+'"><div class="d-ava serif">'+avatarHTML(c.n,c.av)+'</div><div class="cbody">'+badge+'<div class="ch"><span class="cn"'+(c.authorId?' style="cursor:pointer" onclick="openUserProfile(\''+c.authorId+'\')"':'')+'>'+esc(c.n)+anonIpHTML(c.ip)+'</span>'+levelBadgeHtml(c.lv,"lv-badge")+titleBadgeById(c.tt)+'<span class="ct">'+esc(c.t)+'</span></div><div class="ctext">'+withEmoticons(esc(c.txt).replace(/^@(\S+)/,'<b class="mention">@$1</b>'))+'</div><div class="cfoot"><span onclick="helpful('+p.id+','+ci+',this)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v9H4v-9zM7 11l4-8a2 2 0 0 1 3 2l-1 6h5a2 2 0 0 1 2 2l-1 6a2 2 0 0 1-2 1H7"/></svg>도움돼요'+(c.h?' <b>'+c.h+'</b>':'')+'</span><span onclick="replyTo(\''+esc(c.n)+'\')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>답글</span>'+(canDelete?'<span onclick="deleteComment('+p.id+','+ci+')">삭제</span>':'')+(canAdminDelete?'<span class="c-admindel" onclick="adminDeleteComment('+p.id+','+ci+')">🗑 관리자 삭제</span>':'')+acceptBtn+'</div></div></div>';
+    return '<div class="cm'+(isAccepted?' accepted':'')+(isReply?' reply':'')+'"><div class="d-ava serif">'+avatarHTML(c.n,c.av)+'</div><div class="cbody">'+badge+'<div class="ch"><span class="cn"'+(c.authorId?' style="cursor:pointer" onclick="openUserProfile(\''+c.authorId+'\')"':'')+'>'+esc(c.n)+anonIpHTML(c.ip)+memoBadge(c.authorId)+'</span>'+levelBadgeHtml(c.lv,"lv-badge")+titleBadgeById(c.tt)+'<span class="ct">'+esc(c.t)+'</span></div><div class="ctext">'+withEmoticons(esc(c.txt).replace(/^@(\S+)/,'<b class="mention">@$1</b>'))+'</div><div class="cfoot"><span onclick="helpful('+p.id+','+ci+',this)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11v9H4v-9zM7 11l4-8a2 2 0 0 1 3 2l-1 6h5a2 2 0 0 1 2 2l-1 6a2 2 0 0 1-2 1H7"/></svg>도움돼요'+(c.h?' <b>'+c.h+'</b>':'')+'</span><span onclick="replyTo(\''+esc(c.n)+'\')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>답글</span>'+(canDelete?'<span onclick="deleteComment('+p.id+','+ci+')">삭제</span>':'')+(canAdminDelete?'<span class="c-admindel" onclick="adminDeleteComment('+p.id+','+ci+')">🗑 관리자 삭제</span>':'')+acceptBtn+'</div></div></div>';
   }).join("");
 }
 async function acceptFeedback(postId,commentDbId,isCancel){
@@ -6976,6 +7095,8 @@ async function openUserProfile(userId,keepStack){
     cover_url:profile.cover_url,bio:profile.bio,sns_twitter:profile.sns_twitter,sns_instagram:profile.sns_instagram,sns_email:profile.sns_email},
     false,theirReviewStats,theirBookmarkCount);
   if(canChat)h+='<button class="pf-edit" style="margin-top:14px;width:100%" onclick="openChat(\''+userId+'\')">💬 채팅하기</button>';
+  // 뮤트·메모는 남의 프로필에서만(자기 자신에겐 의미가 없다). 내용은 renderUserNoteBox가 채운다.
+  if(canChat)h+='<div class="unote" id="uNoteBox"></div>';
   h+=pfCommissionListHTML(artistCommissions);
   h+=pinnedPostCardHTML(profile.pinned_post_id);
   h+=pfReviewListHTML(theirReviewList,userId);
@@ -6989,6 +7110,7 @@ async function openUserProfile(userId,keepStack){
   h+='<button class="pf-edit" style="margin-top:16px" onclick="renderList()">← 목록으로</button>';
   h+='</div>';
   document.getElementById("main").innerHTML=h;
+  renderUserNoteBox(userId);
   loadFollowBar(userId);
   window.scrollTo({top:0,behavior:"smooth"});
 }
