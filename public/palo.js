@@ -196,7 +196,12 @@ function dispName(a){return a==="나"?ME.nick:a}
 var MY_NOTES={};            // target_id → {memo, muted}
 var _unmuted=new Set();     // 이번 화면에서 '보기'를 눌러 잠깐 펼쳐 둔 사람들(새로고침하면 초기화)
 function noteOf(uid){return (uid&&MY_NOTES[uid])||null;}
-function isMuted(uid){var n=noteOf(uid);return !!(n&&n.muted)&&!_unmuted.has(uid);}
+function isBlocked(uid){var n=noteOf(uid);return !!(n&&n.blocked);}
+/* 차단은 뮤트의 효과를 포함한다(가리기). 다만 차단은 '보기'로 펼칠 수 없다 —
+   가릴지 말지를 고르는 기능이 아니라 관계를 끊는 기능이라서. */
+function isMuted(uid){var n=noteOf(uid);if(!n)return false;
+  if(n.blocked)return true;
+  return !!n.muted&&!_unmuted.has(uid);}
 function memoOf(uid){var n=noteOf(uid);return (n&&n.memo)?n.memo:"";}
 /* 닉네임 뒤에 붙는 메모 딱지. 목록·상세·댓글 어디서나 같은 모양으로 쓴다. */
 function memoBadge(uid){
@@ -206,25 +211,26 @@ function memoBadge(uid){
 async function loadMyNotes(){
   MY_NOTES={};
   if(!AUTH.user||!window.supabase)return;
-  var r=await window.supabase.from("user_notes").select("target_id,memo,muted").eq("owner_id",AUTH.user.id);
+  var r=await window.supabase.from("user_notes").select("target_id,memo,muted,blocked").eq("owner_id",AUTH.user.id);
   if(r.error)return;   // 표가 아직 없으면(SQL 미실행) 조용히 넘어간다 — 기능만 안 보일 뿐
-  (r.data||[]).forEach(function(n){MY_NOTES[n.target_id]={memo:n.memo||"",muted:!!n.muted};});
+  (r.data||[]).forEach(function(n){MY_NOTES[n.target_id]={memo:n.memo||"",muted:!!n.muted,blocked:!!n.blocked};});
 }
 /* 뮤트·메모를 저장한다. 둘 다 비면(메모 없음 + 뮤트 해제) 행을 지운다 — 빈 행을 쌓아 두지 않는다. */
 async function saveMyNote(uid,patch){
   if(!AUTH.user||!window.supabase){toast("로그인이 필요해요","🔒");return false;}
   if(uid===AUTH.user.id){toast("자기 자신에게는 쓸 수 없어요");return false;}
-  var cur=noteOf(uid)||{memo:"",muted:false};
+  var cur=noteOf(uid)||{memo:"",muted:false,blocked:false};
   var next={memo:("memo" in patch)?patch.memo:cur.memo,
-            muted:("muted" in patch)?patch.muted:cur.muted};
+            muted:("muted" in patch)?patch.muted:cur.muted,
+            blocked:("blocked" in patch)?patch.blocked:!!cur.blocked};
   var res;
-  if(!next.memo&&!next.muted){
+  if(!next.memo&&!next.muted&&!next.blocked){
     res=await window.supabase.from("user_notes").delete()
       .eq("owner_id",AUTH.user.id).eq("target_id",uid);
     if(!res.error)delete MY_NOTES[uid];
   }else{
     res=await window.supabase.from("user_notes")
-      .upsert({owner_id:AUTH.user.id,target_id:uid,memo:next.memo||null,muted:next.muted},
+      .upsert({owner_id:AUTH.user.id,target_id:uid,memo:next.memo||null,muted:next.muted,blocked:next.blocked},
               {onConflict:"owner_id,target_id"}).select();
     // ⚠️ .select()로 실제 반영 여부를 확인한다 — RLS에 막히면 오류 없이 0행이 된다
     if(!res.error&&(!res.data||!res.data.length)){
@@ -249,17 +255,43 @@ function toggleMute(uid){
     renderList();
   });
 }
+/* 차단. 뮤트와 달리 **서버가 막는다** — 상대는 내 글에 댓글을 달거나 채팅을 걸 수 없다.
+   ⚠️ 되돌리기 쉬운 동작이 아니라서, 풀 때가 아니라 **걸 때** 한 번 확인을 받는다.
+   ⚠️ 화면에서 막는 것만으로는 약속을 지킬 수 없다 — 실제 차단은 user-blocks.sql의
+      restrictive 정책이 서버에서 건다. 여기서 하는 건 표시를 저장하는 것까지다. */
+async function toggleBlock(uid,nick){
+  var on=!isBlocked(uid);
+  if(on){
+    var ok=await confirmDialog(
+      (nick?dispName(nick)+"님을":"이 사람을")+" 차단할까요?\n\n"+
+      "· 이 사람의 글·댓글이 가려져요\n"+
+      "· 내 글에 댓글을 달 수 없어요\n"+
+      "· 채팅을 걸 수 없어요");
+    if(!ok)return;
+  }
+  if(!(await saveMyNote(uid,{blocked:on})))return;
+  toast(on?"차단했어요":"차단을 풀었어요");
+  renderUserNoteBox(uid);
+  renderList();
+}
+
 /* 프로필의 뮤트·메모 상자. 매번 통째로 다시 그린다(상태가 몇 개 안 돼 그게 더 단순하다). */
-function renderUserNoteBox(uid){
+var _noteNick="";   // 지금 보고 있는 프로필의 닉(차단 확인 문구에 쓴다)
+function renderUserNoteBox(uid,nick){
   var box=document.getElementById("uNoteBox");
   if(!box)return;
-  if(!AUTH.user){box.innerHTML='<div class="unote-hint">로그인하면 뮤트·메모를 쓸 수 있어요.</div>';return;}
-  var muted=!!(noteOf(uid)||{}).muted, memo=memoOf(uid);
+  if(nick)_noteNick=nick; nick=_noteNick;
+  if(!AUTH.user){box.innerHTML='<div class="unote-hint">로그인하면 뮤트·메모·차단을 쓸 수 있어요.</div>';return;}
+  var n=noteOf(uid)||{}, muted=!!n.muted, blocked=isBlocked(uid), memo=memoOf(uid);
+  var nickArg=nick?(",'"+esc(String(nick).replace(/'/g,"")) +"'"):"";
   box.innerHTML=
     '<div class="unote-row">'+
-      '<button class="unote-mute'+(muted?" on":"")+'" onclick="toggleMute(\''+esc(uid)+'\')">'+
-        (muted?"🔕 뮤트 해제":"🔕 뮤트")+'</button>'+
-      '<span class="unote-hint">'+(muted?"이 사람의 글·댓글이 접혀서 보여요":"글·댓글을 접어서 가릴 수 있어요")+'</span>'+
+      (blocked?'':'<button class="unote-mute'+(muted?" on":"")+'" onclick="toggleMute(\''+esc(uid)+'\')">'+
+        (muted?"🔕 뮤트 해제":"🔕 뮤트")+'</button>')+
+      '<button class="unote-block'+(blocked?" on":"")+'" onclick="toggleBlock(\''+esc(uid)+'\''+nickArg+')">'+
+        (blocked?"🚫 차단 해제":"🚫 차단")+'</button>'+
+      '<span class="unote-hint">'+(blocked?"글·댓글이 가려지고, 댓글·채팅을 걸 수 없어요"
+        :(muted?"이 사람의 글·댓글이 접혀서 보여요":"글·댓글을 접어서 가릴 수 있어요"))+'</span>'+
     '</div>'+
     '<div class="unote-memo">'+
       '<textarea id="uNoteMemo" maxlength="60" rows="2" placeholder="이 사람에 대한 메모 (나만 봐요)">'+esc(memo)+'</textarea>'+
@@ -1562,9 +1594,12 @@ function renderList(){
   visible.forEach(function(p,idx){
     // 뮤트한 사람의 글은 자리만 남기고 접는다 — 지우지 않는 이유는 '보기'로 펼칠 수 있어야 해서다.
     if(isMuted(p.authorId)){
-      h+='<div class="muted-row" onclick="revealMuted(\''+esc(p.authorId)+'\')">'+
-         '<span class="mr-ic">🔕</span><span class="mr-tx">뮤트한 사람의 글</span>'+
-         '<span class="mr-go">보기</span></div>';
+      // 차단은 펼칠 수 없다(관계를 끊은 것) — '보기'를 주지 않는다
+      var _bk=isBlocked(p.authorId);
+      h+='<div class="muted-row'+(_bk?' blocked':'')+'"'+(_bk?'':' onclick="revealMuted(\''+esc(p.authorId)+'\')"')+'>'+
+         '<span class="mr-ic">'+(_bk?'🚫':'🔕')+'</span>'+
+         '<span class="mr-tx">'+(_bk?'차단한 사람의 글':'뮤트한 사람의 글')+'</span>'+
+         (_bk?'':'<span class="mr-go">보기</span>')+'</div>';
       return;
     }
     var c=catFor(p);
@@ -2682,9 +2717,11 @@ function renderComments(p){
     // ⚠️ 글 id를 함께 넘긴다. '지금 열린 글'을 가리키는 전역이 없어서, 펼칠 때 이 값으로
     //    그 글의 댓글만 다시 그린다(화면 전체를 다시 그리면 스크롤이 맨 위로 튄다).
     if(isMuted(c.authorId)){
-      return '<div class="muted-row cmt" onclick="revealMuted(\''+esc(c.authorId)+'\','+p.id+')">'+
-        '<span class="mr-ic">🔕</span><span class="mr-tx">뮤트한 사람의 댓글</span>'+
-        '<span class="mr-go">보기</span></div>';
+      var _bk=isBlocked(c.authorId);
+      return '<div class="muted-row cmt'+(_bk?' blocked':'')+'"'+(_bk?'':' onclick="revealMuted(\''+esc(c.authorId)+'\','+p.id+')"')+'>'+
+        '<span class="mr-ic">'+(_bk?'🚫':'🔕')+'</span>'+
+        '<span class="mr-tx">'+(_bk?'차단한 사람의 댓글':'뮤트한 사람의 댓글')+'</span>'+
+        (_bk?'':'<span class="mr-go">보기</span>')+'</div>';
     }
     var canDelete=c.dbId&&AUTH.user&&c.authorId===AUTH.user.id;
     // 관리자는 남의 댓글도 지울 수 있어야 한다(지금까진 버튼 자체가 없었다).
@@ -7110,7 +7147,7 @@ async function openUserProfile(userId,keepStack){
   h+='<button class="pf-edit" style="margin-top:16px" onclick="renderList()">← 목록으로</button>';
   h+='</div>';
   document.getElementById("main").innerHTML=h;
-  renderUserNoteBox(userId);
+  renderUserNoteBox(userId,profile.nickname);
   loadFollowBar(userId);
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -7266,6 +7303,9 @@ async function findOrCreateConversation(otherUserId){
 async function openChat(otherUserId){
   if(!AUTH.user){toast("로그인이 필요해요");loginWithGoogle();return;}
   if(otherUserId===AUTH.user.id){toast("나 자신과는 채팅할 수 없어요");return;}
+  // 내가 차단한 사람 — 서버도 막지만, 화면을 열었다가 보내기에서 실패하면 더 답답하다.
+  // (상대가 나를 차단한 경우는 여기서 알 수 없다. 그건 서버가 막고 안내 문구로 알린다.)
+  if(isBlocked(otherUserId)){toast("차단한 사람이에요. 차단을 풀면 채팅할 수 있어요","🚫");return;}
   closeNotif();
   document.getElementById("main").innerHTML='<div class="profile"><p style="padding:40px 0;text-align:center;color:var(--muted)">불러오는 중...</p></div>';
 

@@ -2563,6 +2563,9 @@ body.ed-page #toTop{display:none!important}
   font-size:12.5px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .muted-row:hover{color:var(--ink-2)}
 .muted-row.cmt{border-bottom:none;padding:9px 4px}
+/* 차단은 펼칠 수 없어서 누를 것이 없다 — 손 모양 커서를 주지 않는다 */
+.muted-row.blocked{cursor:default}
+.muted-row.blocked:hover{color:var(--muted-2)}
 .muted-row .mr-ic{flex:none;font-size:13px;line-height:1}
 .muted-row .mr-tx{font-weight:600}
 .muted-row .mr-go{margin-left:auto;font-weight:800;color:var(--brand-2)}
@@ -2576,6 +2579,13 @@ body.ed-page #toTop{display:none!important}
   padding:7px 12px;border-radius:10px;cursor:pointer;
   touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .unote-mute.on{background:var(--brand);border-color:var(--brand);color:#fff}
+/* 차단은 되돌리기 쉬운 동작이 아니라 평소엔 조용히 두고, 걸린 상태에서만 또렷하게 */
+.unote-block{flex:none;border:1px solid var(--line-2);background:var(--surface);
+  color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:700;
+  padding:7px 12px;border-radius:10px;cursor:pointer;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.unote-block:hover{color:#c0392b;border-color:#e6b8b0}
+.unote-block.on{background:#c0392b;border-color:#c0392b;color:#fff}
 .unote-hint{font-size:11.5px;color:var(--muted)}
 .unote-memo{margin-top:10px}
 .unote-memo textarea{width:100%;border:1px solid var(--line-2);border-radius:10px;
