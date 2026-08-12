@@ -42,9 +42,15 @@
     } catch (e) { /* 표 구조가 바뀌었어도 게이트 자체는 동작해야 한다 */ }
   }
 
-  // ── 포트원(PortOne) V2 + KG이니시스 통합 본인확인 ──
-  var PORTONE_STORE_ID = "";   // 관리자 콘솔 → 결제 연동에서 확인 (계약 후 입력)
-  var PORTONE_CHANNEL_KEY = ""; // 채널 관리 탭의 KG이니시스 통합 본인확인 채널 키
+  /* ── 포트원(PortOne) V2 경유 · NHN KCP 휴대폰 본인확인 ──
+     처음엔 KG이니시스 통합인증으로 잡았다가 실제 계약에서 NHN KCP로 갔다(2026-08-13).
+     포트원이 KCP의 신규 연동방식(PG Provider `kcp_v2`)을 감싸 주므로 **코드는 그대로**다.
+     ⚠️ 이 두 값은 브라우저에 노출돼도 되는 **공개 값**이다.
+        비밀 값은 서버 환경변수의 PORTONE_API_SECRET 쪽이지 여기가 아니다.
+     ⚠️ 포트원 콘솔의 '본인인증 인증키'(= KCP 사이트키)를 채워야 실제로 인증창이 뜬다.
+        그 값은 콘솔에만 넣으며 이 파일에는 들어오지 않는다. */
+  var PORTONE_STORE_ID = "store-73603042-1b6d-4eb5-8063-84ed34f1242e";
+  var PORTONE_CHANNEL_KEY = "channel-key-9ae37405-3046-4646-8436-b28e55ab7a7b";
   var READY = !!(PORTONE_STORE_ID && PORTONE_CHANNEL_KEY);
 
   var el = null;
