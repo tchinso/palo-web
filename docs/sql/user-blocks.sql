@@ -50,10 +50,13 @@ as $$
   );
 $$;
 
--- ⚠️ Postgres는 함수 EXECUTE를 PUBLIC에 기본으로 준다. 위 두 함수는 호출자 자신에 관한 것만
---    답하므로 로그인 사용자에게 열어 두어도 되지만, 익명에게는 의미가 없으니 좁혀 둔다.
-revoke execute on function public.blocked_me(uuid)    from public;
-revoke execute on function public.block_between(uuid) from public;
+-- ⚠️ `revoke ... from public`만으로는 부족하다(2026-08-11 실측).
+--    Supabase는 기본 권한으로 anon·authenticated 역할에 EXECUTE를 **직접** 부여해 두기 때문에,
+--    PUBLIC에서만 회수하면 anon은 그대로 호출할 수 있다. 역할별로 명시해서 회수해야 한다.
+-- ⚠️ 다만 이건 보안 구멍은 아니다. 두 함수는 auth.uid()를 기준으로만 답하므로
+--    익명(auth.uid() = null)이 불러도 항상 false다. 정리 차원의 조치다.
+revoke execute on function public.blocked_me(uuid)    from public, anon;
+revoke execute on function public.block_between(uuid) from public, anon;
 grant  execute on function public.blocked_me(uuid)    to authenticated;
 grant  execute on function public.block_between(uuid) to authenticated;
 
