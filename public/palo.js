@@ -779,6 +779,7 @@ async function applySession(session){
     if(typeof subscribeToPush==="function"&&notifPermState()==="granted")subscribeToPush();
     loadMyFollows(); // 내 팔로우 목록 로드
     loadMyNotes().then(function(){renderList();}); // 뮤트·메모(오면 목록을 다시 그려 반영)
+    loadMyPostBookmarks(); // 저장한 글
     loadMyEmoticons(); // 담아둔 이모티콘 팩
     maybeShowConsent(); // 신규 가입자면 약관·개인정보 동의 창 표시
     maybeRegisterReferral(); // 초대 링크를 타고 왔다면 이번 로그인에서 초대 관계를 확정
@@ -789,6 +790,7 @@ async function applySession(session){
     NOTIFS=NOTIFS.filter(function(n){return !n.dbId});
     FOLLOW=new Set();FOLLOW_NAME={}; // 로그아웃 시 팔로우 비움
     MY_NOTES={};_unmuted=new Set();  // 뮤트·메모도 함께 비움(다른 사람 것이 남으면 안 된다)
+    POST_BM=new Set();               // 저장한 글도 비움
     syncNotifBadge();
   }
   if(document.getElementById("myProfileView"))openProfile();
@@ -1665,6 +1667,7 @@ function renderPostDetail(id){
     (p.polls&&p.polls.length?p.polls.filter(function(pl){return !pl.anchor;}).map(function(pl){return '<div class="poll" id="pollBox-'+pl.id+'"></div>';}).join(''):'')+
     '<div class="d-actions"><button class="d-act'+liked+'" id="likeBtn" onclick="toggleLike('+p.id+')">'+likeIconSvg(p._liked)+'좋아요 '+p.likes+'</button>'+
     '<button class="d-act" onclick="sharePost('+p.id+')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15l6-6"/><path d="M10 6l1-1a4 4 0 0 1 6 6l-1 1M14 18l-1 1a4 4 0 0 1-6-6l1-1"/></svg>공유</button>'+
+    (p.dbId?('<button class="d-act'+(isPostBookmarked(p.dbId)?' on':'')+'" id="bmBtn" onclick="togglePostBookmark('+p.id+')">'+postBmIcon(isPostBookmarked(p.dbId))+(isPostBookmarked(p.dbId)?'저장됨':'저장')+'</button>'):'')+
     '<button class="d-act" onclick="reportPost('+p.id+')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>신고</button>'+
     ((p.dbId&&p.board==="trade"&&p.category==="구직")?'<button class="d-act" onclick="openCommissionReviews('+p.id+')">📝 후기 보기 ('+POSTS.filter(function(r){return r.board==="review"&&r.commissionPostId===p.dbId}).length+')</button>':'')+
     ((p.dbId&&p.board==="trade"&&p.category==="구직"&&AUTH.user&&AUTH.user.id!==p.authorId)?'<button class="d-act" onclick="openReviewFor('+p.id+')">✍️ 이 커미션 후기 쓰기</button>':'')+
@@ -3201,6 +3204,47 @@ function pfReviewListHTML(reviews,userId){
   if(reviews.length>showCount)h+='<div class="rv-more" onclick="pfReviewsExpanded=true;'+moreCall+'">더보기</div>';
   return h;
 }
+/* ===== 글 북마크(저장한 글) ==========================================
+   커미션 북마크와 같은 방식이지만 훨씬 단순하다 — 남에게 보여줄 '저장 수'가 없어서
+   집계가 필요 없고, 내가 저장했는지만 알면 된다.
+   ⚠️ 키는 화면용 id(p.id = 100000+dbId)가 아니라 **DB의 진짜 id(p.dbId)** 다.
+      데모 글은 dbId가 없어 저장할 수 없다(버튼도 안 보인다). */
+var POST_BM=null;   // null=아직 안 불러옴 / Set=저장한 글의 dbId들
+async function loadMyPostBookmarks(){
+  POST_BM=new Set();
+  if(!AUTH.user||!window.supabase)return;
+  var r=await window.supabase.from("post_bookmarks").select("post_id").eq("user_id",AUTH.user.id);
+  if(r.error)return;   // 표가 없으면(SQL 미실행) 조용히 넘어간다 — 기능만 안 보인다
+  (r.data||[]).forEach(function(x){POST_BM.add(x.post_id);});
+}
+function isPostBookmarked(dbId){return !!(dbId&&POST_BM&&POST_BM.has(dbId));}
+async function togglePostBookmark(postId){
+  var p=POSTS.filter(function(x){return x.id===postId;})[0];
+  if(!p||!p.dbId){toast("저장할 수 없는 글이에요");return;}
+  if(!AUTH.user){toast("로그인 후 저장할 수 있어요","🔒");loginWithGoogle();return;}
+  if(POST_BM===null)await loadMyPostBookmarks();
+  var on=!POST_BM.has(p.dbId);
+  var res=on
+    ? await window.supabase.from("post_bookmarks").insert({user_id:AUTH.user.id,post_id:p.dbId})
+    : await window.supabase.from("post_bookmarks").delete().eq("user_id",AUTH.user.id).eq("post_id",p.dbId);
+  if(res.error){
+    toast(/relation|does not exist/i.test(res.error.message)
+      ?"먼저 post-bookmarks.sql을 실행해주세요":"처리에 실패했어요");
+    return;
+  }
+  if(on)POST_BM.add(p.dbId); else POST_BM.delete(p.dbId);
+  if(on)track("post_bookmark");
+  toast(on?"저장했어요":"저장을 해제했어요",on?"🔖":undefined);
+  // 버튼만 갈아 끼운다 — 글 상세를 통째로 다시 그리면 스크롤이 맨 위로 튄다
+  var btn=document.getElementById("bmBtn");
+  if(btn){btn.classList.toggle("on",on);btn.innerHTML=postBmIcon(on)+(on?"저장됨":"저장");}
+}
+function postBmIcon(on){
+  return '<svg class="ic" viewBox="0 0 24 24" fill="'+(on?"currentColor":"none")+
+    '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+
+    '<path d="M6 3h12v18l-6-4-6 4z"/></svg>';
+}
+
 // 북마크 토글 시 로컬 카운트를 즉시 반영(다음 로드 때 서버 값으로 다시 맞춰짐)
 function cmBumpBookmarkCount(commissionId,delta){
   var d=cmData.find(function(x){return x.id===commissionId;});
@@ -7084,11 +7128,14 @@ function openPfList(kind){
   var commented=POSTS.filter(function(p){return p.author!=="나"&&p.comments.some(function(c){return c.n==="나"})});
   var likedArr=POSTS.filter(function(p){return p._liked});
   var recent=[];Array.from(READ).reverse().forEach(function(id){var p=POSTS.find(function(x){return x.id===id});if(p)recent.push(p)});
+  // 저장한 글 — POST_BM에는 DB의 진짜 id(dbId)가 들어 있다
+  var saved=POSTS.filter(function(p){return p.dbId&&isPostBookmarked(p.dbId);});
   recent=recent.slice(0,10);
   var M={mine:["쓴 글",mine,'아직 쓴 글이 없어요.<br>첫 이야기를 올려볼까요?',true],
          cm:["댓글 단 글",commented,'댓글을 단 글이 아직 없어요.<br>마음에 드는 글에 댓글을 남겨보세요!',false],
          liked:["좋아요",likedArr,'좋아요한 글이 아직 없어요.<br>마음에 드는 그림에 하트를 눌러보세요!',false],
-         recent:["최근 본 글",recent,'최근 본 글이 없어요.',false]};
+         recent:["최근 본 글",recent,'최근 본 글이 없어요.',false],
+         saved:["저장한 글",saved,'저장한 글이 아직 없어요.<br>글 상세에서 저장을 눌러보세요!',false]};
   var m=M[kind]||M.mine;
   var h='<div class="profile">'+
     '<button class="d-back" onclick="screenBack()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>내 정보로</button>'+
@@ -7742,6 +7789,7 @@ function renderMyProfile(){
   var commented=POSTS.filter(function(p){return p.author!=="나"&&p.comments.some(function(c){return c.n==="나"})});
   var likedArr=POSTS.filter(function(p){return p._liked});
   var recent=[];Array.from(READ).reverse().forEach(function(id){var p=POSTS.find(function(x){return x.id===id});if(p)recent.push(p)});
+  var savedCount=POSTS.filter(function(p){return p.dbId&&isPostBookmarked(p.dbId);}).length;
   recent=recent.slice(0,10);
   var likeSum=mine.reduce(function(a,p){return a+p.likes},0);
   var cmSum=mine.reduce(function(a,p){return a+p.comments.length},0);
@@ -7782,6 +7830,7 @@ function renderMyProfile(){
      pfTile(pfMiniIcon('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),'댓글 단 글','내가 남긴 댓글',"openPfList('cm')",commented.length)+
      pfTile(pfMiniIcon('<path d="M12 20s-7-4.5-7-9.5A3.5 3.5 0 0 1 12 7a3.5 3.5 0 0 1 7 3.5c0 5-7 9.5-7 9.5z"/>'),'좋아요','내가 누른 글',"openPfList('liked')",likedArr.length)+
      pfTile(pfMiniIcon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>'),'최근 본 글','다시 찾아보기',"openPfList('recent')",recent.length)+
+     pfTile(pfMiniIcon('<path d="M6 3h12v18l-6-4-6 4z"/>'),'저장한 글','나중에 다시 보기',"openPfList('saved')",savedCount)+
      '</div>');
   h+=pfSection('내 활동','커미션·채팅·이모티콘을 관리해요','<div class="pf-tiles">'+
      pfTile(pfMiniIcon('<path d="M8 12l3 3 5-5"/><path d="M3 10l5-5 4 3 4-3 5 5-6 8H9z"/>'),'내 커미션','등록·신청 관리',"cmOpenMy()")+

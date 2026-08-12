@@ -245,6 +245,9 @@
   .d-act{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1.5px solid var(--line-2);border-radius:14px;padding:11px 19px;font-size:13.5px;font-weight:800;color:var(--ink-2);cursor:pointer;transition:.14s}
   .d-act:hover{border-color:var(--brand);color:var(--brand)}
   .d-act.liked{background:var(--brand-soft);border-color:var(--brand);color:var(--brand)}
+  /* 저장(북마크)한 상태. 좋아요와 구분되게 보라 계열로 — 둘이 나란히 있어 색이 같으면
+     무엇을 눌렀는지 헷갈린다. */
+  .d-act.on{background:rgba(151,132,214,.13);border-color:var(--grape);color:var(--grape)}
   .d-act.d-act-admindel{color:#c0392b;border-color:#e6b3ab}
   .d-act.d-act-admindel:hover{background:#fbe9e6;border-color:#c0392b;color:#c0392b}
   .admin-del-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:11px}
