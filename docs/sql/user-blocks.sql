@@ -50,15 +50,16 @@ as $$
   );
 $$;
 
--- ⚠️ `revoke ... from public`만으로는 부족하다(2026-08-11 실측).
---    Supabase는 기본 권한으로 anon·authenticated 역할에 EXECUTE를 **직접** 부여해 두기 때문에,
---    PUBLIC에서만 회수하면 anon은 그대로 호출할 수 있다. 역할별로 명시해서 회수해야 한다.
--- ⚠️ 다만 이건 보안 구멍은 아니다. 두 함수는 auth.uid()를 기준으로만 답하므로
---    익명(auth.uid() = null)이 불러도 항상 false다. 정리 차원의 조치다.
-revoke execute on function public.blocked_me(uuid)    from public, anon;
-revoke execute on function public.block_between(uuid) from public, anon;
-grant  execute on function public.blocked_me(uuid)    to authenticated;
-grant  execute on function public.block_between(uuid) to authenticated;
+-- 🐛 여기서 anon의 EXECUTE를 회수했다가 **비로그인 댓글이 통째로 막혔다**(2026-08-13).
+--    아래 comments_block_guard 정책이 blocked_me()를 호출하는데, RLS 정책 안의 함수도
+--    **질의를 던진 역할(anon)의 권한으로** 실행된다. 그래서 anon에게 EXECUTE가 없으면
+--    정책 평가가 permission denied로 실패한다 → 익명 댓글 저장 실패.
+--    ⚠️ **RLS 정책이 부르는 함수는 그 표에 접근하는 모든 역할에게 EXECUTE를 줘야 한다.**
+--    ⚠️ 애초에 이 회수는 보안 조치가 아니었다("정리 차원"). 두 함수는 auth.uid() 기준으로만
+--       답하므로 익명이 불러도 항상 false다 — 즉 회수해서 얻는 것이 없고 잃는 것만 있었다.
+--    수정 이력: docs/sql/user-blocks-fix-anon.sql
+grant execute on function public.blocked_me(uuid)    to anon, authenticated;
+grant execute on function public.block_between(uuid) to anon, authenticated;
 
 -- 3) 덧붙이는 차단 검사 (기존 정책은 그대로 둔 채 AND 조건만 추가)
 
