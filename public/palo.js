@@ -682,19 +682,25 @@ var navigatingBack=false;  // popstate로 뒤로 가는 중이면 true(중복 pu
 // 나중에 뒤로가기를 여러 번 눌러야 화면이 바뀌지 않는 채로 겨우 사이트를 빠져나가게 된다.
 // 그래서 남아 있는 항목이 있으면 새로 밀지 않고 그것을 다시 쓴다(최대 1개만 남음).
 var pushedDepth=0;
+/* 화면 스택이 바뀌면 body의 cm-page 표시를 다시 맞춘다.
+   ⚠️ MutationObserver에만 맡기면 안 된다 — 스택은 DOM을 다 그린 **뒤에** 바뀌는 경우가 있어
+      마지막 판정이 옛 스택으로 이뤄지고, 그 뒤로는 DOM이 안 변해 다시 불리지 않는다.
+      (그래서 커미션 화면에 cm-page가 아예 안 붙는 일이 있었다 — 2026-08-13 실측) */
+function _cmSyncNow(){ if(typeof _cmScheduleSync==="function")_cmScheduleSync(); }
 function enterScreen(key,back){
   if(typeof syncKbOpen==="function")syncKbOpen(); // 화면 전환 때 하단 탭 상태 정리
   if(navigatingBack)return;                      // 뒤로 가는 중엔 새 항목을 쌓지 않음
   var top=screenStack[screenStack.length-1];
-  if(top&&top.key===key){top.back=back;return;}  // 같은 화면 재렌더/내부 탭 전환은 갱신만
+  if(top&&top.key===key){top.back=back;_cmSyncNow();return;}  // 같은 화면 재렌더/내부 탭 전환은 갱신만
   screenStack.push({key:key,back:back});
   if(screenStack.length>pushedDepth){            // 남아도는 항목이 없을 때만 새로 민다
     pushedDepth=screenStack.length;
     history.pushState({paloDepth:screenStack.length},"");
   }
+  _cmSyncNow();
 }
 function screenBack(){if(screenStack.length)history.back();} // 화면 안 '‹' 버튼용
-function resetScreens(){screenStack=[];}                     // 최상위(탭)로 나갈 때 스택 비우기
+function resetScreens(){screenStack=[];_cmSyncNow();}        // 최상위(탭)로 나갈 때 스택 비우기
 window.addEventListener("popstate",function(){
   if(pushedDepth>0)pushedDepth--;
   if(screenStack.length){                        // 커미션·채팅 등 앱 내부 화면이 열려 있으면
@@ -703,6 +709,7 @@ window.addEventListener("popstate",function(){
     navigatingBack=true;
     try{item.back();}catch(e){}
     navigatingBack=false;
+    _cmSyncNow();                                 // 뒤로 가서 화면이 바뀌었으니 표시도 다시 맞춘다
     return;                                       // 한 단계 뒤로 가고 끝(아래 URL 라우팅 안 함)
   }
   var dbId=getPostIdFromPath();
