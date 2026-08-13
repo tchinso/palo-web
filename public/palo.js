@@ -5577,7 +5577,7 @@ function openWrite(){
   edState.polls={};
   document.getElementById("edCrit").checked=(edState.board==="crit");
   document.getElementById("edTitleLabel").textContent="글쓰기";
-  document.getElementById("edSubmitBtn").textContent="등록";
+  edSetSubmitLabel("등록"); // 상단·폼 끝 두 버튼 모두
   document.getElementById("writeModal").classList.add("open");
   edEnterPage();   // 문서 자체가 글쓰기 페이지가 된다(뒤 페이지 감춤 + 맨 위로)
   document.getElementById("edBoardMenu").classList.remove("open");
@@ -5600,7 +5600,7 @@ function openEditPost(id){
   edState.polls={}; // 수정 시엔 투표 편집 미지원(1단계) — 버튼도 숨김
   document.getElementById("edCrit").checked=(edState.board==="crit");
   document.getElementById("edTitleLabel").textContent="글 수정";
-  document.getElementById("edSubmitBtn").textContent="수정 완료";
+  edSetSubmitLabel("수정 완료");
   document.getElementById("writeModal").classList.add("open");
   edEnterPage();   // 문서 자체가 글쓰기 페이지가 된다(뒤 페이지 감춤 + 맨 위로)
   document.getElementById("edBoardMenu").classList.remove("open");
@@ -7157,16 +7157,22 @@ function edSavePollModal(){
 /* 등록 버튼 이중 실행 방지 — 업로드가 느릴 때 연타하면 같은 글이 여러 번 올라갔다.
    진행 중에는 버튼을 잠그고 "올리는 중…"으로 바꿔 뭔가 되고 있음을 보여 준다. */
 var _postSubmitting=false;
+/* 등록 버튼은 **두 개**다 — 상단 바(늘 보임)와 폼 끝.
+   ⚠️ 한쪽만 잠그면 다른 쪽으로 두 번 눌러 글이 두 번 올라간다. 항상 둘 다 다룬다.
+      (상단 버튼이 없던 시절에는 사람들이 제목 옆 '글쓰기' 글자를 누르고 등록된 줄 알았다 —
+       그래서 진짜 버튼을 상단에도 뒀다, 2026-08-13 신고) */
+function edSubmitBtns(){ return Array.prototype.slice.call(document.querySelectorAll(".js-ed-submit")); }
+function edSetSubmitLabel(text){ edSubmitBtns().forEach(function(b){b.textContent=text;}); }
 async function submitPost(){
   if(_postSubmitting)return;
   _postSubmitting=true;
-  var btn=document.getElementById("edSubmitBtn");
-  var keep=btn?btn.textContent:"";
-  if(btn){btn.disabled=true;btn.textContent=editingPostId?"수정 중…":"올리는 중…";}
+  var btns=edSubmitBtns();
+  var keep=btns.length?btns[0].textContent:"";
+  btns.forEach(function(b){b.disabled=true;b.textContent=editingPostId?"수정 중…":"올리는 중…";});
   try{ await _submitPostBody(); }
   finally{
     _postSubmitting=false;
-    if(btn){btn.disabled=false;btn.textContent=keep;}
+    btns.forEach(function(b){b.disabled=false;b.textContent=keep;});
   }
 }
 async function _submitPostBody(){
