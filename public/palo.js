@@ -622,9 +622,11 @@ async function loadRealPosts(skipRender){
     var initialPost=initialDbId?POSTS.find(function(x){return x.dbId===initialDbId}):null;
     var initialUserId=getUserIdFromPath();
     var initialCommissionId=getCommissionIdFromPath();
+    var initialTab=getTabFromPath();
     if(initialPost)openPost(initialPost.id);
     else if(initialUserId)openUserProfile(initialUserId);
     else if(initialCommissionId)cmOpenCommissionById(initialCommissionId);
+    else if(initialTab)openTabByKey(initialTab); // /commission·/chat·/me 로 바로 들어온 경우
     else renderList();
   }
   renderSidebarAd();
@@ -645,6 +647,31 @@ function sharePost(id){
 function getCommissionIdFromPath(){
   var m=location.pathname.match(/^\/commission\/(\d+)$/);
   return m?parseInt(m[1],10):null;
+}
+/* ===== 하단 탭의 주소 =====================================================
+   탭을 눌러 들어간 화면도 주소가 달라야 링크·새로고침·공유·뒤로가기가 된다.
+   ⚠️ 여기 주소를 늘리면 app/ 아래에 같은 이름의 라우트 파일도 만들어야 한다.
+      없으면 주소를 직접 치거나 링크를 눌렀을 때 404가 난다(탭 안에서만 갈 수 있는 화면이 된다). */
+var TAB_PATHS={commission:"/commission",chat:"/chat",me:"/me"};
+function getTabFromPath(){
+  var p=location.pathname;
+  for(var k in TAB_PATHS)if(TAB_PATHS[k]===p)return k;
+  return null;
+}
+/* push=true면 히스토리에 항목을 하나 쌓는다.
+   ⚠️ 커미션·채팅은 enterScreen이 이미 항목을 쌓으므로 **주소만 바꿔야 한다**(replace).
+      거기서 또 push하면 뒤로가기를 두 번 눌러야 빠져나온다.
+      반대로 내 정보는 enterScreen을 쓰지 않아(resetScreens만 한다) push해야 뒤로가기로 돌아온다. */
+function _setTabUrl(tab,push){
+  var path=TAB_PATHS[tab];
+  if(!path||location.pathname===path)return;
+  try{ if(push)history.pushState({},"",path); else history.replaceState({},"",path); }catch(e){}
+}
+// 주소로 들어왔을 때(직접 입력·링크·새로고침·뒤로가기) 그 탭 화면을 연다
+function openTabByKey(tab){
+  if(tab==="commission")openCommissionList();
+  else if(tab==="chat")openChatList("home");
+  else if(tab==="me")openProfile();
 }
 function getBoardFromPath(){ // /board/{id} — 유효한 게시판 id만 반환('all'·미지의 id는 null=홈)
   var m=location.pathname.match(/^\/board\/([a-z]+)$/);
@@ -717,14 +744,23 @@ window.addEventListener("popstate",function(){
   var userId=getUserIdFromPath();
   var commissionId=getCommissionIdFromPath();
   var boardId=getBoardFromPath();
+  var tab=getTabFromPath();
   if(post)openPost(post.id);
   else if(userId)openUserProfile(userId);
   else if(commissionId)cmOpenCommissionById(commissionId);
+  else if(tab)openTabByKey(tab);
   else if(boardId)selectBoard(boardId);
   // 구글 로그인 리다이렉트 직후 Supabase가 URL의 인증 토큰을 정리하면서 popstate 이벤트를
   // 발생시키는 경우가 있음 — 그때 postsLoaded가 아직 false면(실제 글을 아직 못 불러온 상태)
   // 더미 글로 목록을 그리지 않고 기다림(loadRealPosts()가 끝나면 스스로 그림).
-  else if(postsLoaded||!window.__paloHasBackend){if(state.board!=="all")selectBoard("all");else renderList();}
+  else if(postsLoaded||!window.__paloHasBackend){
+    /* 여기까지 왔다는 건 홈으로 돌아온 것이다.
+       ⚠️ 하단 탭 강조도 같이 홈으로 돌려야 한다 — 안 그러면 화면은 홈인데 '내 정보'가 켜진 채
+          남는다(뒤로가기로 프로필에서 나올 때 실제로 그랬다, 2026-08-13 실측). */
+    curTab="home";
+    if(typeof syncTabs==="function")syncTabs("home");
+    if(state.board!=="all")selectBoard("all");else renderList();
+  }
 });
 
 /* ---------- 로그인 (Supabase Auth) ---------- */
@@ -3504,7 +3540,7 @@ async function openCommissionList(){
   userLeftHome=true;
   if(!navigatingBack)resetScreens();
   enterScreen("cmList",goHome);
-  if(location.pathname!=="/"){try{history.replaceState({},"","/");}catch(e){}} // 상세(/commission/id)에서 목록으로 오면 주소 초기화
+  _setTabUrl("commission"); // 상세(/commission/id)에서 목록으로 와도 /commission 으로 정리된다
   closeDrawer();closeSheet();syncTabs("commission");
   // 이미 커미션 리스트 화면(#cmGrid 존재)이면 셸을 다시 안 그리고 스크롤만 → refreshCommissions가
   // 새 커미션 있을 때만 그리드를 딱 한 번 갱신(껌뻑임 없이). 다른 화면/뒤로에서 왔으면 캐시로 즉시 셸 렌더.
@@ -7233,7 +7269,8 @@ var mSearch=document.getElementById("searchInputM");if(mSearch)mSearch.addEventL
 document.addEventListener("keydown",function(e){if(e.key==="Escape"){closeWrite();closeDrawer();closeSheet()}});
 
 renderNav(document.getElementById("boardNav"));renderNav(document.getElementById("boardNavM"));renderNav(document.getElementById("boardNavS"));
-if(!getPostIdFromPath()&&!getUserIdFromPath()&&!getCommissionIdFromPath()){
+// 딥링크로 들어온 경우엔 홈 셸을 그리지 않는다(곧 그 화면이 덮어쓰므로 깜빡임만 생긴다)
+if(!getPostIdFromPath()&&!getUserIdFromPath()&&!getCommissionIdFromPath()&&!getTabFromPath()){
   renderChips();renderHot();
   // renderTrend()는 이제 실제 글의 인기 순위를 보여주므로 loadRealPosts()가 끝난 뒤에 그림(아래 참고).
   // 실제 글은 loadRealPosts()가 곧 채워줌 — 여기서 더미 글로 renderList()를 한 번 더 돌리면
@@ -7884,6 +7921,7 @@ async function openChatList(origin){
   userLeftHome=true;
   if(!navigatingBack)resetScreens();
   enterScreen("chatList",function(){(_chatListBack||goHome)();}); // 뒤로가기 시 기억해 둔 곳(홈/프로필)으로
+  _setTabUrl("chat");
   leaveChat();
   closeNotif();
   syncTabs("chat");
@@ -8212,6 +8250,10 @@ function openProfile(){
   curTab="me";navSeq++;
   userLeftHome=true;
   resetScreens();
+  // ⚠️ 여기는 enterScreen을 쓰지 않아 히스토리에 아무것도 안 쌓인다. push로 쌓아 줘야
+  //    뒤로가기로 원래 있던 화면으로 돌아간다(replace로 하면 그 자리를 덮어써 못 돌아간다).
+  //    단 뒤로가기로 들어온 경우(navigatingBack)는 이미 그 항목 위에 있으므로 쌓지 않는다.
+  _setTabUrl("me",!navigatingBack);
   leaveChat();
   closeNotif();
   if(!AUTH.user){
@@ -9466,7 +9508,7 @@ function loadReadCache(){ try{var a=JSON.parse(localStorage.getItem("palo_read")
 function saveRead(){ try{var a=Array.from(READ);if(a.length>1000)a=a.slice(a.length-1000);localStorage.setItem("palo_read",JSON.stringify(a));}catch(e){} }
 loadReadCache();
 (function primeFromCache(){
-  if(getPostIdFromPath()||getUserIdFromPath()||getCommissionIdFromPath()||userLeftHome)return;
+  if(getPostIdFromPath()||getUserIdFromPath()||getCommissionIdFromPath()||getTabFromPath()||userLeftHome)return;
   if(!window.__paloHasBackend)return; // 백엔드 없는 로컬 데모는 기존 폴백에 맡김
   var cached=loadFeedCache();
   if(cached&&cached.posts&&cached.posts.length){
