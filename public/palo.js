@@ -1374,12 +1374,58 @@ function sortHot(arr){
   while(ri<sortedRest.length){result.push(sortedRest[ri]);ri++;}
   return result;
 }
+/* ===== 검색 =====
+   검색은 **전부 브라우저에서** 한다. loadRealPosts가 글·댓글을 이미 통째로 받아 두기
+   때문에(POSTS[].content, POSTS[].comments) 서버를 한 번도 더 부르지 않는다 —
+   그래서 입력 즉시 결과가 나오고, 요청 제한(rate limit)에도 걸리지 않는다.
+   ⚠️ 이 방식은 '메모리에 올라온 글'까지만 찾는다. 글이 수천 건으로 늘면
+      Supabase 기본 응답 상한(1000행)에 먼저 걸리므로, 그때는 검색보다 목록 로딩부터
+      서버 페이징으로 바꿔야 한다(그 시점에 DB 전문검색 인덱스도 함께).
+   ⚠️ 비공개·삭제된 글과 댓글, 권한 없는 게시판은 애초에 POSTS에 없다(RLS). 검색이
+      따로 걸러낼 필요가 없고, 걸러내려 들면 오히려 기준이 두 곳으로 갈라진다. */
+function matchPost(p,q){
+  var hit={title:false,body:false,author:false,comment:null};
+  if((p.title||"").toLowerCase().indexOf(q)>-1)hit.title=true;
+  if((p.author||"").toLowerCase().indexOf(q)>-1)hit.author=true;
+  if(p.reviewedNickname&&p.reviewedNickname.toLowerCase().indexOf(q)>-1)hit.author=true;
+  if((p.content||[]).join(" ").toLowerCase().indexOf(q)>-1)hit.body=true;
+  var cs=p.comments||[];
+  for(var i=0;i<cs.length;i++){
+    if((cs[i].txt||"").toLowerCase().indexOf(q)>-1){hit.comment=cs[i];break;} // 첫 번째로 걸린 댓글만 보여준다
+  }
+  return (hit.title||hit.body||hit.author||hit.comment)?hit:null;
+}
+/* 검색어를 <mark>로 감싸며 이스케이프한다.
+   ⚠️ esc() 먼저 하고 나중에 감싸면 안 된다 — 이스케이프로 글자 수가 달라져서
+      찾아 둔 위치가 어긋난다. 원문에서 잘라 조각마다 esc()를 걸어야 한다. */
+function hlEsc(t,q){
+  t=String(t==null?"":t);
+  if(!q)return esc(t);
+  var lo=t.toLowerCase(),lq=String(q).toLowerCase(),out="",i=0,j;
+  if(!lq)return esc(t);
+  while((j=lo.indexOf(lq,i))>-1){
+    out+=esc(t.slice(i,j))+'<mark class="sh">'+esc(t.slice(j,j+lq.length))+'</mark>';
+    i=j+lq.length;
+  }
+  return out+esc(t.slice(i));
+}
+// 걸린 자리 앞뒤만 잘라 보여준다(긴 본문·댓글이 목록을 밀어내지 않게)
+function snippetAround(t,q,span){
+  t=String(t==null?"":t).replace(/\s+/g," ").trim();span=span||28;
+  var j=t.toLowerCase().indexOf(String(q).toLowerCase());
+  if(j<0)return t.slice(0,span*2)+(t.length>span*2?"…":"");
+  var s=Math.max(0,j-span),e=Math.min(t.length,j+q.length+span);
+  return (s>0?"…":"")+t.slice(s,e)+(e<t.length?"…":"");
+}
 function filteredPosts(){
   var arr=POSTS.slice();
   if(state.board==="all")arr=arr.filter(function(p){return p.board!=="adult"&&(state.query||(p.board!=="trade"&&p.board!=="review"))});
   else arr=arr.filter(function(p){return p.board===state.board});
   if(state.tag)arr=arr.filter(function(p){return p.category===state.tag});
-  if(state.query){var q=state.query.toLowerCase();arr=arr.filter(function(p){var body=(p.content||[]).join(" ").toLowerCase();return p.title.toLowerCase().indexOf(q)>-1||p.author.toLowerCase().indexOf(q)>-1||body.indexOf(q)>-1||(p.reviewedNickname&&p.reviewedNickname.toLowerCase().indexOf(q)>-1)})}
+  if(state.query){
+    var q=state.query.toLowerCase();
+    arr=arr.filter(function(p){ p._hit=matchPost(p,q); return !!p._hit; });
+  }
   if(state.sort==="hot")arr=sortHot(arr);
   /* 추천글(개념글): 좋아요 10개를 넘긴 글만, **넘긴 시각의 역순**.
      인기순(좋아요 수)이 아니다 — 새로 10개를 채운 글이 맨 위에 올라오고,
@@ -1575,9 +1621,13 @@ function renderList(){
   }
   if(arr.length===0){
     // 추천글이 비었을 때는 문턱(좋아요 10개)을 여기서 자연스럽게 알린다 — 상시 안내문은 두지 않는다
-    h+=(state.sort==="best"&&!state.query)
+    // ⚠️ 검색 중에는 '첫 글을 남겨보세요'가 나오면 안 된다 — 찾는 데 실패한 사람에게
+    //    글쓰기를 권하는 꼴이라 안내가 어긋난다.
+    h+=state.query
+      ?'<div class="empty"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><h3>검색 결과가 없어요</h3><p>제목·내용·댓글·작성자를 모두 찾아봤어요.<br>다른 낱말로 검색해보세요.</p></div>'
+      :(state.sort==="best"
       ?'<div class="empty"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.4.7-4.8 4.2 1.3 6L12 16.6 6.5 19.5l1.3-6L3 9.3l6.4-.7z"/></svg><h3>아직 추천글이 없어요</h3><p>좋아요를 '+BEST_LIKES+'개 받은 글이 여기에 올라와요.</p></div>'
-      :'<div class="empty"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg><h3>아직 글이 없어요</h3><p>이 게시판의 첫 글을 남겨보세요.</p><button onclick="openWrite()">글쓰기</button></div>';
+      :'<div class="empty"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg><h3>아직 글이 없어요</h3><p>이 게시판의 첫 글을 남겨보세요.</p><button onclick="openWrite()">글쓰기</button></div>');
     main.innerHTML=h;syncChipScroll();return;
   }
   var totalPages=Math.max(1,Math.ceil(arr.length/PER));if(page>totalPages)page=totalPages;var visible=arr.slice((page-1)*PER,page*PER);
@@ -1618,10 +1668,11 @@ function renderList(){
     var thumb=postThumbHTML(p);
     h+='<div class="post rip'+(isHot?' hot-post':'')+(READ.has(p.id)?' read':'')+(p.id===justAddedId?' justAdded':'')+'" tabindex="0" role="button" onclick="openPost('+p.id+')" onkeydown="if(event.key===\'Enter\')openPost('+p.id+')">'+
       '<div class="pmain">'+
-        '<div class="ptitle">'+(p.isManagerPick?'<span class="pick-badge">📌 매니저 픽</span> ':'')+esc(p.title)+'</div>'+
+        '<div class="ptitle">'+(p.isManagerPick?'<span class="pick-badge">📌 매니저 픽</span> ':'')+hlEsc(p.title,state.query)+'</div>'+
+        searchHitHTML(p)+
         '<div class="pmeta">'+
           '<span class="cat '+c.cls+'">'+c.label+'</span>'+
-          '<span class="who"'+(p.authorId?' style="cursor:pointer" onclick="event.stopPropagation();openUserProfile(\''+p.authorId+'\')"':'')+'>'+esc(dispName(p.author))+anonIpHTML(p.ipMasked)+memoBadge(p.authorId)+'</span>'+
+          '<span class="who"'+(p.authorId?' style="cursor:pointer" onclick="event.stopPropagation();openUserProfile(\''+p.authorId+'\')"':'')+'>'+hlEsc(dispName(p.author),state.query)+anonIpHTML(p.ipMasked)+memoBadge(p.authorId)+'</span>'+
           '<span class="sep"></span><span class="mt">'+p.time+'</span>'+
           '<span class="sep"></span><span class="mv">조회 '+fmtViews(p.views)+'</span>'+
           (p.likes?'<span class="sep"></span><span class="ml">추천 '+p.likes+'</span>':'')+
@@ -4828,6 +4879,20 @@ function boardHeaderHTML(sub){
   return boardTabsHTML()+
     '<div class="bh-row bh-a">'+tagFilterBarHTML()+_searchNoteHTML(sub)+
       '<div class="bh-right">'+_sortDropdownHTML()+_viewToggleHTML()+'</div></div>';
+}
+/* 검색 결과에서 "왜 이 글이 걸렸는지"를 한 줄로 보여준다.
+   ⚠️ 제목에서 걸린 글은 제목 하이라이트만으로 이유가 보이므로 줄을 더하지 않는다 —
+      모든 결과에 붙이면 목록이 두 배로 길어지기만 한다.
+   댓글에서 걸린 경우가 특히 중요하다: 제목·본문 어디에도 검색어가 없어서
+      이 줄이 없으면 왜 나왔는지 알 수가 없다. */
+function searchHitHTML(p){
+  if(!state.query||!p._hit||p._hit.title)return"";
+  var hit=p._hit;
+  if(hit.comment)
+    return '<div class="p-hit"><span class="ph-ic">💬</span>'+hlEsc(snippetAround(hit.comment.txt,state.query),state.query)+'</div>';
+  if(hit.body)
+    return '<div class="p-hit"><span class="ph-ic">📄</span>'+hlEsc(snippetAround((p.content||[]).join(" "),state.query),state.query)+'</div>';
+  return""; // 작성자만 걸린 경우는 닉네임 하이라이트로 이미 보인다
 }
 function postCardHTML(p){
   var c=catFor(p);
