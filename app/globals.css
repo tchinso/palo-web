@@ -2095,6 +2095,10 @@
   .cm-stat .cm-k{color:var(--muted)}
   .cm-stat .cm-v{font-weight:700}
   .cm-desc{padding:20px 0;font-size:15px;line-height:1.9;color:var(--ink-2);white-space:pre-line;border-bottom:1px solid var(--line-2)}
+  /* 상세에서도 점이 왼쪽으로 새지 않게 — 편집기와 같은 자리 확보 */
+  .cm-desc ul,.cm-desc ol{margin:12px 0 12px 24px;white-space:normal}
+  .cm-desc li{margin:2px 0}
+  .cm-desc img{max-width:100%;border-radius:8px;display:block;margin:8px 0}
   .cm-samples{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:18px 0}
   .cm-samples .cm-s{aspect-ratio:1/1;border-radius:12px}
   /* 실제 등록된 이미지일 때만 눌러서 크게 볼 수 있다(데모용 그라데이션 칸은 제외) */
@@ -2241,6 +2245,10 @@
   /* 서식 도구의 하위 줄(색·글꼴·크기). 창을 띄우지 않고 같은 자리를 갈아 끼운다 —
      모바일에서 창이 뜨면 자판이 내려가 커서 자리를 잃는다.
      ⚠️ 목록이 길어 넘칠 수 있으므로 **가로 스크롤**로 둔다(줄바꿈하면 편집기가 아래로 밀린다). */
+  /* ⚠️ `display:flex`가 브라우저 기본 `[hidden]{display:none}`을 **이긴다.**
+        이 한 줄이 없으면 hidden을 걸어도 색·글꼴·크기 줄이 **처음부터 전부 펼쳐진 채** 나온다
+        (2026-08-13 신고). 글쓰기 쪽 .ed-fmt-row에는 같은 규칙이 이미 있었는데 여기만 빠뜨렸다. */
+  .cm-reg-toolbar[hidden]{display:none}
   .cm-tb-sub{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
   .cm-tb-sub::-webkit-scrollbar{display:none}
   .cm-tb-sub button{flex-shrink:0}
@@ -2257,6 +2265,11 @@
   .cm-reg-editor{width:100%;min-height:140px;border:1.5px solid var(--line);border-radius:0 0 12px 12px;padding:14px;font-size:14.5px;line-height:1.7;color:var(--ink);background:var(--surface);outline:none;word-break:break-word}
   .cm-reg-editor:focus{border-color:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
   .cm-reg-editor img{max-width:100%;border-radius:8px;display:block;margin:8px 0}
+  /* ⚠️ 전역 리셋(`*{padding:0}`)이 ul·ol의 기본 안쪽 여백을 지운다. 그대로 두면 점(•)이
+        목록 글자보다 **왼쪽 바깥**에 그려져 입력창 밖으로 삐져나온다(2026-08-13 신고).
+        글쓰기(.ed-content ul)가 왼쪽 여백으로 자리를 확보하는 것과 같은 방식으로 맞춘다. */
+  .cm-reg-editor ul,.cm-reg-editor ol{margin:12px 0 12px 24px}
+  .cm-reg-editor li{margin:2px 0}
   .cm-reg-editor:empty:before{content:attr(data-ph);color:var(--muted-2)}
   .cm-reg-textarea::placeholder{color:var(--muted-2)}
   /* 이미지 업로드 */

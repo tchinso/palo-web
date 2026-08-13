@@ -4530,25 +4530,29 @@ function cmRenderRegisterScreen(){
       '</div>'+
       '<div class="cm-reg-toolbar cm-tb-sub" id="cmDescRowColor" hidden>'+
         '<button type="button" class="cm-tb-back" onmousedown="event.preventDefault()" onclick="cmDescView(\'main\')" aria-label="뒤로">‹</button>'+
+        /* ⚠️ 버튼마다 **누르는 순간 선택 영역을 먼저 저장**한다(cmDescSaveSelection).
+              '색 ›'을 거쳐 오지 않고 곧바로 견본을 누르는 경우가 있는데, 그때 저장된 영역이
+              없으면 글 맨 끝에 서식이 걸려 "눌러도 아무 일이 없는" 것처럼 보인다
+              (2026-08-13 신고: 색·글꼴·크기가 작동하지 않음). */
         CM_DESC_COLORS.map(function(c){
-          return '<button type="button" class="cm-tb-sw" title="글자색" onmousedown="event.preventDefault();cmDescSetColor(\''+c+'\')" style="background:'+c+'"></button>';
+          return '<button type="button" class="cm-tb-sw" title="글자색" onmousedown="cmDescSaveSelection();event.preventDefault();cmDescSetColor(\''+c+'\')" style="background:'+c+'"></button>';
         }).join('')+
         '<span class="cm-reg-tb-div"></span>'+
         CM_DESC_HILITES.map(function(c){
-          return '<button type="button" class="cm-tb-sw cm-tb-hl" title="형광펜" onmousedown="event.preventDefault();cmDescSetHilite(\''+c+'\')" style="background:'+c+'"></button>';
+          return '<button type="button" class="cm-tb-sw cm-tb-hl" title="형광펜" onmousedown="cmDescSaveSelection();event.preventDefault();cmDescSetHilite(\''+c+'\')" style="background:'+c+'"></button>';
         }).join('')+
-        '<button type="button" class="cm-tb-sw cm-tb-hl cm-tb-none" title="형광펜 지우기" onmousedown="event.preventDefault();cmDescSetHilite(\'transparent\')">✕</button>'+
+        '<button type="button" class="cm-tb-sw cm-tb-hl cm-tb-none" title="형광펜 지우기" onmousedown="cmDescSaveSelection();event.preventDefault();cmDescSetHilite(\'transparent\')">✕</button>'+
       '</div>'+
       '<div class="cm-reg-toolbar cm-tb-sub" id="cmDescRowFont" hidden>'+
         '<button type="button" class="cm-tb-back" onmousedown="event.preventDefault()" onclick="cmDescView(\'main\')" aria-label="뒤로">‹</button>'+
         CM_DESC_FONTS.map(function(f){
-          return '<button type="button" onmousedown="event.preventDefault();cmDescSetFont(&quot;'+f[1]+'&quot;)" style="font-family:'+f[1]+'">'+f[0]+'</button>';
+          return '<button type="button" onmousedown="cmDescSaveSelection();event.preventDefault();cmDescSetFont(&quot;'+f[1]+'&quot;)" style="font-family:'+f[1]+'">'+f[0]+'</button>';
         }).join('')+
       '</div>'+
       '<div class="cm-reg-toolbar cm-tb-sub" id="cmDescRowSize" hidden>'+
         '<button type="button" class="cm-tb-back" onmousedown="event.preventDefault()" onclick="cmDescView(\'main\')" aria-label="뒤로">‹</button>'+
         CM_DESC_SIZES.map(function(s){
-          return '<button type="button" onmousedown="event.preventDefault();cmDescSetSize('+s[1]+')" style="font-size:'+Math.min(s[1],20)+'px">'+s[0]+'</button>';
+          return '<button type="button" onmousedown="cmDescSaveSelection();event.preventDefault();cmDescSetSize('+s[1]+')" style="font-size:'+Math.min(s[1],20)+'px">'+s[0]+'</button>';
         }).join('')+
       '</div>'+
       '<input type="file" id="cmRegDescFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" class="hidden" onchange="cmDescOnFile(event)">'+
