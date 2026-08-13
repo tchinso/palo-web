@@ -4948,20 +4948,16 @@ function _cmPageNow(){
     return !!(top&&top.key&&top.key.indexOf("cm")===0);
   }catch(e){return false;}
 }
-/* ⚠️ 관찰 범위를 넓힌 만큼(class 변경까지) 프레임당 한 번으로 묶는다. 그러지 않으면
-      글자 입력·애니메이션처럼 class가 자주 바뀌는 자리에서 getComputedStyle이 연달아 돈다. */
-var _cmSyncTick=false;
+/* ⚠️ requestAnimationFrame으로 묶지 말 것. **탭이 숨겨져 있으면 rAF가 아예 안 돈다** —
+      그 사이 화면을 옮기면 표시가 옛 상태로 남는다(2026-08-13 실측: 스택은 cmList인데
+      cm-page가 안 붙음). 판정은 screenStack을 읽는 것뿐이라 바로 하는 편이 안전하다.
+   ⚠️ 관찰은 childList만. class까지 보면 우리가 붙이는 cm-page가 다시 관찰을 부른다. */
 function _cmScheduleSync(){
-  if(_cmSyncTick)return;
-  _cmSyncTick=true;
-  requestAnimationFrame(function(){
-    _cmSyncTick=false;
-    document.body.classList.toggle('cm-page',_cmPageNow());
-    cmSyncTabbarHeight();
-  });
+  document.body.classList.toggle('cm-page',_cmPageNow());
+  cmSyncTabbarHeight();
 }
 new MutationObserver(_cmScheduleSync)
-  .observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+  .observe(document.body,{childList:true,subtree:true});
 cmSyncTabbarHeight();
 
 /* 화면 크기가 바뀔 때의 뒷정리.
