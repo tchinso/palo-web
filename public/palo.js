@@ -177,7 +177,9 @@ var TREND=[
 ];
 var GRADS={t1:"#6b7d63,#414f3a",t2:"#7a5a8a,#493a58",t3:"#c2410c,#8a2f08",t4:"#3a5674,#26384c",t5:"#b08968,#7a5c42"};
 // searchTab: 검색 결과의 범위 탭 — all(글+댓글) / title(제목만) / author(작성자)
-var state={board:"all",sort:"new",query:"",shown:8,tag:null,viewMode:"list",searchTab:"all"};
+// searchBoard: 검색 결과를 게시판 하나로 좁히기(""=전체). ⚠️ state.board와 따로 둔다 —
+//   board는 '지금 보고 있는 게시판'이라 URL·탭·글쓰기까지 얽혀 있고, 검색 중엔 all로 고정된다.
+var state={board:"all",sort:"new",query:"",shown:8,tag:null,viewMode:"list",searchTab:"all",searchBoard:""};
 // 추천글(개념글) 문턱 — 좋아요가 이 수를 넘으면 '추천글' 정렬에 나타난다
 var BEST_LIKES=10;
 (function(){try{var _b=getBoardFromPath();if(_b)state.board=_b;}catch(e){}})(); // /board/{id} 딥링크면 시작 게시판을 그걸로
@@ -1442,14 +1444,35 @@ function snippetAround(t,q,span){
   var s=Math.max(0,j-span),e=Math.min(t.length,j+q.length+span);
   return (s>0?"…":"")+t.slice(s,e)+(e<t.length?"…":"");
 }
-// 검색어를 **빼고** 게시판·말머리까지만 적용한 목록. 탭별 건수를 셀 때도 이 기준을 쓴다
-// (탭 건수와 실제 결과가 다른 기준으로 세지면 "12건이라더니 3건만 나온다"가 된다).
-function baseFiltered(){
+// 게시판 좁히기(searchBoard)를 **빼고** 나머지 조건만 적용한 목록.
+// 게시판 드롭다운의 건수는 이걸로 센다 — 좁힌 뒤에 세면 고른 게시판만 1개 남아 다른 선택지가 사라진다.
+function _searchScopeArr(){
   var arr=POSTS.slice();
   if(state.board==="all")arr=arr.filter(function(p){return p.board!=="adult"&&(state.query||(p.board!=="trade"&&p.board!=="review"))});
   else arr=arr.filter(function(p){return p.board===state.board});
   if(state.tag)arr=arr.filter(function(p){return p.category===state.tag});
   return arr;
+}
+// 검색어를 **빼고** 게시판·말머리까지만 적용한 목록. 탭별 건수를 셀 때도 이 기준을 쓴다
+// (탭 건수와 실제 결과가 다른 기준으로 세지면 "12건이라더니 3건만 나온다"가 된다).
+function baseFiltered(){
+  var arr=_searchScopeArr();
+  if(state.query&&state.searchBoard)arr=arr.filter(function(p){return p.board===state.searchBoard;});
+  return arr;
+}
+/* 정확도 점수 — 검색 정렬에만 쓴다.
+   제목에 있으면 가장 크게, 앞쪽에 나올수록 조금 더. 본문·댓글·작성자는 보조.
+   ⚠️ 정답이 있는 계산이 아니다. "제목에 있는 글이 위로 온다" 정도만 지키면 충분하고,
+      숫자를 정교하게 만들려 들면 왜 이 순서인지 아무도 설명할 수 없게 된다. */
+function relScore(p,q){
+  var s=0;
+  var i=(p.title||"").toLowerCase().indexOf(q);
+  if(i>-1)s+=100-Math.min(i,50);
+  if((p.content||[]).join(" ").toLowerCase().indexOf(q)>-1)s+=30;
+  var cm=(p.comments||[]).filter(function(c){return (c.txt||"").toLowerCase().indexOf(q)>-1;}).length;
+  s+=Math.min(cm,5)*4;
+  if(_inAuthor(p,q))s+=20;
+  return s;
 }
 function filteredPosts(){
   var arr=baseFiltered();
@@ -1463,6 +1486,16 @@ function filteredPosts(){
      다음 글이 10개를 채우면 한 칸씩 밀려난다(디시 개념글과 같은 방식). */
   if(state.sort==="best")arr=arr.filter(function(p){return p.bestAt;})
     .sort(function(a,b){return a.bestAt<b.bestAt?1:-1;});
+  /* 정확도순 — 검색 중일 때만 뜻이 있다.
+     ⚠️ 점수는 비교 함수 안에서 계산하지 않는다. 정렬은 같은 항목을 여러 번 비교하므로
+        그 자리에서 계산하면 글 하나의 댓글을 수십 번 훑게 된다. 한 번 매겨 두고 그걸로 정렬한다. */
+  if(state.sort==="rel"&&state.query){
+    var _q=state.query.toLowerCase();
+    arr.forEach(function(p){p._rel=relScore(p,_q);});
+    arr=arr.slice().sort(function(a,b){
+      return (b._rel-a._rel)||(a.createdAt<b.createdAt?1:-1); // 점수가 같으면 최신 글이 위로
+    });
+  }
   return arr;
 }
 function renderTrend(){
@@ -2931,7 +2964,7 @@ function selectBoard(id,skipRender){
     else openAdultGate();
     return; // 게시판을 바꾸지 않고 그대로 머문다
   }
-  state.board=id;state.query="";state.searchTab="all";state.tag=null;page=1;
+  state.board=id;state.query="";state.searchTab="all";state.searchBoard="";if(state.sort==="rel")state.sort="new";state.tag=null;page=1;
   document.getElementById("searchInput").value="";var m=document.getElementById("searchInputM");if(m)m.value="";
   renderNav(document.getElementById("boardNav"));renderNav(document.getElementById("boardNavM"));renderNav(document.getElementById("boardNavS"));
   renderChips();closeDrawer();closeSheet();syncTabs(id);
@@ -4887,7 +4920,7 @@ function toggleTagFilter(tag,e){
   page=1;renderList();
   window.scrollTo({top:0,behavior:"smooth"});
 }
-function setSort(s){state.sort=s;page=1;renderList()}
+function setSort(s){if(s==="rel"&&!state.query)return;state.sort=s;page=1;renderList()}
 function setViewMode(m){state.viewMode=m;page=1;renderList()}
 function toggleViewMode(){setViewMode(state.viewMode==="album"?"list":"album");}
 
@@ -4898,9 +4931,56 @@ var ICON_LIST='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentCo
 var ICON_GRID='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>';
 function _sortDropdownHTML(){ // 정렬(최신/인기)을 드롭다운 하나로
   return '<select class="sort-dd" aria-label="정렬 기준" onchange="setSort(this.value)">'+
+    // 정확도는 검색 중에만 내놓는다 — 검색어가 없으면 점수를 매길 기준 자체가 없다
+    (state.query?'<option value="rel"'+(state.sort==="rel"?" selected":"")+'>정확도</option>':'')+
     '<option value="new"'+(state.sort==="new"?" selected":"")+'>최신</option>'+
     '<option value="hot"'+(state.sort==="hot"?" selected":"")+'>인기</option>'+
     '<option value="best"'+(state.sort==="best"?" selected":"")+'>추천글</option></select>';
+}
+/* 검색 결과를 게시판 하나로 좁히는 드롭다운.
+   ⚠️ 결과가 있는 게시판만 내놓는다. 16개를 다 늘어놓으면 대부분 0건이라 고를 이유가 없고,
+      건수를 옆에 붙여야 "여기 3건 있네" 하고 고를 수 있다.
+   ⚠️ 건수는 _searchScopeArr()(=좁히기 전)로 센다. 좁힌 뒤에 세면 고른 게시판만 남아
+      다른 선택지가 목록에서 사라져 되돌아갈 수가 없다. */
+function searchBoardCounts(){
+  var q=(state.query||"").toLowerCase();
+  if(!q)return {};
+  var out={};
+  _searchScopeArr().forEach(function(p){
+    if(matchPost(p,q,state.searchTab))out[p.board]=(out[p.board]||0)+1;
+  });
+  return out;
+}
+function _searchBoardDropdownHTML(){
+  if(!state.query)return"";
+  var counts=searchBoardCounts(),total=0;
+  for(var k in counts)total+=counts[k];
+  var h='<select class="sort-dd sb-dd" aria-label="게시판 좁히기" onchange="setSearchBoard(this.value)">'+
+    '<option value=""'+(!state.searchBoard?" selected":"")+'>전체 게시판 '+total+'</option>';
+  var listed={};
+  function opt(id,name){
+    if(listed[id])return;
+    listed[id]=true;
+    var n=counts[id]||0;
+    if(!n&&state.searchBoard!==id)return; // 0건은 숨기되, 지금 고른 것은 남긴다(안 그러면 선택이 튕긴다)
+    h+='<option value="'+esc(id)+'"'+(state.searchBoard===id?" selected":"")+'>'+esc(name)+' '+n+'</option>';
+  }
+  (window.BOARDS||[]).forEach(function(g){
+    (g.items||[]).forEach(function(b){
+      if(b.id==="all")return; // '전체 글'은 게시판이 아니라 모아보기 화면이다
+      opt(b.id,b.name);
+    });
+  });
+  /* ⚠️ BOARDS에 없는 게시판이 결과에 섞인다 — trade·review는 커미션으로 분리하면서 BOARDS에서
+        뺐지만 옛 글이 DB에 그대로 남아 있고, 검색은 그 글까지 찾는다(baseFiltered가 검색 중엔
+        trade·review를 안 걸러낸다). 여기서 빠뜨리면 "전체 17건인데 목록의 합은 15건"이 되고
+        그 2건은 좁혀볼 방법이 없어진다. 이름은 boardName()이 알고 있다. */
+  Object.keys(counts).forEach(function(id){opt(id,boardName(id));});
+  return h+'</select>';
+}
+function setSearchBoard(b){
+  state.searchBoard=b||"";page=1;renderList();
+  window.scrollTo({top:0,behavior:"smooth"});
 }
 function _viewToggleHTML(){ // 보기 방식을 아이콘 하나로 토글(지금 상태를 아이콘으로 표시)
   var isAlbum=state.viewMode==="album";
@@ -4931,6 +5011,16 @@ function searchTabsHTML(){
       그쪽을 알려주고 바로 넘어갈 수 있게 한다. */
 var SEARCH_EMPTY_IC='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
 function searchEmptyHTML(){
+  /* 게시판으로 좁혀 놓은 탓에 0건이면 그것부터 알린다 — 탭보다 이쪽이 원인일 때가 많고,
+     "전체 게시판에는 12건이 있다"는 걸 모르면 검색어가 잘못된 줄 안다. */
+  if(state.searchBoard){
+    var bc=searchBoardCounts(),tot=0;
+    for(var k in bc)tot+=bc[k];
+    if(tot>0)
+      return '<div class="empty">'+SEARCH_EMPTY_IC+'<h3>이 게시판에는 없어요</h3>'+
+        '<p>전체 게시판에는 '+tot+'건이 있어요.</p>'+
+        '<button onclick="setSearchBoard(\'\')">전체 게시판에서 보기</button></div>';
+  }
   var c=searchCounts()||{},cur="";
   SEARCH_TABS.forEach(function(t){if(t[0]===state.searchTab)cur=t[1];});
   var other=SEARCH_TABS.filter(function(t){return t[0]!==state.searchTab&&(c[t[0]]||0)>0;});
@@ -4951,7 +5041,7 @@ function setSearchTab(t){
 function boardHeaderHTML(sub){
   return boardTabsHTML()+
     '<div class="bh-row bh-a">'+tagFilterBarHTML()+_searchNoteHTML(sub)+
-      '<div class="bh-right">'+_sortDropdownHTML()+_viewToggleHTML()+'</div></div>'+
+      '<div class="bh-right">'+_searchBoardDropdownHTML()+_sortDropdownHTML()+_viewToggleHTML()+'</div></div>'+
     searchTabsHTML();
 }
 /* 검색 결과에서 "왜 이 글이 걸렸는지"를 한 줄로 보여준다.
@@ -5018,7 +5108,10 @@ async function refreshFeed(force){
 var _searchT;
 function liveSearch(v){clearTimeout(_searchT);_searchT=setTimeout(function(){doSearch(v)},180);}
 function doSearch(v){state.query=v.trim();page=1;if(state.query)state.board="all";
-  if(!state.query)state.searchTab="all"; // 검색을 지우면 범위도 처음으로(다음 검색이 엉뚱한 탭에서 시작하지 않게)
+  // 검색을 지우면 범위·게시판 좁히기도 처음으로(다음 검색이 엉뚱한 조건에서 시작하지 않게).
+  // 정확도순은 검색어가 있어야 뜻이 있으므로 최신순으로 되돌린다 — 안 그러면 드롭다운에서
+  // 사라진 값이 선택된 채로 남아 목록이 정렬되지 않은 것처럼 보인다.
+  if(!state.query){state.searchTab="all";state.searchBoard="";if(state.sort==="rel")state.sort="new";}
   renderNav(document.getElementById("boardNav"));renderNav(document.getElementById("boardNavM"));renderNav(document.getElementById("boardNavS"));
   renderChips();renderList();closeDrawer();window.scrollTo({top:0,behavior:"smooth"})}
 function syncTabs(id){
@@ -6966,7 +7059,9 @@ if(si){
 }
 if(sc){
   sc.addEventListener("click",function(){
-    si.value="";sc.style.display="none";state.query="";state.searchTab="all";state.board=state.board||"all";
+    si.value="";sc.style.display="none";state.query="";state.searchTab="all";state.searchBoard="";
+    if(state.sort==="rel")state.sort="new";
+    state.board=state.board||"all";
     doSearch("");si.focus();
   });
 }
