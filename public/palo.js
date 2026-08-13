@@ -176,7 +176,8 @@ var TREND=[
   {name:"AI 정책 투표",tag:"토론 뜨거움",thumb:"t5",sub:"댓글 214"}
 ];
 var GRADS={t1:"#6b7d63,#414f3a",t2:"#7a5a8a,#493a58",t3:"#c2410c,#8a2f08",t4:"#3a5674,#26384c",t5:"#b08968,#7a5c42"};
-var state={board:"all",sort:"new",query:"",shown:8,tag:null,viewMode:"list"};
+// searchTab: 검색 결과의 범위 탭 — all(글+댓글) / title(제목만) / author(작성자)
+var state={board:"all",sort:"new",query:"",shown:8,tag:null,viewMode:"list",searchTab:"all"};
 // 추천글(개념글) 문턱 — 좋아요가 이 수를 넘으면 '추천글' 정렬에 나타난다
 var BEST_LIKES=10;
 (function(){try{var _b=getBoardFromPath();if(_b)state.board=_b;}catch(e){}})(); // /board/{id} 딥링크면 시작 게시판을 그걸로
@@ -1383,17 +1384,41 @@ function sortHot(arr){
       서버 페이징으로 바꿔야 한다(그 시점에 DB 전문검색 인덱스도 함께).
    ⚠️ 비공개·삭제된 글과 댓글, 권한 없는 게시판은 애초에 POSTS에 없다(RLS). 검색이
       따로 걸러낼 필요가 없고, 걸러내려 들면 오히려 기준이 두 곳으로 갈라진다. */
-function matchPost(p,q){
-  var hit={title:false,body:false,author:false,comment:null};
-  if((p.title||"").toLowerCase().indexOf(q)>-1)hit.title=true;
-  if((p.author||"").toLowerCase().indexOf(q)>-1)hit.author=true;
-  if(p.reviewedNickname&&p.reviewedNickname.toLowerCase().indexOf(q)>-1)hit.author=true;
+function _inAuthor(p,q){
+  return (p.author||"").toLowerCase().indexOf(q)>-1||
+         !!(p.reviewedNickname&&p.reviewedNickname.toLowerCase().indexOf(q)>-1);
+}
+/* scope: all(제목·본문·댓글) / title(제목만) / author(작성자만).
+   ⚠️ 작성자는 all에 넣지 않는다 — 전용 탭이 따로 있고, 넣으면 두 탭의 결과가 겹쳐
+      "글+댓글 5 / 작성자 3"처럼 합이 안 맞는 것처럼 보인다. */
+function matchPost(p,q,scope){
+  var inTitle=(p.title||"").toLowerCase().indexOf(q)>-1;
+  if(scope==="title")return inTitle?{title:true,body:false,author:false,comment:null}:null;
+  if(scope==="author")return _inAuthor(p,q)?{title:false,body:false,author:true,comment:null}:null;
+  var hit={title:inTitle,body:false,author:false,comment:null};
   if((p.content||[]).join(" ").toLowerCase().indexOf(q)>-1)hit.body=true;
   var cs=p.comments||[];
   for(var i=0;i<cs.length;i++){
     if((cs[i].txt||"").toLowerCase().indexOf(q)>-1){hit.comment=cs[i];break;} // 첫 번째로 걸린 댓글만 보여준다
   }
-  return (hit.title||hit.body||hit.author||hit.comment)?hit:null;
+  return (hit.title||hit.body||hit.comment)?hit:null;
+}
+/* 탭 3개의 건수를 **한 번의 순회로** 센다.
+   ⚠️ matchPost를 탭마다 부르면 댓글을 세 번 훑는다. 지금 규모(글 27)에선 티도 안 나지만,
+      목록을 다시 그릴 때마다 도는 자리라 처음부터 한 번만 돌게 해 둔다. */
+function searchCounts(){
+  var q=(state.query||"").toLowerCase();
+  if(!q)return null;
+  var c={all:0,title:0,author:0};
+  baseFiltered().forEach(function(p){
+    var t=(p.title||"").toLowerCase().indexOf(q)>-1;
+    var b=(p.content||[]).join(" ").toLowerCase().indexOf(q)>-1;
+    var m=(p.comments||[]).some(function(x){return (x.txt||"").toLowerCase().indexOf(q)>-1;});
+    if(t||b||m)c.all++;
+    if(t)c.title++;
+    if(_inAuthor(p,q))c.author++;
+  });
+  return c;
 }
 /* 검색어를 <mark>로 감싸며 이스케이프한다.
    ⚠️ esc() 먼저 하고 나중에 감싸면 안 된다 — 이스케이프로 글자 수가 달라져서
@@ -1417,14 +1442,20 @@ function snippetAround(t,q,span){
   var s=Math.max(0,j-span),e=Math.min(t.length,j+q.length+span);
   return (s>0?"…":"")+t.slice(s,e)+(e<t.length?"…":"");
 }
-function filteredPosts(){
+// 검색어를 **빼고** 게시판·말머리까지만 적용한 목록. 탭별 건수를 셀 때도 이 기준을 쓴다
+// (탭 건수와 실제 결과가 다른 기준으로 세지면 "12건이라더니 3건만 나온다"가 된다).
+function baseFiltered(){
   var arr=POSTS.slice();
   if(state.board==="all")arr=arr.filter(function(p){return p.board!=="adult"&&(state.query||(p.board!=="trade"&&p.board!=="review"))});
   else arr=arr.filter(function(p){return p.board===state.board});
   if(state.tag)arr=arr.filter(function(p){return p.category===state.tag});
+  return arr;
+}
+function filteredPosts(){
+  var arr=baseFiltered();
   if(state.query){
     var q=state.query.toLowerCase();
-    arr=arr.filter(function(p){ p._hit=matchPost(p,q); return !!p._hit; });
+    arr=arr.filter(function(p){ p._hit=matchPost(p,q,state.searchTab); return !!p._hit; });
   }
   if(state.sort==="hot")arr=sortHot(arr);
   /* 추천글(개념글): 좋아요 10개를 넘긴 글만, **넘긴 시각의 역순**.
@@ -1612,7 +1643,8 @@ function renderList(){
     document.title=(state.board!=="all")?(boardName(state.board)+" · commi"):"commi · 그림 그리는 사람들의 커뮤니티";
   }
   var main=document.getElementById("main");var arr=filteredPosts();
-  var sub=state.query?('"'+esc(state.query)+'" 검색 결과 '+arr.length+'건'):(state.sort==="new"?"방금 올라온 이야기부터":"반응 많은 순으로");
+  // 건수는 아래 범위 탭에 붙으므로 여기서는 검색어만 보여준다(같은 숫자를 두 번 쓰지 않게)
+  var sub=state.query?('"'+esc(state.query)+'" 검색 결과'):(state.sort==="new"?"방금 올라온 이야기부터":"반응 많은 순으로");
   var h=boardHeaderHTML(sub); // 게시판 탭 + 말머리·정렬·보기 줄
   if(state.board==="all"&&!state.query){
     h+=notifBannerHTML(); // 알림을 아직 안 켠 사람에게만(홈 전체 글에서만 — 게시판마다 따라다니면 잔소리가 된다)
@@ -1624,7 +1656,7 @@ function renderList(){
     // ⚠️ 검색 중에는 '첫 글을 남겨보세요'가 나오면 안 된다 — 찾는 데 실패한 사람에게
     //    글쓰기를 권하는 꼴이라 안내가 어긋난다.
     h+=state.query
-      ?'<div class="empty"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><h3>검색 결과가 없어요</h3><p>제목·내용·댓글·작성자를 모두 찾아봤어요.<br>다른 낱말로 검색해보세요.</p></div>'
+      ?searchEmptyHTML()
       :(state.sort==="best"
       ?'<div class="empty"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.4.7-4.8 4.2 1.3 6L12 16.6 6.5 19.5l1.3-6L3 9.3l6.4-.7z"/></svg><h3>아직 추천글이 없어요</h3><p>좋아요를 '+BEST_LIKES+'개 받은 글이 여기에 올라와요.</p></div>'
       :'<div class="empty"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg><h3>아직 글이 없어요</h3><p>이 게시판의 첫 글을 남겨보세요.</p><button onclick="openWrite()">글쓰기</button></div>');
@@ -2899,7 +2931,7 @@ function selectBoard(id,skipRender){
     else openAdultGate();
     return; // 게시판을 바꾸지 않고 그대로 머문다
   }
-  state.board=id;state.query="";state.tag=null;page=1;
+  state.board=id;state.query="";state.searchTab="all";state.tag=null;page=1;
   document.getElementById("searchInput").value="";var m=document.getElementById("searchInputM");if(m)m.value="";
   renderNav(document.getElementById("boardNav"));renderNav(document.getElementById("boardNavM"));renderNav(document.getElementById("boardNavS"));
   renderChips();closeDrawer();closeSheet();syncTabs(id);
@@ -4875,10 +4907,52 @@ function _viewToggleHTML(){ // 보기 방식을 아이콘 하나로 토글(지�
   return '<button class="viewtoggle" onclick="toggleViewMode()" aria-label="보기 전환" title="'+(isAlbum?"앨범형 · 누르면 목록형":"목록형 · 누르면 앨범형")+'">'+(isAlbum?ICON_GRID:ICON_LIST)+'</button>';
 }
 function _searchNoteHTML(sub){ return state.query?'<div class="bh-note">'+sub+'</div>':''; } // 제목이 없으므로 검색 결과 안내는 여기로
+/* 검색 결과 범위 탭 — 글+댓글 / 제목 / 작성자.
+   ⚠️ 검색 중일 때만 그린다. 평소 목록에 늘 떠 있으면 게시판 탭과 헷갈린다.
+   ⚠️ 건수가 0인 탭도 숨기지 않는다 — "작성자 0"이 보여야 그 이름으로 쓴 글이
+      없다는 걸 알 수 있고, 탭이 들쭉날쭉 사라지면 누르려던 자리가 바뀐다. */
+var SEARCH_TABS=[["all","글+댓글"],["title","제목"],["author","작성자"]];
+function searchTabsHTML(){
+  if(!state.query)return"";
+  var c=searchCounts();
+  var h='<div class="stabs" role="tablist">';
+  SEARCH_TABS.forEach(function(t){
+    var on=state.searchTab===t[0];
+    h+='<button class="stab'+(on?" on":"")+'" role="tab" aria-selected="'+(on?"true":"false")+'"'+
+       ' onclick="setSearchTab(\''+t[0]+'\')">'+t[1]+
+       '<span class="stab-n">'+c[t[0]]+'</span></button>';
+  });
+  return h+'</div>';
+}
+/* 지금 탭에 결과가 없을 때의 안내.
+   ⚠️ 탭은 검색어를 바꿔도 유지된다(제목 탭에서 글자를 더 치면 제목 탭에 머무는 게 자연스럽다).
+      그래서 '작성자' 탭에 머문 채 새 낱말을 검색하면 0건이 나올 수 있는데, 그때 그냥
+      "결과가 없어요"만 띄우면 **검색이 고장 난 것처럼 보인다.** 다른 탭에 결과가 있으면
+      그쪽을 알려주고 바로 넘어갈 수 있게 한다. */
+var SEARCH_EMPTY_IC='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+function searchEmptyHTML(){
+  var c=searchCounts()||{},cur="";
+  SEARCH_TABS.forEach(function(t){if(t[0]===state.searchTab)cur=t[1];});
+  var other=SEARCH_TABS.filter(function(t){return t[0]!==state.searchTab&&(c[t[0]]||0)>0;});
+  if(!other.length)
+    return '<div class="empty">'+SEARCH_EMPTY_IC+'<h3>검색 결과가 없어요</h3>'+
+      '<p>제목·내용·댓글·작성자를 모두 찾아봤어요.<br>다른 낱말로 검색해보세요.</p></div>';
+  var best=other[0];
+  return '<div class="empty">'+SEARCH_EMPTY_IC+'<h3>‘'+esc(cur)+'’에는 없어요</h3>'+
+    '<p><b>'+esc(best[1])+'</b>에 '+c[best[0]]+'건이 있어요.</p>'+
+    '<button onclick="setSearchTab(\''+best[0]+'\')">'+esc(best[1])+' 결과 보기</button></div>';
+}
+// 탭을 바꿔도 검색어(state.query)는 건드리지 않는다 — 범위만 갈아끼운다
+function setSearchTab(t){
+  if(state.searchTab===t)return;
+  state.searchTab=t;page=1;renderList();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
 function boardHeaderHTML(sub){
   return boardTabsHTML()+
     '<div class="bh-row bh-a">'+tagFilterBarHTML()+_searchNoteHTML(sub)+
-      '<div class="bh-right">'+_sortDropdownHTML()+_viewToggleHTML()+'</div></div>';
+      '<div class="bh-right">'+_sortDropdownHTML()+_viewToggleHTML()+'</div></div>'+
+    searchTabsHTML();
 }
 /* 검색 결과에서 "왜 이 글이 걸렸는지"를 한 줄로 보여준다.
    ⚠️ 제목에서 걸린 글은 제목 하이라이트만으로 이유가 보이므로 줄을 더하지 않는다 —
@@ -4944,6 +5018,7 @@ async function refreshFeed(force){
 var _searchT;
 function liveSearch(v){clearTimeout(_searchT);_searchT=setTimeout(function(){doSearch(v)},180);}
 function doSearch(v){state.query=v.trim();page=1;if(state.query)state.board="all";
+  if(!state.query)state.searchTab="all"; // 검색을 지우면 범위도 처음으로(다음 검색이 엉뚱한 탭에서 시작하지 않게)
   renderNav(document.getElementById("boardNav"));renderNav(document.getElementById("boardNavM"));renderNav(document.getElementById("boardNavS"));
   renderChips();renderList();closeDrawer();window.scrollTo({top:0,behavior:"smooth"})}
 function syncTabs(id){
@@ -6891,7 +6966,7 @@ if(si){
 }
 if(sc){
   sc.addEventListener("click",function(){
-    si.value="";sc.style.display="none";state.query="";state.board=state.board||"all";
+    si.value="";sc.style.display="none";state.query="";state.searchTab="all";state.board=state.board||"all";
     doSearch("");si.focus();
   });
 }

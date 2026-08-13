@@ -977,6 +977,24 @@
   .pmeta .sep{width:1px;height:10px;background:var(--line-2);border-radius:0}
   .pmeta .cat{padding:1px 6px;font-size:10.5px;line-height:1.4;flex-shrink:0}
   .pmeta .who{font-weight:700;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;min-width:0}
+  /* ── 검색 범위 탭 (글+댓글 / 제목 / 작성자) ──
+     선택 표시는 밑줄 하나로만 한다. 배경까지 칠하면 바로 위 게시판 탭과 생김새가 겹쳐
+     "지금 누른 게 게시판인지 검색 범위인지" 헷갈린다. */
+  .stabs{display:flex;align-items:stretch;gap:0;border-bottom:1px solid var(--line-2);margin:2px 0 10px}
+  .stab{flex:1;min-width:0;position:relative;background:none;border:none;cursor:pointer;
+    padding:11px 6px 10px;font-size:13.5px;font-weight:600;color:var(--muted);
+    display:flex;align-items:center;justify-content:center;gap:5px;
+    font-family:inherit;transition:color .18s}
+  .stab::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;
+    background:var(--ink);border-radius:2px 2px 0 0;opacity:0;transition:opacity .18s}
+  .stab.on{color:var(--ink);font-weight:800}
+  .stab.on::after{opacity:1}
+  .stab:not(.on):hover{color:var(--ink-2)}
+  /* 건수: 탭 이름 옆 작은 숫자. 0이어도 숨기지 않는다(없다는 것도 정보다) */
+  .stab-n{font-size:11.5px;font-weight:700;color:var(--muted-2);font-variant-numeric:tabular-nums}
+  .stab.on .stab-n{color:var(--brand)}
+  @media(max-width:400px){ .stab{font-size:12.5px;padding:10px 4px 9px;gap:4px} .stab-n{font-size:11px} }
+
   /* ── 검색 ──
      하이라이트는 배경만 옅게 깐다. 굵기·색까지 바꾸면 결과가 20건쯤 될 때
      목록 전체가 얼룩덜룩해져서 오히려 어디가 걸렸는지 안 보인다. */

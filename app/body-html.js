@@ -18,7 +18,7 @@ export const BODY_HTML = `
     </div>
     <div class="search desktop">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-      <input type="text" id="searchInput" placeholder="제목, 작성자, 내용 검색" autocomplete="off"><button class="s-clear" id="searchClear" aria-label="지우기" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      <input type="text" id="searchInput" placeholder="제목, 내용, 댓글, 작성자 검색" autocomplete="off"><button class="s-clear" id="searchClear" aria-label="지우기" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </div>
     <div class="h-actions">
       <button class="icon-btn msearch-ico-btn" aria-label="검색" onclick="openMSearch()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
@@ -34,7 +34,7 @@ export const BODY_HTML = `
 
 <div class="msearch" id="msearch">
   <span class="ms-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
-  <input type="text" id="msearchInput" placeholder="제목, 작성자, 내용 검색" autocomplete="off">
+  <input type="text" id="msearchInput" placeholder="제목, 내용, 댓글, 작성자 검색" autocomplete="off">
   <button class="ms-cancel" onclick="closeMSearch()">취소</button>
 </div>
 
