@@ -977,6 +977,17 @@
   .pmeta .sep{width:1px;height:10px;background:var(--line-2);border-radius:0}
   .pmeta .cat{padding:1px 6px;font-size:10.5px;line-height:1.4;flex-shrink:0}
   .pmeta .who{font-weight:700;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;min-width:0}
+  /* 검색 결과 무한 스크롤 — 바닥 표식(점 세 개)과 끝 문구 */
+  .more-sentinel{display:flex;align-items:center;justify-content:center;gap:6px;padding:26px 0 30px}
+  .more-sentinel .ms-dot{width:6px;height:6px;border-radius:50%;background:var(--muted-2);
+    animation:msPulse 1.05s ease-in-out infinite}
+  .more-sentinel .ms-dot:nth-child(2){animation-delay:.15s}
+  .more-sentinel .ms-dot:nth-child(3){animation-delay:.3s}
+  @keyframes msPulse{0%,80%,100%{opacity:.28;transform:translateY(0)}40%{opacity:.9;transform:translateY(-3px)}}
+  /* ⚠️ 움직임을 줄여 달라는 설정을 켠 사람에게는 깜빡임만 남긴다 */
+  @media(prefers-reduced-motion:reduce){ .more-sentinel .ms-dot{animation:none;opacity:.5} }
+  .more-end{text-align:center;padding:22px 0 28px;font-size:12px;color:var(--muted-2)}
+
   /* 게시판 좁히기 드롭다운 — 검색 중에만 나온다.
      ⚠️ 이름이 길어(협업 · 팀원모집 등) 좁은 화면에서 정렬·보기 버튼을 밀어낸다. 최대폭을 묶고
         넘치면 말줄임 처리한다(닫힌 상태의 표시만 잘리고 목록은 온전히 보인다). */

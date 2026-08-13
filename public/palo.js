@@ -184,6 +184,16 @@ var state={board:"all",sort:"new",query:"",shown:8,tag:null,viewMode:"list",sear
 var BEST_LIKES=10;
 (function(){try{var _b=getBoardFromPath();if(_b)state.board=_b;}catch(e){}})(); // /board/{id} 딥링크면 시작 게시판을 그걸로
 var PER=40;var page=1;var READ=new Set();var FOLLOW=new Set();var FOLLOW_NAME={}; // FOLLOW=팔로우한 회원 id들, FOLLOW_NAME[id]=닉(표시용)
+/* 검색 결과는 페이지를 나누지 않고 스크롤로 이어 붙인다(검색은 훑어보는 화면이라 페이지를
+   오가는 것보다 계속 내려가는 편이 맞다). 게시판 목록은 그대로 페이저를 쓴다 — 그쪽은
+   '몇 페이지에 있었지'로 되찾는 일이 잦다.
+   ⚠️ searchShown을 되돌리는 걸 잊으면 새 검색이 남의 스크롤 위치를 물려받는다. 그래서
+      호출부마다 초기화하지 않고, 아래 _searchSig가 바뀔 때 renderList가 알아서 되돌린다. */
+var SEARCH_STEP=20,searchShown=SEARCH_STEP,_searchSig="",_moreObs=null;
+// ⚠️ 구분자 없이 이으면 서로 다른 상태가 같은 문자열이 된다("가"+"나" === ""+"가나")
+function _searchSigNow(){
+  return [state.query,state.searchTab,state.searchBoard,state.sort,state.tag,state.board,state.viewMode].join("");
+}
 var ME={nick:"나"};
 var AUTH={user:null,profile:null};
 var SETTINGS={cm:true,like:true,notice:true,chat:true,cminquiry:true};
@@ -1513,6 +1523,50 @@ function renderTrend(){
 function CATICON(board){
   return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 15l4-4 3 3 4-4 5 5"/></svg>';
 }
+/* 검색 결과 맨 아래 표식. 화면에 들어오면 다음 묶음을 더 그린다.
+   다 봤으면 감시 대신 끝났다는 문구를 남긴다 — 아무것도 없으면 "더 있는데 안 나오는 건가?"
+   싶어서 계속 스크롤하게 된다. */
+function moreSentinelHTML(total){
+  if(total<=searchShown)
+    return total>SEARCH_STEP?'<div class="more-end">결과를 모두 봤어요 · 총 '+total+'건</div>':'';
+  return '<div class="more-sentinel" id="moreSentinel"><span class="ms-dot"></span><span class="ms-dot"></span><span class="ms-dot"></span></div>';
+}
+var MORE_MARGIN=500; // 바닥에 닿기 전에 미리 채워 끊김을 줄인다
+function loadMoreSearch(){
+  if(!state.query)return;
+  if(_moreObs){_moreObs.disconnect();_moreObs=null;} // 다시 그리는 동안 두 번 불리지 않게
+  searchShown+=SEARCH_STEP;
+  renderList(); // 위쪽 내용은 그대로라 스크롤 위치는 유지된다
+}
+/* ⚠️ 관찰자는 그릴 때마다 새로 붙인다. renderList가 innerHTML을 통째로 갈아끼우므로
+      이전에 관찰하던 요소는 이미 사라진 상태다(그대로 두면 다시는 불리지 않는다). */
+function observeSearchMore(){
+  if(_moreObs){_moreObs.disconnect();_moreObs=null;}
+  var el=document.getElementById("moreSentinel");
+  if(!el)return;
+  if(typeof IntersectionObserver==="undefined")return; // 아래 스크롤 감시가 대신 맡는다
+  _moreObs=new IntersectionObserver(function(es){
+    if(es[0].isIntersecting)loadMoreSearch();
+  },{rootMargin:MORE_MARGIN+"px 0px"});
+  _moreObs.observe(el);
+}
+/* 스크롤로도 같은 판정을 한다 — IntersectionObserver 하나에만 기대지 않는 이유:
+   ① 문서가 hidden이면 브라우저가 교차 계산을 아예 돌리지 않는다 ② 카카오톡·인스타 같은
+   인앱 브라우저에서 관찰자가 조용히 안 뛰는 경우가 있다. 그러면 결과가 잘린 채 갇히고,
+   사용자는 "왜 더 안 나오지" 하며 스크롤만 하게 된다. 둘 다 loadMoreSearch로 모인다. */
+function _moreScrollCheck(){
+  var el=document.getElementById("moreSentinel");
+  if(!el)return;
+  if(el.getBoundingClientRect().top<window.innerHeight+MORE_MARGIN)loadMoreSearch();
+}
+if(typeof window!=="undefined"){
+  var _moreTick=false;
+  window.addEventListener("scroll",function(){
+    if(_moreTick)return; // 스크롤 한 번에 한 번만 — 프레임마다 재계산하면 목록이 버벅인다
+    _moreTick=true;
+    setTimeout(function(){_moreTick=false;_moreScrollCheck();},120);
+  },{passive:true});
+}
 function pagerHTML(tp){
   var h='<nav class="pager" aria-label="페이지">';
   h+='<button class="pg-arrow" '+(page<=1?'disabled':'')+' onclick="gotoPage('+(page-1)+')" aria-label="이전">‹</button>';
@@ -1695,7 +1749,14 @@ function renderList(){
       :'<div class="empty"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg><h3>아직 글이 없어요</h3><p>이 게시판의 첫 글을 남겨보세요.</p><button onclick="openWrite()">글쓰기</button></div>');
     main.innerHTML=h;syncChipScroll();return;
   }
-  var totalPages=Math.max(1,Math.ceil(arr.length/PER));if(page>totalPages)page=totalPages;var visible=arr.slice((page-1)*PER,page*PER);
+  /* 검색 조건이 하나라도 바뀌면 스크롤로 늘려 둔 양을 처음으로 되돌린다.
+     ⚠️ 호출부(doSearch·setSearchTab·setSearchBoard·setSort·말머리…)마다 초기화하면 한 곳만
+        빠뜨려도 새 검색이 남의 스크롤 위치를 물려받는다. 그리는 자리에서 한 번에 판정한다. */
+  var _sig=_searchSigNow();
+  if(_sig!==_searchSig){_searchSig=_sig;searchShown=SEARCH_STEP;}
+  var isSearch=!!state.query;
+  var totalPages=Math.max(1,Math.ceil(arr.length/PER));if(page>totalPages)page=totalPages;
+  var visible=isSearch?arr.slice(0,searchShown):arr.slice((page-1)*PER,page*PER);
   if(state.board==="review"&&!state.query){
     h+=reviewAlbumHTML(visible);
     if(totalPages>1)h+=pagerHTML(totalPages);
@@ -1705,14 +1766,16 @@ function renderList(){
   if(state.viewMode==="album"){
     var albumArr=arr.filter(function(p){return p.images&&p.images.length});
     var albumTotalPages=Math.max(1,Math.ceil(albumArr.length/PER));if(page>albumTotalPages)page=albumTotalPages;
-    var albumVisible=albumArr.slice((page-1)*PER,page*PER);
+    var albumVisible=isSearch?albumArr.slice(0,searchShown):albumArr.slice((page-1)*PER,page*PER);
     if(!albumArr.length){
       h+='<div class="empty"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg><h3>이미지가 있는 글이 없어요</h3><p>앨범형은 이미지가 첨부된 글만 보여줘요.</p></div>';
+    }else if(isSearch){
+      h+=postAlbumHTML(albumVisible)+moreSentinelHTML(albumArr.length);
     }else{
       h+=postAlbumHTML(albumVisible);
       if(albumTotalPages>1)h+=pagerHTML(albumTotalPages);
     }
-    main.innerHTML=h;syncChipScroll();
+    main.innerHTML=h;syncChipScroll();observeSearchMore();
     return;
   }
   h+='<div class="list">';
@@ -1750,10 +1813,12 @@ function renderList(){
     if(postsSinceAd>=adGap && idx!==visible.length-1){h+=adRow();postsSinceAd=0;adGap=10+Math.floor(Math.random()*6);}
   });
   h+='</div>';
-  if(totalPages>1)h+=pagerHTML(totalPages);
+  if(isSearch)h+=moreSentinelHTML(arr.length);
+  else if(totalPages>1)h+=pagerHTML(totalPages);
   main.innerHTML=h;
   syncChipScroll();
   observeAdBanners();
+  observeSearchMore();
 }
 function openPost(id){
   track("post_view");
