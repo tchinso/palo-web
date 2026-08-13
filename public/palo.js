@@ -29,7 +29,7 @@ var BOARDS=[
       이유: 광고 심사 봇이 링크된 JS까지 훑어서 사이트를 잘못된 업종으로 분류했다
       (2026-08-10 틱톡 광고 거부). 화면에 안 뜨는 코드 때문에 광고가 막히지 않게 분리했다.
    ⚠️ 다시 열 때는 이 값만 true로 바꾸면 된다 — 그 순간부터 /agegate.js를 부팅 때 받아온다. */
-var ADULT_BOARD_ENABLED=true;
+var ADULT_BOARD_ENABLED=false;
 var CATMAP={talk:{label:"수다",cls:"talk-c"},ask:{label:"고민",cls:"help-c"},crit:{label:"피드백",cls:"crit-c"},
   wip:{label:"작업과정",cls:"crit-c"},doodle:{label:"낙서",cls:"talk-c"},tip:{label:"팁",cls:"tip-c"},challenge:{label:"챌린지",cls:"chal-c"},collab:{label:"협업",cls:"help-c"},
   sketch:{label:"그림공부",cls:"tip-c"},trade:{label:"거래",cls:"free-c"},used:{label:"중고",cls:"free-c"},
