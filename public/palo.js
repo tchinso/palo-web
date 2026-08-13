@@ -3169,6 +3169,8 @@ function cmRowToData(row,artistNickname){
     period:row.period,slots:row.slots,desc:row.description,descHtml:row.description_html||null,usage:row.usage_rights,policy:row.trade_policy,
     images:imgs,likes:0,views:row.views||0,createdAt:row.created_at,form:row.application_form||[],
     reviewEventOn:!!row.review_event_on,reviewEventBenefit:row.review_event_benefit||'',
+    // commission-adult.sql 실행 전에는 칸이 없어 undefined → false. 그때는 성인 표시가 없는 것과 같다.
+    isAdult:!!row.is_adult,
     reviewCount:revs.length,satisfaction:revs.length?(goodCount/revs.length):0,
     adLocked:!!AD_LOCKED_COMMISSION_IDS[row.id],
     // 끌올 시각. 칸 자체가 없으면(SQL 실행 전) undefined라 등록 시각으로 대신한다.
@@ -3496,9 +3498,12 @@ function cmCardHTML(d,idx){
   var thumb=(d.images&&d.images[0])?("background-image:url('"+cmQ(d.images[0])+"');background-size:cover;background-position:center"):('background:'+cmGrads[idx%cmGrads.length]);
   var status=d.status==='open'?'<div class="cm-status open">오픈중</div>':'';
   var revBadge=d.reviewEventOn?'<div class="cm-revevent-badge">🎁 리뷰 이벤트</div>':'';
+  // 성인 커미션은 목록에서도 한눈에 구분되게 — 인증한 사람만 이 카드를 받아 보지만,
+  // 그 사람에게도 "이건 19+"라는 표시는 있어야 한다.
+  var adultBadge=d.isAdult?'<div class="cm-adult-badge" title="성인 커미션">19+</div>':'';
   var bookmarked=cmBookmarkIds&&cmBookmarkIds.has(d.id);
   return '<div class="cm-card" onclick="cmOpenDetail('+idx+')">'+
-    '<div class="cm-thumb" style="'+thumb+'">'+status+revBadge+
+    '<div class="cm-thumb" style="'+thumb+'">'+status+revBadge+adultBadge+
       '<div class="cm-bookmark'+(bookmarked?' on':'')+'" onclick="event.stopPropagation();cmToggleBookmark('+d.id+',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12v18l-6-4-6 4z"/></svg></div></div>'+
     '<div class="cm-c-artist">'+esc(d.artist)+'</div>'+
     '<div class="cm-c-title">'+esc(d.title)+'</div>'+
@@ -4308,7 +4313,7 @@ function cmOpenRegister(editId){
     loginWithGoogle();
     return;
   }
-  cmReg={images:[],tags:[],status:'open',editingId:editId||null,title:'',price:'',period:'',slots:'',desc:'',descHtml:'',usage:'',policy:'',form:[],reviewEventOn:false,reviewEventBenefit:''};
+  cmReg={images:[],tags:[],status:'open',editingId:editId||null,title:'',price:'',period:'',slots:'',desc:'',descHtml:'',usage:'',policy:'',form:[],reviewEventOn:false,reviewEventBenefit:'',isAdult:false};
   if(editId){
     var c=cmMyList.find(function(x){return x.id===editId});
     if(c&&c.adLocked){toast('광고를 집행 중인 커미션은 수정할 수 없어요');return;}
@@ -4317,6 +4322,7 @@ function cmOpenRegister(editId){
       cmReg.title=c.title;cmReg.price=c.price;cmReg.period=c.period;cmReg.slots=c.slots;
       cmReg.desc=c.desc;cmReg.descHtml=c.descHtml||'';cmReg.usage=c.usage||'';cmReg.policy=c.policy||'';
       cmReg.reviewEventOn=!!c.reviewEventOn;cmReg.reviewEventBenefit=c.reviewEventBenefit||'';
+      cmReg.isAdult=!!c.isAdult;
       cmReg.form=(c.form||[]).map(function(f){return{id:f.id,type:f.type,label:f.label,required:!!f.required};});
     }
   }
@@ -4360,6 +4366,13 @@ function cmRenderRegisterScreen(){
       '<div class="cm-reg-label">접수 상태</div>'+
       '<div class="cm-reg-toggle"><div class="cm-reg-tg'+(cmReg.status==='open'?' sel':'')+'" id="cmTgOpen" onclick="cmSetStatus(\'open\')">🟢 접수중</div>'+
         '<div class="cm-reg-tg'+(cmReg.status==='close'?' sel':'')+'" id="cmTgClose" onclick="cmSetStatus(\'close\')">⛔ 마감</div></div>'+
+      /* 성인(19+) 표시. 접수 상태 바로 아래에 둔다 — 나중에 물으면 이미 다 적은 뒤라
+         되돌리기 번거롭고, 무엇보다 "누가 볼 수 있는지"를 정하는 항목이라 앞에 있어야 한다. */
+      '<div class="cm-reg-label">🔞 성인 커미션 <span class="cm-reg-sub">19세 미만이 보면 안 되는 내용이면 표시해주세요</span></div>'+
+      '<div class="cm-reg-toggle"><div class="cm-reg-tg'+(cmReg.isAdult?' sel':'')+'" id="cmTgAdultOn" onclick="cmSetAdult(true)">🔞 성인</div>'+
+        '<div class="cm-reg-tg'+(!cmReg.isAdult?' sel':'')+'" id="cmTgAdultOff" onclick="cmSetAdult(false)">전체 이용가</div></div>'+
+      '<div class="cm-reg-note" id="cmRegAdultNote" style="'+(cmReg.isAdult?'':'display:none')+'">'+
+        '본인확인을 마친 만 19세 이상에게만 보여요. 목록·검색·상세 어디에도 나오지 않아요.</div>'+
       '<div class="cm-reg-label">작업 기간 <span class="cm-reg-sub">직접 입력</span></div>'+
       '<input class="cm-reg-input" id="cmRegPeriod" placeholder="예: 3~7일 이내" oninput="cmCheckReg()" value="'+esc(cmReg.period)+'">'+
       '<div class="cm-reg-label">신청 가능 수 <span class="cm-reg-sub">몇 명까지 받을지</span></div>'+
@@ -4573,6 +4586,23 @@ function cmSetStatus(v){
   document.getElementById('cmTgOpen').classList.toggle('sel',v==='open');
   document.getElementById('cmTgClose').classList.toggle('sel',v==='close');
 }
+/* 성인 표시를 켜려면 본인도 연령 확인을 마쳐야 한다.
+   ⚠️ 진짜 강제는 서버(RLS)가 한다 — 여기서 막는 건 저장을 눌렀다가 실패하는 대신
+      그 자리에서 인증 창을 띄워 주기 위한 것이다. */
+function cmSetAdult(on){
+  if(on&&!isAdultVerified()){
+    if(!AUTH.user){toast('로그인 후 이용할 수 있어요','🔒');openLoginModal();return;}
+    toast('성인 커미션은 본인확인 후 등록할 수 있어요','🔞');
+    openAdultGate();
+    return;
+  }
+  cmReg.isAdult=!!on;
+  document.getElementById('cmTgAdultOn').classList.toggle('sel',cmReg.isAdult);
+  document.getElementById('cmTgAdultOff').classList.toggle('sel',!cmReg.isAdult);
+  var note=document.getElementById('cmRegAdultNote');
+  if(note)note.style.display=cmReg.isAdult?'':'none';
+  cmCheckReg();
+}
 function cmSetReviewEvent(on){
   cmReg.reviewEventOn=!!on;
   document.getElementById('cmTgRevOn').classList.toggle('sel',cmReg.reviewEventOn);
@@ -4602,7 +4632,7 @@ function cmPreviewReg(){
   var policy=cmReg.policy.trim();
   cmPreviewObj={artist:'나',channel:'내 커미션',title:title,price:price,hidePrice:true,period:period,slots:slots,
     desc:desc,descHtml:cmReg.descHtml,usage:usage,policy:policy,tags:cmReg.tags.slice(),images:cmReg.images.slice(),likes:0,
-    reviewEventOn:cmReg.reviewEventOn,reviewEventBenefit:cmReg.reviewEventBenefit.trim()};
+    reviewEventOn:cmReg.reviewEventOn,reviewEventBenefit:cmReg.reviewEventBenefit.trim(),isAdult:!!cmReg.isAdult};
   cmDetailCtx={from:'register',idx:0};
   document.getElementById('main').innerHTML=cmDetailHTML(cmPreviewObj,0);
   window.scrollTo({top:0,behavior:'smooth'});
@@ -4623,7 +4653,8 @@ async function cmSubmitReg(){
     trade_policy:cmReg.policy.trim(),
     application_form:cmReg.form,
     review_event_on:!!cmReg.reviewEventOn,
-    review_event_benefit:cmReg.reviewEventOn?(cmReg.reviewEventBenefit.trim()||null):null
+    review_event_benefit:cmReg.reviewEventOn?(cmReg.reviewEventBenefit.trim()||null):null,
+    is_adult:!!cmReg.isAdult
   };
   var commissionId;
   if(cmReg.editingId){

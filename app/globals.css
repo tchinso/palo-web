@@ -1945,6 +1945,10 @@
   .cm-status{position:absolute;top:10px;right:10px;font-size:11px;font-weight:700;padding:4px 8px;border-radius:8px}
   .cm-status.open{background:rgba(63,143,95,.92);color:#fff}
   .cm-revevent-badge{position:absolute;top:10px;left:10px;font-size:11px;font-weight:800;padding:4px 8px;border-radius:8px;background:rgba(224,96,122,.94);color:#fff}
+  /* 19+ 표시. 리뷰 이벤트 배지가 왼쪽 위를 쓰므로 **왼쪽 아래**에 둔다(겹치지 않게).
+     ⚠️ '오픈중'(.cm-status)은 오른쪽 위라 서로 안 부딪힌다. */
+  .cm-adult-badge{position:absolute;left:10px;bottom:10px;font-size:11px;font-weight:900;
+    padding:3px 8px;border-radius:8px;background:rgba(40,28,36,.82);color:#fff;letter-spacing:.02em}
   .cm-revevent-tag{display:inline-block;vertical-align:middle;font-size:12px;font-weight:800;padding:3px 9px;border-radius:20px;background:var(--brand-soft);color:var(--brand);margin-left:6px;letter-spacing:0}
   .cm-revevent{border:1.5px solid #f0c4cf;background:linear-gradient(135deg,#fff5f8,#fdeef2);border-radius:14px;padding:15px 16px;margin:14px 0}
   .cm-revevent-h{font-size:14.5px;font-weight:900;color:#c0392b;margin-bottom:7px}
