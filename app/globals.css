@@ -1,4 +1,8 @@
   :root{
+    /* 🎨 화면 배경은 --bg 하나로만 정한다. 홈·커미션·글쓰기·채팅·내 정보가 모두 이 값을 쓴다.
+       ⚠️ 배경색을 어딘가에 직접 적지 말 것. 한 곳이라도 다른 값을 적으면 화면을 넘나들 때
+          미묘하게 색이 바뀌어 보이고, 나중에 색을 바꿀 때 그 한 곳만 남아 티가 난다.
+          본문 위에 뜨는 반투명 막이 필요하면 --bg-veil을 쓴다. */
     --bg:#fbf7f8;--surface:#ffffff;--surface-2:#f5eef2;--line:#e6d3df;--line-2:#dcc4d3;
     /* --bg와 같은 색의 반투명판. 헤더처럼 본문 위에 떠 있는 막에 쓴다.
        ⚠️ 흰색 반투명(rgba(255,255,255,.86))을 쓰면 분홍빛 배경 위에서 거의 순백으로
@@ -17,7 +21,10 @@
     --sh-lg:0 20px 50px rgba(120,60,120,.22);
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  /* ⚠️ 최상위(html)에도 같은 배경을 준다. body에만 주면 브라우저가 body 색을 캔버스로
+        올려 주긴 하지만, **아이폰에서 위아래로 당겼을 때 나타나는 여백**과 내용이 짧아
+        body가 화면보다 작을 때는 기댈 데가 없어 다른 색(보통 흰색)이 비친다. */
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;background:var(--bg)}
   /* 🚨 `html{overflow-x:hidden}` 은 **iOS에서 `position:fixed` 를 깨뜨린다.**
      루트가 스크롤 컨테이너가 되면서 고정 요소가 뷰포트가 아니라 그 컨테이너를 기준으로 잡히고,
      관성/고무줄 스크롤 도중 **하단 탭바가 본문과 따로 떨어져 움직인다.**
@@ -63,7 +70,9 @@
   .write-btn.commission-btn{background:var(--surface);color:var(--ink-2);border:1.5px solid var(--line-2);box-shadow:none}
   .write-btn.commission-btn:hover{border-color:var(--brand);color:var(--brand);transform:none;box-shadow:none}
 
-  .catbar{background:rgba(253,247,249,.82);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:1px solid var(--line);position:sticky;top:66px;z-index:55}
+  /* ⚠️ 예전엔 rgba(253,247,249,.82)를 직접 적어 뒀다 — --bg(251,247,248)와 R·B가 2씩 달라
+        헤더 바로 아래에 아주 옅은 띠가 보였다. 헤더와 같은 --bg-veil을 쓴다. */
+  .catbar{background:var(--bg-veil);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:1px solid var(--line);position:sticky;top:66px;z-index:55}
   body.chat-open .catbar{display:none} /* 1:1 채팅 화면에선 게시판 탭 숨김 */
   .catbar-inner{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:12px 0}
   .catbar-inner::-webkit-scrollbar{display:none}
@@ -2485,7 +2494,8 @@
 
 /* 글자 서식 패널 — 삽입 도구 줄 '바로 위', **항상 한 줄**.
    글꼴·크기는 별도 창을 띄우지 않고 이 줄을 오른쪽으로 이어지는 목록으로 바꿔 낀다. */
-.ed-fmt{border-bottom:1px solid var(--line-2);background:rgba(253,247,249,.7)}
+/* ⚠️ 배경색을 직접 적지 않는다(예전 rgba(253,247,249,.7)은 --bg와 미묘하게 다른 색이었다) */
+.ed-fmt{border-bottom:1px solid var(--line-2);background:var(--bg-veil)}
 .ed-fmt[hidden]{display:none}
 .ed-fmt-row{display:flex;align-items:center;gap:3px;padding:5px 6px;
   overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}

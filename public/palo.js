@@ -4926,10 +4926,35 @@ function cmSyncTabbarHeight(){
   document.documentElement.style.setProperty('--cm-tabbar-h',h+'px');
   if(typeof syncTabInd==="function")syncTabInd(true); // 탭바가 나타났다 사라질 때 자리 재계산
 }
-new MutationObserver(function(){
-  document.body.classList.toggle('cm-page',!!document.querySelector('#main>.cm-root'));
-  cmSyncTabbarHeight();
-}).observe(document.body,{childList:true,subtree:true});
+/* 지금 **보이는** 화면이 커미션인가.
+   ⚠️ `#main`에 .cm-root가 있는지만 보면 안 된다 — 글쓰기·채팅은 #main 위에 덮이는 화면이라
+      그 아래에 커미션 목록이 그대로 남는다. 그래서 커미션 → 채팅으로 가면 cm-page가 붙은 채
+      남아, 그 화면이 커미션 규칙(게시판 탭·사이드바·검색 숨김, '내 커미션' 버튼 노출)을
+      뒤집어썼다. 실측: 채팅 헤더에서 검색이 사라지고 '내 커미션'이 떠 있었다(2026-08-13).
+   그래서 앱이 이미 들고 있는 화면 스택을 본다. 맨 위가 cm으로 시작하면 커미션 화면이다
+   (사이드 메뉴의 renderDrawerNav도 같은 규칙으로 현재 화면을 판정한다).
+   실측 확인: 홈=[] · 커미션=["cmList"] · 글쓰기=[](에디터가 스택을 비운다) · 채팅=["chatList"]. */
+function _cmPageNow(){
+  try{
+    if(typeof screenStack==="undefined"||!screenStack.length)return false;
+    var top=screenStack[screenStack.length-1];
+    return !!(top&&top.key&&top.key.indexOf("cm")===0);
+  }catch(e){return false;}
+}
+/* ⚠️ 관찰 범위를 넓힌 만큼(class 변경까지) 프레임당 한 번으로 묶는다. 그러지 않으면
+      글자 입력·애니메이션처럼 class가 자주 바뀌는 자리에서 getComputedStyle이 연달아 돈다. */
+var _cmSyncTick=false;
+function _cmScheduleSync(){
+  if(_cmSyncTick)return;
+  _cmSyncTick=true;
+  requestAnimationFrame(function(){
+    _cmSyncTick=false;
+    document.body.classList.toggle('cm-page',_cmPageNow());
+    cmSyncTabbarHeight();
+  });
+}
+new MutationObserver(_cmScheduleSync)
+  .observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
 cmSyncTabbarHeight();
 
 /* 화면 크기가 바뀔 때의 뒷정리.
