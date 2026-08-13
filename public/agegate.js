@@ -160,10 +160,25 @@
         channelKey: PORTONE_CHANNEL_KEY,
         identityVerificationId: vid,
         redirectUrl: location.origin + "/?adultVerify=1",
-        // KCP 전용 값은 bypass로 넘긴다. ⚠️ SDK는 `kcp_v2`, REST API는 `kcpV2`로 키 이름이 다르다.
-        bypass: { kcp_v2: { web_siteid: KCP_WEB_SITEID } },
+        /* KCP 전용 값은 bypass로 넘긴다. ⚠️ SDK는 `kcp_v2`, REST API는 `kcpV2`로 키 이름이 다르다.
+           ⚠️ media_type은 문서에 **필수**로 적혀 있다(PC=MC01, 모바일=MC02). SDK가 알아서
+              넣어 줄 거라 보고 뺐다가 계속 실패했다 — 직접 넣는다. */
+        bypass: {
+          kcp_v2: {
+            web_siteid: KCP_WEB_SITEID,
+            media_type: /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? "MC02" : "MC01",
+          },
+        },
       });
-      if (r && r.code) { hint(r.message || "인증이 취소됐어요."); busy(false); return; }
+      /* ⚠️ 실패 사유를 그대로 보여준다.
+         KCP/포트원이 되돌린 코드를 우리가 "인증이 취소됐어요"로 덮어써 버리면, 원인을 볼 방법이
+         콘솔밖에 없다(포트원 콘솔에는 본인인증 내역 메뉴가 없다). 연동이 안정되기 전까지는
+         코드를 그대로 노출하는 편이 낫다. */
+      if (r && r.code) {
+        console.error("[agegate] 본인확인 실패", r);
+        hint((r.message || "인증에 실패했어요.") + " (" + r.code + ")");
+        busy(false); return;
+      }
       busy(true, "확인 중…");
       await submit(vid);
     } catch (e) {
