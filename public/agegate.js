@@ -51,6 +51,11 @@
         그 값은 콘솔에만 넣으며 이 파일에는 들어오지 않는다. */
   var PORTONE_STORE_ID = "store-73603042-1b6d-4eb5-8063-84ed34f1242e";
   var PORTONE_CHANNEL_KEY = "channel-key-9ae37405-3046-4646-8436-b28e55ab7a7b";
+  /* KCP 웹사이트코드(KCP 상점관리자 → 가맹점 인증키관리에 표시). **DI를 만들 때 쓰는 값**이다.
+     ⚠️ 안 넘기면 KCP가 발급 ID로 대신 만든다 — 즉 DI가 달라질 수 있고, 우리는 그 DI 해시로
+        중복 가입을 막으므로 값이 흔들리면 차단이 무의미해진다. 그래서 명시적으로 넘긴다.
+     ⚠️ 공개 값이다(포트원 공식 예제도 브라우저 코드에 그대로 적는다). */
+  var KCP_WEB_SITEID = "J26080712852";
   var READY = !!(PORTONE_STORE_ID && PORTONE_CHANNEL_KEY);
 
   var el = null;
@@ -146,12 +151,17 @@
     hint(""); busy(true, "인증창을 여는 중…");
     try {
       await loadSdk();
-      var vid = "adult-" + window.AUTH.user.id.slice(0, 8) + "-" + Date.now();
+      /* ⚠️ identityVerificationId는 **영문·숫자만** 쓸 수 있고 40자 이하다(포트원 KCP 문서).
+         하이픈을 넣었더니 KCP가 거래를 등록하지 못했다(2026-08-13 '토큰 발행 실패').
+         구분자를 넣고 싶어도 넣지 말 것. 지금은 "adult"+계정앞8자+밀리초 = 26자. */
+      var vid = "adult" + window.AUTH.user.id.slice(0, 8) + Date.now();
       var r = await window.PortOne.requestIdentityVerification({
         storeId: PORTONE_STORE_ID,
         channelKey: PORTONE_CHANNEL_KEY,
         identityVerificationId: vid,
         redirectUrl: location.origin + "/?adultVerify=1",
+        // KCP 전용 값은 bypass로 넘긴다. ⚠️ SDK는 `kcp_v2`, REST API는 `kcpV2`로 키 이름이 다르다.
+        bypass: { kcp_v2: { web_siteid: KCP_WEB_SITEID } },
       });
       if (r && r.code) { hint(r.message || "인증이 취소됐어요."); busy(false); return; }
       busy(true, "확인 중…");
