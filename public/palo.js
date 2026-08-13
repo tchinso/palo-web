@@ -3197,13 +3197,17 @@ function cmSortByBump(list){
   });
 }
 
-function cmRowToData(row,artistNickname){
+/* ⚠️ artistAvatar를 빠뜨리면 상세 화면의 프로필 자리가 **빈 동그라미로 남는다.**
+      목록 조회에서 avatar_url을 이미 같이 받아 오는데 여기로 넘기지 않아 그랬다(2026-08-13 신고).
+      호출부가 4곳이므로 새 호출부를 만들 때도 이 값을 챙길 것. */
+function cmRowToData(row,artistNickname,artistAvatar){
   var imgs=(row.commission_images||[]).slice().sort(function(a,b){return a.sort-b.sort;}).map(function(x){return x.url;});
   var revs=POSTS.filter(function(p){return p.board==='review'&&p.commissionId===row.id;});
   var goodCount=revs.filter(function(r){return r.commissionSentiment==='good';}).length;
   return{
     id:row.id,authorId:row.author_id,
     artist:artistNickname||'탈퇴한 사용자',
+    artistAvatar:artistAvatar||null,
     title:row.title,price:row.price,status:row.status,tags:row.tags||[],
     period:row.period,slots:row.slots,desc:row.description,descHtml:row.description_html||null,usage:row.usage_rights,policy:row.trade_policy,
     images:imgs,likes:0,views:row.views||0,createdAt:row.created_at,form:row.application_form||[],
@@ -3227,7 +3231,7 @@ async function cmLoadCommissions(){
   CM_BUMP_READY=res.data.length>0&&Object.prototype.hasOwnProperty.call(res.data[0],'bumped_at');
   cmData=cmSortByBump(res.data.map(function(row){
     var prof=profById[row.author_id];
-    return cmRowToData(row,prof?prof.nickname:null);
+    return cmRowToData(row,prof?prof.nickname:null,prof?prof.avatarUrl:null);
   }));
   await cmLoadBookmarkCounts();
   cmTopTags=cmComputeTopTags();
@@ -3397,11 +3401,11 @@ async function cmLoadMyBookmarks(){
   cmBookmarkIds=new Set((res.data||[]).map(function(r){return r.commission_id;}));
 }
 /* ---- 프로필의 커미션 타입 목록(크레페 시안 2단계) ---- */
-async function pfArtistCommissions(userId,nickname){
+async function pfArtistCommissions(userId,nickname,avatarUrl){
   if(!window.supabase)return[];
   var res=await window.supabase.from('commissions').select('*,commission_images(url,sort)').eq('author_id',userId).order('created_at',{ascending:false});
   if(res.error||!res.data)return[];
-  return res.data.map(function(row){return cmRowToData(row,nickname);});
+  return res.data.map(function(row){return cmRowToData(row,nickname,avatarUrl);});
 }
 function pfCmListItemHTML(d){
   var thumb=(d.images&&d.images.length)?('background-image:url(\''+cmQ(d.images[0])+'\');background-size:cover;background-position:center'):('background:'+cmGrads[d.id%cmGrads.length]);
@@ -3859,8 +3863,8 @@ async function cmEnsureCommissionInData(commissionId){
   if(idx>=0)return idx;
   var res=await window.supabase.from('commissions').select('*,commission_images(url,sort)').eq('id',commissionId).single();
   if(res.error||!res.data)return -1;
-  var profRes=await window.supabase.from('profiles').select('nickname').eq('id',res.data.author_id).single();
-  cmData.push(cmRowToData(res.data,profRes.data?profRes.data.nickname:null));
+  var profRes=await window.supabase.from('profiles').select('nickname,avatar_url').eq('id',res.data.author_id).single();
+  cmData.push(cmRowToData(res.data,profRes.data?profRes.data.nickname:null,profRes.data?profRes.data.avatar_url:null));
   return cmData.length-1;
 }
 async function cmOpenCommissionById(commissionId){
@@ -3981,9 +3985,14 @@ function cmDetailHTML(d,idx){
       '<div class="cm-d-title">'+esc(title)+(showRevEvent?' <span class="cm-revevent-tag">🎁 리뷰 이벤트 중</span>':'')+'</div>'+
       (d.hidePrice?'':'<div class="cm-d-price">'+esc(price)+'원</div>')+
       '<div class="cm-artist-row" onclick="'+(d.authorId?('cmOpenAuthorProfile(\''+cmQ(d.authorId)+'\')'):('cmOpenArtistProfile(\''+cmQ(artist)+'\')'))+'">'+
-        '<div class="cm-l"><div class="cm-ava"></div><div><span class="cm-nm">'+esc(artist)+'</span> <span class="cm-rv">'+realReviews.length+'개 후기</span></div></div>'+
-        '<div class="cm-r"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/></svg>0</span>'+
-        '<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>'+(d.views||0)+'</span></div>'+
+        '<div class="cm-l"><div class="cm-ava">'+avatarHTML(artist,d.artistAvatar)+'</div><div><span class="cm-nm">'+esc(artist)+'</span> <span class="cm-rv">'+realReviews.length+'개 후기</span></div></div>'+
+        /* ⚠️ 예전엔 뜻 모를 아이콘 옆에 **하드코딩된 0**과 숫자만 있는 조회수가 나란히 있어,
+              무엇을 세는 숫자인지 알 수 없었다(2026-08-13 신고). 글자로 이름을 붙이고,
+              쓰이지 않던 0은 실제 저장(북마크) 수로 바꿨다. 아이콘은 목록 카드와 같은 것을 쓴다. */
+        '<div class="cm-r">'+
+          '<span title="조회수">'+CM_IC_VIEW+'조회 '+fmtViews(d.views||0)+'</span>'+
+          '<span title="저장한 사람 수">'+CM_IC_BOOKMARK+'저장 '+(d.bookmarkCount||0)+'</span>'+
+        '</div>'+
       '</div>'+
       '<div class="cm-stats"><div class="cm-stat"><span class="cm-k">신청 가능</span><span class="cm-v">'+esc(d.slots||'8')+'개 남음</span></div>'+
         '<div class="cm-stat"><span class="cm-k">작업 기간</span><span class="cm-v">'+esc(period)+'</span></div></div>'+
@@ -7749,7 +7758,7 @@ async function openUserProfile(userId,keepStack){
   var canChat=AUTH.user&&AUTH.user.id!==userId;
   var theirReviewStats=pfReviewStats(userId,profile.nickname);
   var theirBookmarkCount=await pfBookmarkCount(userId);
-  var artistCommissions=await pfArtistCommissions(userId,profile.nickname);
+  var artistCommissions=await pfArtistCommissions(userId,profile.nickname,profile.avatar_url);
   artistCommissions.forEach(function(d){if(!cmData.some(function(x){return x.id===d.id;}))cmData.push(d);});
   if(AUTH.user&&cmBookmarkIds===null)await cmLoadMyBookmarks();
   if(pfReviewsForUserId!==userId){pfReviewsExpanded=false;pfReviewsForUserId=userId;}
