@@ -987,7 +987,16 @@ function closeRecoveryEmail(){var m=document.getElementById("recoveryModal");if(
       코드 때문에 사이트 전체가 잘못된 업종으로 분류됐다(2026-08-10 틱톡 광고 거부).
       그래서 게시판 이름·안내문·인증 UI를 통째로 별도 파일로 뺐고, 필요할 때만 받아온다.
    ⚠️ 옮긴 것은 위치뿐이다. 합격 판정은 여전히 서버(/api/auth/adult-verify)가 내린다. */
-function isAdultVerified(){return !!(AUTH.profile&&AUTH.profile.adult_verified);}
+/* 성인 인증은 법(청소년보호법 시행령 제17조 기반 가이드라인)상 **연 1회** 재확인해야 한다.
+   그래서 불리언만 보면 안 되고 인증 시각이 1년 안인지도 본다.
+   ⚠️ 진짜 강제는 DB의 is_adult_verified()(RLS)가 한다 — 여기는 만료된 사용자에게
+      게이트를 다시 띄워 주는 역할이다. 둘의 기준(1년)이 어긋나면 화면만 열리고
+      글은 안 보이는 어정쩡한 상태가 되니 같이 고칠 것. */
+function isAdultVerified(){
+  var p=AUTH.profile;
+  if(!p||!p.adult_verified||!p.adult_verified_at)return false;
+  return (Date.now()-new Date(p.adult_verified_at).getTime())<365*24*3600*1000;
+}
 
 // palo.js가 배달된 버전을 그대로 따라가서 두 파일의 캐시가 어긋나지 않게 한다
 var _APP_V=(function(){
