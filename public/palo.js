@@ -4501,17 +4501,46 @@ function cmRenderRegisterScreen(){
       '<div class="cm-reg-label">신청 가능 수 <span class="cm-reg-sub">몇 명까지 받을지</span></div>'+
       '<input class="cm-reg-input" id="cmRegSlots" type="number" placeholder="예: 8" oninput="cmCheckReg()" value="'+esc(cmReg.slots)+'">'+
       '<div class="cm-reg-label">커미션 설명 <span class="cm-reg-req">*</span></div>'+
-      '<div class="cm-reg-toolbar">'+
+      /* 설명란 서식 도구.
+         ⚠️ 글쓰기에 있는 **투표·링크·파일은 일부러 넣지 않았다** — 커미션 설명은 안내문이지
+            게시글이 아니고, 그 셋은 각각 투표 저장·외부 링크 검사·업로드 경로가 딸려 온다.
+         ⚠️ 모든 버튼이 onmousedown에서 preventDefault를 한다. 안 그러면 버튼을 누르는 순간
+            편집기에서 포커스가 빠져나가 선택 영역이 사라진다(=서식이 아무 데도 안 걸린다). */
+      '<div class="cm-reg-toolbar" id="cmDescRowMain">'+
         '<button type="button" title="굵게" onmousedown="cmDescFmt(event,\'bold\')"><span style="font-weight:900">B</span></button>'+
+        '<button type="button" title="기울임" onmousedown="cmDescFmt(event,\'italic\')"><span style="font-style:italic;font-family:serif">I</span></button>'+
+        '<button type="button" title="밑줄" onmousedown="cmDescFmt(event,\'underline\')"><span style="text-decoration:underline">U</span></button>'+
+        '<button type="button" title="취소선" onmousedown="cmDescFmt(event,\'strikeThrough\')"><span style="text-decoration:line-through">S</span></button>'+
         '<span class="cm-reg-tb-div"></span>'+
-        '<div class="cm-reg-sizegroup">'+
-          '<button type="button" onmousedown="event.preventDefault();cmDescSetSize(12)">작게</button>'+
-          '<button type="button" onmousedown="event.preventDefault();cmDescSetSize(14.5)">보통</button>'+
-          '<button type="button" onmousedown="event.preventDefault();cmDescSetSize(18)">크게</button>'+
-          '<button type="button" onmousedown="event.preventDefault();cmDescSetSize(22)">아주 크게</button>'+
-        '</div>'+
+        '<button type="button" class="cm-tb-more" onmousedown="cmDescSaveSelection();event.preventDefault()" onclick="cmDescView(\'color\')">색 <i>›</i></button>'+
+        '<button type="button" class="cm-tb-more" onmousedown="cmDescSaveSelection();event.preventDefault()" onclick="cmDescView(\'font\')">글꼴 <i>›</i></button>'+
+        '<button type="button" class="cm-tb-more" onmousedown="cmDescSaveSelection();event.preventDefault()" onclick="cmDescView(\'size\')">크기 <i>›</i></button>'+
         '<span class="cm-reg-tb-div"></span>'+
+        '<button type="button" title="목록" onmousedown="cmDescFmt(event,\'insertUnorderedList\')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>'+
         '<button type="button" title="이미지" onmousedown="cmDescPickImage(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 3 3-2 4 4"/></svg></button>'+
+      '</div>'+
+      '<div class="cm-reg-toolbar cm-tb-sub" id="cmDescRowColor" hidden>'+
+        '<button type="button" class="cm-tb-back" onmousedown="event.preventDefault()" onclick="cmDescView(\'main\')" aria-label="뒤로">‹</button>'+
+        CM_DESC_COLORS.map(function(c){
+          return '<button type="button" class="cm-tb-sw" title="글자색" onmousedown="event.preventDefault();cmDescSetColor(\''+c+'\')" style="background:'+c+'"></button>';
+        }).join('')+
+        '<span class="cm-reg-tb-div"></span>'+
+        CM_DESC_HILITES.map(function(c){
+          return '<button type="button" class="cm-tb-sw cm-tb-hl" title="형광펜" onmousedown="event.preventDefault();cmDescSetHilite(\''+c+'\')" style="background:'+c+'"></button>';
+        }).join('')+
+        '<button type="button" class="cm-tb-sw cm-tb-hl cm-tb-none" title="형광펜 지우기" onmousedown="event.preventDefault();cmDescSetHilite(\'transparent\')">✕</button>'+
+      '</div>'+
+      '<div class="cm-reg-toolbar cm-tb-sub" id="cmDescRowFont" hidden>'+
+        '<button type="button" class="cm-tb-back" onmousedown="event.preventDefault()" onclick="cmDescView(\'main\')" aria-label="뒤로">‹</button>'+
+        CM_DESC_FONTS.map(function(f){
+          return '<button type="button" onmousedown="event.preventDefault();cmDescSetFont(&quot;'+f[1]+'&quot;)" style="font-family:'+f[1]+'">'+f[0]+'</button>';
+        }).join('')+
+      '</div>'+
+      '<div class="cm-reg-toolbar cm-tb-sub" id="cmDescRowSize" hidden>'+
+        '<button type="button" class="cm-tb-back" onmousedown="event.preventDefault()" onclick="cmDescView(\'main\')" aria-label="뒤로">‹</button>'+
+        CM_DESC_SIZES.map(function(s){
+          return '<button type="button" onmousedown="event.preventDefault();cmDescSetSize('+s[1]+')" style="font-size:'+Math.min(s[1],20)+'px">'+s[0]+'</button>';
+        }).join('')+
       '</div>'+
       '<input type="file" id="cmRegDescFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" class="hidden" onchange="cmDescOnFile(event)">'+
       '<div class="cm-reg-editor" id="cmRegDescEditor" contenteditable="true" data-ph="그림체, 작업 범위(두상/흉상/반신), 추가금 안내 등을 자유롭게 적어주세요." oninput="cmCheckReg()">'+(cmReg.descHtml||(cmReg.desc?esc(cmReg.desc).replace(/\n/g,"<br>"):''))+'</div>'+
@@ -4612,7 +4641,22 @@ function cmDelSampleImg(i){
   cmRenderRegImgs();
   cmCheckReg();
 }
-/* ---- 커미션 설명란 서식 툴바(굵게/글자크기/이미지) ---- */
+/* ---- 커미션 설명란 서식 툴바 ----
+   ⚠️ 글꼴 목록은 글쓰기(body-html.js의 edFmtFont)와 **같은 목록을 쓴다.** 한쪽만 늘리면
+      "글쓰기에는 있는 글꼴이 커미션엔 없다"가 되므로 바꿀 때 두 곳을 같이 볼 것. */
+var CM_DESC_FONTS=[
+  ["기본","inherit"],
+  ["나눔고딕","'Nanum Gothic', sans-serif"],
+  ["나눔명조","'Nanum Myeongjo', serif"],
+  ["나눔손글씨","'Nanum Pen Script', cursive"],
+  ["고운돋움","'Gowun Dodum', sans-serif"],
+  ["주아","'Jua', sans-serif"],
+  ["도현","'Do Hyeon', sans-serif"],
+  ["검은고딕","'Black Han Sans', sans-serif"]
+];
+var CM_DESC_SIZES=[["아주 작게",13],["작게",15],["보통",17],["크게",20],["더 크게",24],["제목만큼",30]];
+var CM_DESC_COLORS=["#3a2c36","#d1608f","#bf400c","#c9a227","#3f8f4f","#2f6fb0","#7a5cc4","#8a8a8a"];
+var CM_DESC_HILITES=["#fbe9c8","#ffd9e4","#d9f0dc","#d9e8fb","#ece0fa"];
 function cmDescFmt(e,cmd){
   e.preventDefault();
   document.getElementById('cmRegDescEditor').focus();
@@ -4636,16 +4680,54 @@ function cmDescRestoreSelection(){
   if(cmDescSavedRange)sel.addRange(cmDescSavedRange);
   else{var r=document.createRange();r.selectNodeContents(el);r.collapse(false);sel.addRange(r);}
 }
-function cmDescSetSize(px){
-  document.getElementById('cmRegDescEditor').focus();
-  document.execCommand('fontSize',false,'7');
-  document.querySelectorAll('#cmRegDescEditor font[size="7"]').forEach(function(f){
-    var span=document.createElement('span');
-    span.style.fontSize=px+'px';
-    while(f.firstChild)span.appendChild(f.firstChild);
-    f.parentNode.replaceChild(span,f);
-  });
+/* 선택 영역(또는 커서 자리)에 style을 입힌다 — 글쓰기의 edApplyInline과 같은 방식.
+   ⚠️ **execCommand를 쓰지 않는다.** 폐기 예정인 데다 `<font size=7>` 같은 옛 태그를 만들어
+      매번 span으로 바꿔 심어야 했고(예전 cmDescSetSize가 그랬다), 창에 포커스가 없으면
+      조용히 아무 일도 하지 않는다. Range API로 직접 감싸면 결과가 예측 가능하다.
+   ⚠️ 아무것도 선택하지 않았으면 빈 span에 커서를 둔다 — '미리 골라 두고 이어서 입력'이 된다. */
+function cmDescApplyInline(setStyle){
+  var ed=document.getElementById('cmRegDescEditor');if(!ed)return;
+  cmDescRestoreSelection();
+  var sel=window.getSelection();if(!sel||!sel.rangeCount)return;
+  var r=sel.getRangeAt(0);
+  if(!ed.contains(r.commonAncestorContainer))return;
+  var span=document.createElement('span');
+  setStyle(span);
+  if(sel.isCollapsed){
+    span.appendChild(document.createTextNode("​")); // 폭 없는 글자 — 커서가 머무를 자리
+    r.insertNode(span);
+    var r2=document.createRange();r2.setStart(span.firstChild,1);r2.collapse(true);
+    sel.removeAllRanges();sel.addRange(r2);
+  }else{
+    try{
+      r.surroundContents(span);          // 한 요소 안의 선택이면 이걸로 깔끔하게
+    }catch(e){
+      span.appendChild(r.extractContents()); // 여러 요소에 걸쳐 있으면 떼어내 감싼다
+      r.insertNode(span);
+    }
+    var r3=document.createRange();r3.selectNodeContents(span);
+    sel.removeAllRanges();sel.addRange(r3);
+  }
+  cmDescSaveSelection();
   cmCheckReg();
+}
+function cmDescSetSize(px){ cmDescApplyInline(function(el){el.style.fontSize=px+'px';}); }
+function cmDescSetColor(c){ cmDescApplyInline(function(el){el.style.color=c;}); }
+/* ⚠️ `background` 단축 속성을 쓰면 **저장할 때 통째로 지워진다** — DOMPurify가 style 안의
+      CSS를 자체 허용목록으로 거르는데 단축형은 거기 없다(실측: 형광펜만 사라졌다).
+      `background-color`로 적어야 살아남는다. 글쓰기 쪽 hiliteColor도 같은 속성을 만든다. */
+function cmDescSetHilite(c){ cmDescApplyInline(function(el){el.style.backgroundColor=c;}); }
+function cmDescSetFont(f){
+  if(typeof edEnsureWebFonts==='function')edEnsureWebFonts(); // 쓸 때만 웹폰트를 받아온다
+  cmDescApplyInline(function(el){el.style.fontFamily=f;});
+}
+/* 도구 줄 전환(기본 ↔ 글꼴 ↔ 크기 ↔ 색). 창을 띄우지 않고 같은 자리를 갈아 끼운다 —
+   모바일에서 창이 뜨면 자판이 내려가 커서 자리를 잃는다. */
+function cmDescView(which){
+  ['Main','Font','Size','Color'].forEach(function(k){
+    var el=document.getElementById('cmDescRow'+k);
+    if(el)el.hidden=(k.toLowerCase()!==which);
+  });
 }
 function cmDescPickImage(e){
   e.preventDefault();

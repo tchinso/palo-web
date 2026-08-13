@@ -2232,6 +2232,22 @@
   .cm-reg-sizegroup{display:flex;gap:4px;flex-wrap:wrap}
   .cm-reg-sizegroup button{width:auto;height:34px;padding:0 10px;border:1.5px solid var(--line-2);border-radius:9px;background:var(--surface);color:var(--ink-2);font-size:12px;font-family:inherit;cursor:pointer;transition:.12s;white-space:nowrap}
   .cm-reg-sizegroup button:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+  /* 서식 도구의 하위 줄(색·글꼴·크기). 창을 띄우지 않고 같은 자리를 갈아 끼운다 —
+     모바일에서 창이 뜨면 자판이 내려가 커서 자리를 잃는다.
+     ⚠️ 목록이 길어 넘칠 수 있으므로 **가로 스크롤**로 둔다(줄바꿈하면 편집기가 아래로 밀린다). */
+  .cm-tb-sub{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .cm-tb-sub::-webkit-scrollbar{display:none}
+  .cm-tb-sub button{flex-shrink:0}
+  .cm-tb-sub>button:not(.cm-tb-sw):not(.cm-tb-back){width:auto;padding:0 10px;font-family:inherit;font-size:12.5px}
+  .cm-tb-back{font-size:17px!important;color:var(--muted)!important}
+  .cm-tb-more{width:auto!important;padding:0 9px!important;font-size:12.5px!important;font-family:inherit;gap:3px}
+  .cm-tb-more i{font-style:normal;font-size:11px;opacity:.6}
+  /* 색 견본 — 글자색은 동그라미, 형광펜은 네모로 구분한다(같은 모양이면 무엇을 누르는지 헷갈린다) */
+  .cm-tb-sw{width:26px!important;height:26px!important;border-radius:50%!important;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+  .cm-tb-sw:hover{transform:scale(1.12)}
+  .cm-tb-hl{border-radius:7px!important}
+  .cm-tb-none{background:var(--surface)!important;color:var(--muted)!important;font-size:12px!important}
   .cm-reg-editor{width:100%;min-height:140px;border:1.5px solid var(--line);border-radius:0 0 12px 12px;padding:14px;font-size:14.5px;line-height:1.7;color:var(--ink);background:var(--surface);outline:none;word-break:break-word}
   .cm-reg-editor:focus{border-color:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
   .cm-reg-editor img{max-width:100%;border-radius:8px;display:block;margin:8px 0}
