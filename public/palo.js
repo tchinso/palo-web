@@ -4452,8 +4452,14 @@ function cmRenderRegisterScreen(){
       '<div class="cm-reg-label">🔞 성인 커미션 <span class="cm-reg-sub">19세 미만이 보면 안 되는 내용이면 표시해주세요</span></div>'+
       '<div class="cm-reg-toggle"><div class="cm-reg-tg'+(cmReg.isAdult?' sel':'')+'" id="cmTgAdultOn" onclick="cmSetAdult(true)">🔞 성인</div>'+
         '<div class="cm-reg-tg'+(!cmReg.isAdult?' sel':'')+'" id="cmTgAdultOff" onclick="cmSetAdult(false)">전체 이용가</div></div>'+
+      /* ⚠️ 이 문구는 **실제 동작과 반드시 일치해야 한다.** 1단계(성인 커미션을 통째로 숨김)
+            때 쓴 "목록에 나오지 않아요"를 2단계(가림막 카드를 보여줌)로 바꾸면서 안 고쳐,
+            작가에게 사실과 다른 약속을 하고 있었다(2026-08-13 사용자 지적).
+            동작을 바꾸면 이 줄도 같이 볼 것. */
       '<div class="cm-reg-note" id="cmRegAdultNote" style="'+(cmReg.isAdult?'':'display:none')+'">'+
-        '본인확인을 마친 만 19세 이상에게만 보여요. 목록·검색·상세 어디에도 나오지 않아요.</div>'+
+        '제목·설명·이미지는 <b>본인확인을 마친 만 19세 이상</b>에게만 보여요. '+
+        '인증하지 않은 사람에게는 내용이 가려진 카드로만 보이고, 눌러도 인증 안내만 떠요. '+
+        '검색·태그 결과에는 나오지 않아요.</div>'+
       '<div class="cm-reg-label">작업 기간 <span class="cm-reg-sub">직접 입력</span></div>'+
       '<input class="cm-reg-input" id="cmRegPeriod" placeholder="예: 3~7일 이내" oninput="cmCheckReg()" value="'+esc(cmReg.period)+'">'+
       '<div class="cm-reg-label">신청 가능 수 <span class="cm-reg-sub">몇 명까지 받을지</span></div>'+
