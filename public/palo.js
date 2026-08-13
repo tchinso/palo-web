@@ -290,22 +290,45 @@ async function toggleBlock(uid,nick){
 
 /* 프로필의 뮤트·메모 상자. 매번 통째로 다시 그린다(상태가 몇 개 안 돼 그게 더 단순하다). */
 var _noteNick="";   // 지금 보고 있는 프로필의 닉(차단 확인 문구에 쓴다)
-function renderUserNoteBox(uid,nick){
-  var box=document.getElementById("uNoteBox");
+/* 소개 영역 안의 작은 동작 버튼 — 채팅 · 뮤트 · 차단 · 메모.
+   ⚠️ 차단 중에는 뮤트 버튼을 내린다(차단이 뮤트를 포함하므로 둘 다 두면 뜻이 겹친다).
+   ⚠️ 메모는 여기서 열고 닫기만 하고, 실제 입력칸은 아래 #uNoteBox가 맡는다 —
+      소개 안에 입력칸까지 넣으면 자판이 올라올 때 화면이 통째로 밀린다. */
+function renderPfHeroActions(uid,nick){
+  var box=document.getElementById("pfHeroActions");
   if(!box)return;
-  if(nick)_noteNick=nick; nick=_noteNick;
-  if(!AUTH.user){box.innerHTML='<div class="unote-hint">로그인하면 뮤트·메모·차단을 쓸 수 있어요.</div>';return;}
-  var n=noteOf(uid)||{}, muted=!!n.muted, blocked=isBlocked(uid), memo=memoOf(uid);
+  if(!AUTH.user){box.innerHTML='<div class="pfh-act-hint">로그인하면 채팅·뮤트·차단·메모를 쓸 수 있어요.</div>';return;}
+  var muted=!!(noteOf(uid)||{}).muted, blocked=isBlocked(uid), memo=memoOf(uid);
   var nickArg=nick?(",'"+esc(String(nick).replace(/'/g,"")) +"'"):"";
   box.innerHTML=
-    '<div class="unote-row">'+
-      (blocked?'':'<button class="unote-mute'+(muted?" on":"")+'" onclick="toggleMute(\''+esc(uid)+'\')">'+
-        (muted?"🔕 뮤트 해제":"🔕 뮤트")+'</button>')+
-      '<button class="unote-block'+(blocked?" on":"")+'" onclick="toggleBlock(\''+esc(uid)+'\''+nickArg+')">'+
-        (blocked?"🚫 차단 해제":"🚫 차단")+'</button>'+
-      '<span class="unote-hint">'+(blocked?"글·댓글이 가려지고, 댓글·채팅을 걸 수 없어요"
-        :(muted?"이 사람의 글·댓글이 접혀서 보여요":"글·댓글을 접어서 가릴 수 있어요"))+'</span>'+
-    '</div>'+
+    '<button class="pfh-act" onclick="openChat(\''+esc(uid)+'\')" title="1:1 채팅">💬 채팅</button>'+
+    (blocked?'':'<button class="pfh-act'+(muted?" on":"")+'" onclick="toggleMute(\''+esc(uid)+'\')" title="글·댓글을 접어서 가려요">'+
+      (muted?"🔕 해제":"🔕 뮤트")+'</button>')+
+    '<button class="pfh-act'+(blocked?" on danger":"")+'" onclick="toggleBlock(\''+esc(uid)+'\''+nickArg+')" title="'+
+      (blocked?"차단을 풀어요":"글·댓글이 가려지고 댓글·채팅을 걸 수 없어요")+'">'+
+      (blocked?"🚫 차단 해제":"🚫 차단")+'</button>'+
+    '<button class="pfh-act'+(memo?" on":"")+'" onclick="pfToggleMemo()" title="나만 보는 메모">📝 메모'+(memo?" ✓":"")+'</button>';
+}
+function pfToggleMemo(){
+  var b=document.getElementById("uNoteBox");
+  if(!b)return;
+  if(b.hasAttribute("hidden")){
+    b.removeAttribute("hidden");
+    var t=document.getElementById("uNoteMemo");
+    if(t){t.focus();try{t.setSelectionRange(t.value.length,t.value.length);}catch(e){}}
+  }else b.setAttribute("hidden","");
+}
+/* 메모 입력칸. 뮤트·차단 버튼은 위 소개 영역으로 옮겼으므로 여기엔 메모만 남는다.
+   ⚠️ 호출부(토글 뒤 다시 그리기 등)가 여러 곳이라, 여기서 소개 영역 버튼도 같이 갱신한다 —
+      한쪽만 다시 그리면 '차단했는데 위 버튼은 그대로'인 상태가 된다. */
+function renderUserNoteBox(uid,nick){
+  if(nick)_noteNick=nick; nick=_noteNick;
+  renderPfHeroActions(uid,nick);
+  var box=document.getElementById("uNoteBox");
+  if(!box)return;
+  if(!AUTH.user){box.innerHTML='';box.setAttribute("hidden","");return;}
+  var memo=memoOf(uid);
+  box.innerHTML=
     '<div class="unote-memo">'+
       '<textarea id="uNoteMemo" maxlength="60" rows="2" placeholder="이 사람에 대한 메모 (나만 봐요)">'+esc(memo)+'</textarea>'+
       '<div class="unote-foot"><span class="unote-hint">닉네임 옆에 작게 붙어요 · 60자까지</span>'+
@@ -363,7 +386,10 @@ async function pfBookmarkCount(userId){
   var cntRes=await window.supabase.from('commission_bookmarks').select('*',{count:'exact',head:true}).in('commission_id',ids);
   return cntRes.count||0;
 }
-function pfHeroHTML(p,isSelf,reviewStats,bookmarkCount){
+/* actionsHTML: 소개 영역 안에 끼워 넣는 작은 동작 버튼 줄(남의 프로필에서만).
+   ⚠️ 예전엔 소개 **아래에** 전체 폭 '채팅하기' 버튼과 큼직한 뮤트·차단·메모 상자가 따로 있어
+      첫 화면을 크게 잡아먹었다. 소개 안 작은 버튼으로 모은다(2026-08-13 요청). */
+function pfHeroHTML(p,isSelf,reviewStats,bookmarkCount,actionsHTML){
   var coverStyle=p.cover_url?('background-image:url(\''+cmQ(p.cover_url)+'\');background-size:cover;background-position:center'):'';
   var editCoverBtn=isSelf?'<button type="button" class="pfh-cover-edit" onclick="document.getElementById(\'coverFile\').click()" title="커버 이미지 변경" aria-label="커버 이미지 변경">🖼</button>':'';
   var editAvaBtn=isSelf?'<button type="button" class="pfh-ava-edit" onclick="document.getElementById(\'avatarFile\').click()" title="프로필 이미지 변경" aria-label="프로필 이미지 변경">📷</button>':'';
@@ -384,6 +410,7 @@ function pfHeroHTML(p,isSelf,reviewStats,bookmarkCount){
     (bio?'<div class="pfh-bio">'+bio+'</div>':'')+
     (links?'<div class="pfh-links">'+links+'</div>':'')+
     editLinksBtn+
+    (actionsHTML||'')+
     '<div class="pfh-stats">'+
       '<div class="pfh-stat"><div class="n">'+reviewStats.count+'</div><div class="l">후기</div></div>'+
       '<div class="pfh-stat">'+pctHTML+'<div class="l">만족율</div></div>'+
@@ -5424,10 +5451,12 @@ function goHome(){
   var onHomeFeed=(!userLeftHome&&state.board==="all"&&!state.query&&!state.tag);
   resetScreens();userLeftHome=false;
   selectBoard("all",onHomeFeed);
-  // 홈 탭을 누르는 건 "지금 새로 보여줘"라는 명시적 요청이다.
-  // force로 넘겨서 8초 쓰로틀을 건너뛰고, 새 글이 없어도 화면을 다시 그린다
-  // (그래야 조회수·시간 표시 같은 것도 최신으로 바뀐다).
-  refreshFeed(true);
+  /* 이미 홈 피드를 보고 있을 때 홈 탭을 누르는 건 "지금 새로 보여줘"라는 명시적 요청이다.
+     그때만 force — 8초 쓰로틀을 건너뛰고 새 글이 없어도 다시 그려서 눈에 보이게 한다.
+     ⚠️ 다른 탭에서 돌아온 경우에는 force를 주면 안 된다. 바로 위 selectBoard가 이미 한 번
+        그렸는데 force면 내용이 같아도 또 그려서 **두 번 새로고침되는 것처럼 보인다**
+        (2026-08-13 신고). force 없이 두면 내용이 실제로 바뀐 때만 한 번 더 그린다. */
+  refreshFeed(onHomeFeed);
 }
 // 홈 피드를 DB에서 다시 불러와 갱신. goHome이 이미 캐시로 한 번 그렸으므로, 재조회 후에는
 // 내용이 실제로 바뀐 경우에만 딱 한 번 더 그림(안 바뀌면 다시 안 그려서 껌뻑임 없음).
@@ -7770,10 +7799,11 @@ async function openUserProfile(userId,keepStack){
   var h='<div class="profile">';
   h+=pfHeroHTML({nickname:profile.nickname,level:profile.level,avatar_url:profile.avatar_url,
     cover_url:profile.cover_url,bio:profile.bio,sns_twitter:profile.sns_twitter,sns_instagram:profile.sns_instagram,sns_email:profile.sns_email},
-    false,theirReviewStats,theirBookmarkCount);
-  if(canChat)h+='<button class="pf-edit" style="margin-top:14px;width:100%" onclick="openChat(\''+userId+'\')">💬 채팅하기</button>';
-  // 뮤트·메모는 남의 프로필에서만(자기 자신에겐 의미가 없다). 내용은 renderUserNoteBox가 채운다.
-  if(canChat)h+='<div class="unote" id="uNoteBox"></div>';
+    false,theirReviewStats,theirBookmarkCount,
+    // 채팅·뮤트·차단·메모는 남의 프로필에서만(자기 자신에겐 의미가 없다). 내용은 renderPfHeroActions가 채운다.
+    canChat?'<div class="pfh-acts" id="pfHeroActions"></div>':'');
+  // 메모 입력칸은 접어 둔다 — 소개 영역의 '📝 메모'를 누르면 펼쳐진다
+  if(canChat)h+='<div class="unote" id="uNoteBox" hidden></div>';
   h+=pfCommissionListHTML(artistCommissions);
   h+=pinnedPostCardHTML(profile.pinned_post_id);
   h+=pfReviewListHTML(theirReviewList,userId);
