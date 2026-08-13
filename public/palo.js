@@ -3083,7 +3083,10 @@ var CM_BAD_REASONS=['퀄리티 불만족','마감 기한 미준수','소통이 �
 var CM_DEFAULT_POLICY_HTML='commi는 결제를 중개하지 않고 소통 공간만 제공하는 서비스로, 거래의 당사자가 아니에요.<br>작업 범위·기한·환불 등은 작가님과 신청자님이 직접 정하며, 거래 중 사기·분쟁 등 어떤 문제가 생겨도 commi는 대금을 보증·환불하거나 법적 책임을 지지 않아요.<br>미성년자 거래는 보호자 동의가 없으면 취소될 수 있어요.';
 var cmTopTags=[]; // cmLoadCommissions()가 실제 사용 빈도순으로 채움
 var cmBookmarkIds=null; // 로그인 후 Set으로 채워짐(북마크한 커미션 id들)
-var cmState={activeTag:null,wrType:null,wrCtype:null,query:'',sort:'home'};
+/* showAdult: 인증을 마친 사람이 성인 커미션을 목록에 띄울지 말지. 기본은 **끔** —
+   인증했다고 해서 늘 보고 싶은 건 아니고, 옆 사람과 화면을 같이 볼 수도 있다. */
+var cmState={activeTag:null,wrType:null,wrCtype:null,query:'',sort:'home',showAdult:false};
+try{cmState.showAdult=localStorage.getItem('cmShowAdult')==='1';}catch(e){}
 var cmReg={images:[],tags:[],status:'open',editingId:null};
 var cmDetailCtx={from:'list',idx:0};
 var cmPreviewObj=null;
@@ -3193,7 +3196,32 @@ async function cmLoadCommissions(){
   await cmLoadBookmarkCounts();
   cmTopTags=cmComputeTopTags();
   await cmLoadRecScores();
+  await cmAppendAdultStubs();
   cmDataLoaded=true;
+}
+/* 미인증자에게 보여줄 '가려진 카드'.
+   ⚠️ 서버가 내용을 안 준다(제목·설명·이미지·작가 전부). 그러니 여기서 흐리게 그리는 건
+      **모양이 아니라 사실**이다 — 개발자도구를 열어도 볼 것이 없다.
+      반대로 말하면 CSS blur만 걸고 진짜 내용을 내려받는 방식은 절대 쓰면 안 된다.
+   ⚠️ 태그·검색으로는 걸러낼 수 없다(내용을 모르니까). 그래서 cmFilteredIdx가
+      검색어나 태그가 걸려 있을 때는 이 카드들을 빼 버린다 — 안 그러면 "검색했는데
+      상관없는 가림막이 계속 나오는" 꼴이 된다.
+   ⚠️ 정렬 함수들이 여러 칸을 읽으므로 빠짐없이 채워 둔다(하나만 없어도 그 정렬에서 터진다). */
+async function cmAppendAdultStubs(){
+  if(isAdultVerified())return;                 // 인증자는 진짜 행이 그대로 내려온다
+  if(!window.supabase)return;
+  var res;
+  try{res=await window.supabase.rpc('adult_commission_stubs');}catch(e){return;}
+  if(!res||res.error||!res.data||!res.data.length)return; // SQL 실행 전이면 조용히 넘어간다
+  var stubs=res.data.map(function(r){
+    return {id:r.id,authorId:null,artist:'',title:'',price:0,status:'open',tags:[],
+      period:'',slots:'',desc:'',descHtml:null,usage:'',policy:'',images:[],
+      likes:0,views:0,createdAt:r.created_at,bumpedAt:r.bumped_at||r.created_at,form:[],
+      reviewEventOn:false,reviewEventBenefit:'',reviewCount:0,satisfaction:0,
+      bookmarkCount:0,adLocked:false,recScore:0,
+      isAdult:true,locked:true};                // locked = 내용 없이 가림막만 그린다
+  });
+  cmData=cmData.concat(stubs);
 }
 // 커미션별 전체 북마크 수(서버 집계). commission_bookmarks는 '본인 것만' RLS라 클라가 못 세므로
 // security definer RPC(개수만 반환)로 받아 각 커미션 d.bookmarkCount에 채움.
@@ -3495,6 +3523,18 @@ var CM_IC_VIEW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 var CM_IC_REVIEW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5a8.4 8.4 0 0 1-.9-3.8 8.4 8.4 0 0 1 8.4-9 8.4 8.4 0 0 1 8.6 8.3z"/></svg>';
 var CM_IC_BOOKMARK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>';
 function cmCardHTML(d,idx){
+  /* 가림막 카드 — 미인증자에게만 나온다.
+     ⚠️ 진짜 이미지를 깔고 CSS로 흐리게 하는 게 아니다. 애초에 이미지 주소를 받아 오지
+        않았고(서버가 안 준다), 여기서 그리는 건 무늬뿐이다. 그래야 개발자도구를 열어도
+        볼 것이 없다. 흐림 효과는 "가려져 있다"를 알리는 표시일 뿐 보호 장치가 아니다. */
+  if(d.locked){
+    return '<div class="cm-card cm-locked" onclick="cmOpenLocked()">'+
+      '<div class="cm-thumb cm-lock-thumb"><div class="cm-lock-blur"></div>'+
+        '<div class="cm-lock-ic">🔞</div></div>'+
+      '<div class="cm-c-artist cm-lock-line"></div>'+
+      '<div class="cm-c-title cm-lock-t">성인 인증이 필요해요</div>'+
+      '<div class="cm-c-meta cm-lock-meta"><span>인증하면 볼 수 있어요</span></div></div>';
+  }
   var thumb=(d.images&&d.images[0])?("background-image:url('"+cmQ(d.images[0])+"');background-size:cover;background-position:center"):('background:'+cmGrads[idx%cmGrads.length]);
   var status=d.status==='open'?'<div class="cm-status open">오픈중</div>':'';
   var revBadge=d.reviewEventOn?'<div class="cm-revevent-badge">🎁 리뷰 이벤트</div>':'';
@@ -3518,6 +3558,16 @@ function cmFilteredIdx(){
   var q=(cmState.query||'').trim().toLowerCase();
   // 접수중(open)만 노출 — 마감 커미션은 홈·신규·인기·검색·추천 어디에도 안 보이게(작가는 '내 커미션'에서 관리).
   var idxs=cmData.map(function(d,i){return i;}).filter(function(i){return cmData[i].status==='open';});
+  /* 성인 커미션 노출 규칙
+     · 인증한 사람: 탭으로 켜고 끈다(기본 꺼짐)
+     · 미인증자: 내용 없는 가림막 카드만 보인다. 단 **검색어·태그가 걸려 있으면 뺀다** —
+       내용을 모르니 걸러낼 수가 없어서, 그냥 두면 무엇을 검색하든 따라 나온다. */
+  idxs=idxs.filter(function(i){
+    var d=cmData[i];
+    if(!d.isAdult)return true;
+    if(d.locked)return !(cmState.query||'').trim()&&!cmState.activeTag;
+    return !!cmState.showAdult;
+  });
   if(cmState.activeTag){
     idxs=idxs.filter(function(i){return (cmData[i].tags||[]).indexOf(cmState.activeTag)>=0;});
   }
@@ -3564,10 +3614,28 @@ function cmSetSort(key){
   if(gridEl)gridEl.innerHTML=cmGridHTML();
 }
 function cmTabsHTML(){
-  return '<div class="cm-tab'+(cmState.sort==='home'?' on':'')+'" onclick="cmSetSort(\'home\')">홈</div>'+
+  var h='<div class="cm-tab'+(cmState.sort==='home'?' on':'')+'" onclick="cmSetSort(\'home\')">홈</div>'+
     '<div class="cm-tab'+(cmState.sort==='recommend'?' on':'')+'" onclick="cmSetSort(\'recommend\')">추천</div>'+
     '<div class="cm-tab'+(cmState.sort==='new'?' on':'')+'" onclick="cmSetSort(\'new\')">신규</div>'+
     '<div class="cm-tab'+(cmState.sort==='hot'?' on':'')+'" onclick="cmSetSort(\'hot\')">인기</div>';
+  /* 성인 커미션 켜고 끄기 — **인증을 마친 사람에게만** 나온다.
+     ⚠️ 정렬 탭(홈·추천·신규·인기)과 성격이 다르다(정렬이 아니라 필터). 그래서 같은 줄에
+        두되 생김새를 달리해, 누르면 정렬이 바뀌는 줄 알고 누르는 일이 없게 한다. */
+  if(isAdultVerified()){
+    h+='<div class="cm-tab-adult'+(cmState.showAdult?' on':'')+'" onclick="cmToggleShowAdult()"'+
+       ' title="성인 커미션 보기">🔞 '+(cmState.showAdult?'보는 중':'숨김')+'</div>';
+  }
+  return h;
+}
+function cmToggleShowAdult(){
+  if(!isAdultVerified()){cmOpenLocked();return;}
+  cmState.showAdult=!cmState.showAdult;
+  try{localStorage.setItem('cmShowAdult',cmState.showAdult?'1':'0');}catch(e){}
+  var tabsEl=document.querySelector('.cm-tabs');
+  if(tabsEl)tabsEl.innerHTML=cmTabsHTML();
+  var gridEl=document.getElementById('cmGrid');
+  if(gridEl)gridEl.innerHTML=cmGridHTML();
+  toast(cmState.showAdult?'성인 커미션을 함께 봐요':'성인 커미션을 숨겼어요','🔞');
 }
 function cmSearch(v){
   cmState.query=v;
@@ -3921,7 +3989,20 @@ function cmDetailHTML(d,idx){
       '<div class="cm-apply" onclick="'+((d.authorId&&d.id!=null)?('cmApply(\''+cmQ(d.authorId)+'\','+d.id+',\''+cmQ(title)+'\')'):'cmComingSoon()')+'">신청하기</div></div>'+
   '</div>';
 }
+/* 가림막 카드를 눌렀을 때. 상세로 보내지 않고 인증 안내만 한다
+   (보낼 내용 자체가 없다 — 서버가 안 줬다). */
+function cmOpenLocked(){
+  if(!AUTH.user){
+    toast('로그인 후 성인 인증을 하면 볼 수 있어요','🔒');
+    openLoginModal();
+    return;
+  }
+  toast('성인 인증을 하면 볼 수 있어요','🔞');
+  openAdultGate();
+}
 function cmOpenDetail(idx){
+  var _d=cmData[idx];
+  if(_d&&_d.locked){cmOpenLocked();return;} // 다른 경로로 들어와도 막는다
   track("commission_view");
   enterScreen("cmDetail",cmDetailBack);
   cmDetailCtx={from:'list',idx:idx};
