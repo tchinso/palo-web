@@ -1654,6 +1654,27 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 - **관찰 범위를 `attributes:['class']`까지 넓혔으므로 rAF로 프레임당 1회로 묶었다** — 안 그러면 class가 자주 바뀌는 자리에서 getComputedStyle이 연달아 돈다.
 - **손대지 않은 것**: `themeColor`/`theme_color`가 `#e07aa6`(분홍)로 배경(`#fbf7f8`)과 다르다. 이건 브라우저 주소창·PWA 상태바 색이라 **화면마다 다르지는 않다**(브랜드색 의도로 보임). 바꾸려면 두 곳(`app/layout.js`, `app/manifest.js`)을 함께.
 
+### 🐛 링크로 들어오면 홈이 깜빡 보였다 바뀌던 문제 (2026-08-14, 사용자 신고)
+커미션 링크를 붙여넣어 열면 잠시 홈 목록이 보였다가 커미션 상세로 바뀌었다. **원인이 두 개였다.**
+
+**① 서버가 모든 주소에 홈 마크업을 실어 보냈다.**
+`body-html.js`의 `<main id="main">` 안에 `board-head`("전체 글 / 방금 올라온 이야기부터 / 최신·인기")가 **하드코딩**돼 있었다. `/commission/6`으로 들어와도 서버 HTML에 그대로 들어가, JS가 뜨기 전까지 홈이 보인다.
+- `HOME_HEAD`·`PAGE_SKELETON`을 따로 export하고 `<main>` 안은 `<!--PALO_MAIN-->` 자리표시로 바꿨다(예전 `<!--PALO_FEED-->` 대체).
+- `PaloApp({initialFeed, variant})` — `variant="page"`면 홈 머리말·글 목록을 **아예 안 내보내고** `PAGE_SKELETON`만 넣는다.
+- `variant="page"`를 넘기는 라우트: `/commission`, `/commission/[id]`, `/chat`, `/me`, `/post/[id]`, `/user/[id]`. 홈·게시판은 예전 그대로.
+- **⚠️ 새 화면을 추가하면 그 라우트에서도 `variant="page"`를 넘길 것.** 안 넘기면 그 주소에서 홈이 깜빡인다.
+- `PAGE_SKELETON`은 `.skel-row`(글 목록 모양)를 쓰지 않는다 — 그 모양이면 결국 홈처럼 보인다.
+
+**② 딥링크 화면이 글 목록 로딩을 기다렸다.**
+딥링크 처리가 `loadRealPosts()` 안(조회 10개가 끝난 뒤)에만 있어서, 커미션이 그 뒤에 열렸다.
+- `routeDeepLinkEarly()` 신설 — 커미션·프로필·탭은 자기 데이터를 스스로 불러오므로 글 목록을 기다릴 필요가 없다. `initAuth().then(...)`에서 `loadRealPosts()`보다 **먼저** 부른다.
+- **글 상세(`/post/id`)는 POSTS에서 글을 찾아야 해서 그대로 `loadRealPosts` 쪽에 남는다.**
+- **⚠️ `initAuth()` 다음이어야 한다** — 로그인 상태를 알아야 성인 커미션 판정이 된다.
+- 열리면 `userLeftHome=true`가 되므로 뒤이은 `loadRealPosts`가 홈을 덮어쓰지 않는다(중복 처리도 자동으로 안 일어남).
+- 측정(dev, 글 목록 조회를 3초로 늦춘 상태): 커미션 상세 **6ms**, 글 목록 완료 3011ms → 기다리지 않음 확인.
+
+**검증**: 서버 HTML을 curl로 직접 확인 — `/`는 머리말+피드 있음, `/commission/1`·`/commission`·`/post/75`·`/me`는 `page-skel`만 있고 "방금 올라온 이야기부터" 0건. 클라 쪽은 커미션 상세 정상 렌더·홈 글 21개 정상·탭 이동·홈 복귀 모두 정상.
+
 ### 원본 이미지 뷰어에서 다음 장으로 넘기기 (2026-08-14, 사용자 요청)
 `openImageViewer(url)`이 주소 한 장만 받아 띄우고 끝이라, 커미션 상세에서 사진을 키우면 거기서 넘길 방법이 없었다.
 - **`openImageViewer(url, list, i)`** — 목록과 위치를 함께 받는다. 목록을 안 주면 예전처럼 한 장짜리(채팅 사진 등).

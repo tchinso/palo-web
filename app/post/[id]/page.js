@@ -31,5 +31,5 @@ export async function generateMetadata({ params }) {
 }
 
 export default function PostPage() {
-  return <PaloApp />;
+  return <PaloApp variant="page" />;
 }

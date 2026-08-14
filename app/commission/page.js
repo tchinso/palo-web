@@ -14,5 +14,5 @@ export const metadata = {
 };
 
 export default function CommissionListPage() {
-  return <PaloApp />;
+  return <PaloApp variant="page" />;
 }

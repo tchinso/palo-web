@@ -31,5 +31,5 @@ export async function generateMetadata({ params }) {
 }
 
 export default function CommissionPage() {
-  return <PaloApp />;
+  return <PaloApp variant="page" />;
 }

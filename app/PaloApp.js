@@ -2,7 +2,7 @@
 
 import Script from 'next/script';
 import DOMPurify from 'dompurify';
-import { BODY_HTML, FEED_SKELETON } from './body-html';
+import { BODY_HTML, FEED_SKELETON, HOME_HEAD, PAGE_SKELETON } from './body-html';
 import { supabase } from '../lib/supabaseClient';
 
 if (typeof window !== 'undefined') {
@@ -26,10 +26,19 @@ const SUPABASE_ORIGIN = (() => {
   try { return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin; } catch { return ''; }
 })();
 
-export default function PaloApp({ initialFeed }) {
+/* variant
+     'home'(기본) — 홈·게시판. 목록 머리말 + 서버가 그린 글 목록(없으면 스켈레톤).
+     'page'       — 커미션·채팅·내 정보·글 상세·프로필. 홈 마크업을 아예 내보내지 않는다.
+   ⚠️ 예전에는 주소와 상관없이 늘 홈 머리말과 글 목록을 실어 보냈다. 그래서 커미션 링크를
+      열면 홈이 잠깐 보였다가 커미션으로 바뀌었다(2026-08-14 사용자 신고).
+      새 화면을 추가하면 그 라우트에서도 variant="page"를 넘길 것. */
+export default function PaloApp({ initialFeed, variant }) {
   // 서버에서 그린 글 목록을 자리표시 위치에 끼워 넣는다.
   // 못 그렸으면(설정 누락·조회 실패) 예전처럼 스켈레톤을 보여준다 — 빈 화면이 되지는 않는다.
-  const appHtml = BODY_HTML.replace('<!--PALO_FEED-->', initialFeed || FEED_SKELETON) + APP_TAIL;
+  const mainHtml = variant === 'page'
+    ? PAGE_SKELETON
+    : HOME_HEAD + (initialFeed || FEED_SKELETON);
+  const appHtml = BODY_HTML.replace('<!--PALO_MAIN-->', mainHtml) + APP_TAIL;
   return (
     <>
       {/* 화면을 그리는 건 palo.js 하나뿐인데, React 청크 192KB와 대역폭을 나눠 쓰느라

@@ -8,5 +8,5 @@ export const metadata = {
 };
 
 export default function ChatPage() {
-  return <PaloApp />;
+  return <PaloApp variant="page" />;
 }

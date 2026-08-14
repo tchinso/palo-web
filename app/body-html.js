@@ -1,3 +1,14 @@
+/* 홈(전체 글·게시판)에서만 쓰는 목록 머리말.
+   ⚠️ 예전엔 이게 BODY_HTML 안에 박혀 있어서 **모든 주소에서** 서버 HTML에 실려 나갔다.
+      그래서 커미션 링크로 들어오면 "전체 글 / 방금 올라온 이야기부터"가 먼저 보였다가
+      palo.js가 커미션 상세로 갈아끼우는, 홈이 깜빡하고 지나가는 모양이 됐다
+      (2026-08-14 사용자 신고). 이제 홈 계열 주소에서만 끼워 넣는다. */
+export const HOME_HEAD = `<div class="board-head"><h1 class="serif">전체 글</h1><span class="sub">방금 올라온 이야기부터</span><div class="sortbar"><button class="on" onclick="setSort('new')">최신</button><button class="" onclick="setSort('hot')">인기</button></div></div>`;
+
+/* 홈이 아닌 주소(커미션·채팅·내 정보·글 상세·프로필)의 첫 화면 자리표시.
+   글 목록 모양이 아니라 "무언가를 여는 중"으로만 보이게 한다 — 홈으로 착각할 여지를 없앤다. */
+export const PAGE_SKELETON = `<div class="page-skel"><div class="skel-line t"></div><div class="skel-line m"></div><div class="skel-block"></div></div>`;
+
 // 서버에서 글 목록을 못 그렸을 때 쓰는 자리표시(예전 동작)
 export const FEED_SKELETON = `<div class="list"><div class="skel-row"><div class="skel-main"><div class="skel-line t"></div><div class="skel-line m"></div></div><div class="skel-thumb"></div></div><div class="skel-row"><div class="skel-main"><div class="skel-line t"></div><div class="skel-line m"></div></div><div class="skel-thumb"></div></div><div class="skel-row"><div class="skel-main"><div class="skel-line t"></div><div class="skel-line m"></div></div><div class="skel-thumb"></div></div><div class="skel-row"><div class="skel-main"><div class="skel-line t"></div><div class="skel-line m"></div></div><div class="skel-thumb"></div></div><div class="skel-row"><div class="skel-main"><div class="skel-line t"></div><div class="skel-line m"></div></div><div class="skel-thumb"></div></div></div>`;
 
@@ -44,7 +55,7 @@ export const BODY_HTML = `
 
 <div class="wrap grid">
   <aside class="side-l"><nav class="board-nav" id="boardNav"></nav></aside>
-  <main id="main"><div class="board-head"><h1 class="serif">전체 글</h1><span class="sub">방금 올라온 이야기부터</span><div class="sortbar"><button class="on" onclick="setSort('new')">최신</button><button class="" onclick="setSort('hot')">인기</button></div></div><!--PALO_FEED--></main>
+  <main id="main"><!--PALO_MAIN--></main>
   <aside class="side-r">
     <div class="widget join">
       <h4>같이 그리실래요?</h4>

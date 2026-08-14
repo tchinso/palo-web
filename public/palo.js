@@ -664,6 +664,22 @@ function getPostIdFromPath(){
   var m=location.pathname.match(/^\/post\/(\d+)$/);
   return m?parseInt(m[1],10):null;
 }
+/* 링크로 바로 들어왔을 때, **글 목록을 기다리지 않고** 바로 그 화면을 연다.
+   커미션·프로필·탭 화면은 각자 필요한 것을 스스로 불러오므로 loadRealPosts()의
+   조회 10개가 끝나기를 기다릴 이유가 없었다. 예전엔 그 뒤에 열려서 몇 초간
+   서버가 보낸 홈 화면이 그대로 보였다(2026-08-14 사용자 신고).
+   ⚠️ 글 상세(/post/id)만 POSTS에서 글을 찾아야 해서 loadRealPosts() 쪽에 남는다.
+   ⚠️ 로그인 상태를 알아야 성인 커미션 판정이 되므로 initAuth() 다음에 부른다. */
+function routeDeepLinkEarly(){
+  if(userLeftHome)return false;
+  var cid=getCommissionIdFromPath();
+  if(cid){cmOpenCommissionById(cid);return true;} // 안에서 userLeftHome=true
+  var uid=getUserIdFromPath();
+  if(uid){userLeftHome=true;openUserProfile(uid);return true;}
+  var tab=getTabFromPath();
+  if(tab){userLeftHome=true;openTabByKey(tab);return true;}
+  return false;
+}
 function sharePost(id){
   var p=POSTS.find(function(x){return x.id===id});if(!p)return;
   var url=p.dbId?(location.origin+"/post/"+p.dbId):location.href;
@@ -9772,7 +9788,9 @@ loadReadCache();
 // 이미 와 있으면(스크립트 순서가 뒤바뀐 경우) 곧바로 시작 — 어느 쪽이든 한 번만 돈다.
 function _bootBackend(){
   track("view");
-  initAuth().then(function(){loadRealPosts();handleNotifSettingsDeeplink();handleLoginError();});
+  // 딥링크 화면을 먼저 연다 — 그래야 홈이 잠깐 비쳤다 바뀌지 않는다.
+  // (routeDeepLinkEarly가 열었으면 userLeftHome=true라, 뒤이은 loadRealPosts는 홈을 그리지 않는다)
+  initAuth().then(function(){routeDeepLinkEarly();loadRealPosts();handleNotifSettingsDeeplink();handleLoginError();});
 }
 if(window.supabase)_bootBackend();
 else window.addEventListener("palo-supabase-ready",_bootBackend,{once:true});

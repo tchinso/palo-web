@@ -26,5 +26,5 @@ export async function generateMetadata({ params }) {
 }
 
 export default function UserProfilePage() {
-  return <PaloApp />;
+  return <PaloApp variant="page" />;
 }
