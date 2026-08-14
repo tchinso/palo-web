@@ -138,6 +138,17 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@800&text=commi&display=swap"
         />
+        {/* 본문 기본 서체 프리텐다드(OFL) — 그동안 font-family에 선언만 있고 로드가 없어
+            사실상 전원이 시스템 폰트로 보고 있었다(2026-08-14 발견, 사용자 승인으로 로드).
+            가변(웨이트 45~920 한 파일) + 동적 서브셋: 화면에 쓰인 글자 조각만 내려받아
+            한글 통짜(1MB+) 대신 초기 수십 KB. css에 font-display:swap 포함이라 로딩 중에도
+            글이 시스템 폰트로 먼저 보인다(빈 화면 없음). 서체 이름은 'Pretendard Variable' —
+            body font-family 두 번째 항목과 일치한다. */}
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+        />
       </head>
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }} />
