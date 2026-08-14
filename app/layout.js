@@ -16,7 +16,16 @@ export const metadata = {
     siteName: "commi",
     type: "website",
     locale: "ko_KR",
-    images: [{ url: "/icon-512.png", width: 512, height: 512, alt: "commi" }],
+    // 공유 카드 이미지(2026-08-14 교체) — 예전엔 앱 아이콘(512 정사각)이라 트위터에서
+    // 작은 카드로 나왔다. 1200×630 배너 + 아래 twitter.card 지정으로 큰 카드가 된다.
+    // 다른 그림으로 바꾸려면 public/og-image.jpg 만 갈아끼우면 된다(같은 비율 권장).
+    images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: "commi — 그림 그리는 사람들의 커뮤니티" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "commi · 그림 그리는 사람들의 커뮤니티",
+    description: "commi는 그림 그리는 사람들의 커뮤니티예요. 창작 과정과 낙서를 공유하고, 서로의 그림에 피드백을 주고받고, 커미션 작가와 의뢰인을 잇습니다.",
+    images: ["/og-image.jpg"],
   },
   verification: {
     google: "547vvUq82RlyN5pw6cBSJ8jExJyDfVv90lmBogdjnLk",
