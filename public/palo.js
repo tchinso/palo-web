@@ -434,7 +434,8 @@ async function savePfEdit(){
   var tw=document.getElementById('pfTwitterInput').value.trim();
   var ig=document.getElementById('pfInstaInput').value.trim();
   var em=document.getElementById('pfEmailInput').value.trim();
-  var res=await window.supabase.from('profiles').update({bio:bio||null,sns_twitter:tw||null,sns_instagram:ig||null,sns_email:em||null}).eq('id',AUTH.user.id);
+  var res=await window.supabase.from('profiles').update({bio:bio||null,sns_twitter:tw||null,sns_instagram:ig||null,sns_email:em||null},{count:"exact"}).eq('id',AUTH.user.id);
+  if(!res.error&&res.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(res.error){toast('저장 실패: '+res.error.message);return;}
   if(AUTH.profile){AUTH.profile.bio=bio||null;AUTH.profile.sns_twitter=tw||null;AUTH.profile.sns_instagram=ig||null;AUTH.profile.sns_email=em||null;}
   closePfEdit();toast('프로필을 저장했어요','✓');
@@ -457,7 +458,8 @@ async function onCoverFile(e){
   toast('업로드 중...');
   var url=await uploadToStorage(uploadBlob,'cover');
   if(!url)return;
-  var res=await window.supabase.from('profiles').update({cover_url:url}).eq('id',AUTH.user.id);
+  var res=await window.supabase.from('profiles').update({cover_url:url},{count:"exact"}).eq('id',AUTH.user.id);
+  if(!res.error&&res.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(res.error){toast('저장 실패: '+res.error.message);return;}
   if(AUTH.profile)AUTH.profile.cover_url=url;
   toast('커버 이미지를 변경했어요');
@@ -2154,8 +2156,10 @@ async function deletePost(id){
   if(postEditLocked(p)&&!(AUTH.profile&&AUTH.profile.is_admin)){toast("다른 분의 댓글이 달려 삭제할 수 없어요");return;}
   if(!(await confirmDialog("이 글을 삭제할까요? 되돌릴 수 없어요.")))return;
   if(p.dbId&&window.supabase){
-    var res=await window.supabase.from("posts").delete().eq("id",p.dbId);
+    var res=await window.supabase.from("posts").delete({count:"exact"}).eq("id",p.dbId);
     if(res.error){toast("삭제 실패: "+res.error.message);return;}
+    // RLS가 막으면 오류 없이 0행 — 성공으로 오인하면 새로고침 때 글이 되살아난다
+    if(res.count===0){toast("삭제되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   }
   POSTS=POSTS.filter(function(x){return x.id!==id});
   toast("글을 삭제했어요");
@@ -2224,7 +2228,8 @@ async function toggleManagerPick(id){
 async function togglePinnedPost(id){
   var p=POSTS.find(function(x){return x.id===id});if(!p||!p.dbId||!AUTH.user||!window.supabase)return;
   var newVal=(AUTH.profile&&AUTH.profile.pinned_post_id===p.dbId)?null:p.dbId;
-  var res=await window.supabase.from("profiles").update({pinned_post_id:newVal}).eq("id",AUTH.user.id);
+  var res=await window.supabase.from("profiles").update({pinned_post_id:newVal},{count:"exact"}).eq("id",AUTH.user.id);
+  if(!res.error&&res.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(res.error){toast("처리 실패: "+res.error.message);return;}
   AUTH.profile.pinned_post_id=newVal;
   toast(newVal?"프로필 대표 글로 고정했어요 📌":"대표 글을 해제했어요");
@@ -2877,7 +2882,8 @@ async function onAvatarFile(e){
   toast("업로드 중...");
   var url=await uploadToStorage(uploadBlob,"avatar");
   if(!url)return;
-  var res=await window.supabase.from("profiles").update({avatar_url:url}).eq("id",AUTH.user.id);
+  var res=await window.supabase.from("profiles").update({avatar_url:url},{count:"exact"}).eq("id",AUTH.user.id);
+  if(!res.error&&res.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(res.error){toast("저장 실패: "+res.error.message);return;}
   AUTH.profile.avatar_url=url;
   POSTS.forEach(function(p){
@@ -3113,8 +3119,9 @@ async function deleteComment(postId,ci){
   var c=p.comments[ci];if(!c)return;
   if(!(await confirmDialog("댓글을 삭제할까요?")))return;
   if(c.dbId&&window.supabase){
-    var res=await window.supabase.from("comments").delete().eq("id",c.dbId);
+    var res=await window.supabase.from("comments").delete({count:"exact"}).eq("id",c.dbId);
     if(res.error){toast("삭제 실패: "+res.error.message);return;}
+    if(res.count===0){toast("삭제되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   }
   p.comments.splice(ci,1);
   document.getElementById("cmList").innerHTML=renderComments(p);
@@ -3141,7 +3148,8 @@ async function toggleLike(id){
   if(p.dbId&&window.supabase){
     var uid=myLikeId();
     if(p._liked){
-      var del=await window.supabase.from("likes").delete().eq("post_id",p.dbId).eq("user_id",uid);
+      var del=await window.supabase.from("likes").delete({count:"exact"}).eq("post_id",p.dbId).eq("user_id",uid);
+      if(!del.error&&del.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
       if(del.error){toast("처리 실패: "+del.error.message);return;}
       p._liked=false;p.likes--;
     }else{
@@ -3622,7 +3630,8 @@ async function cmToggleBookmark(commissionId,el){
   if(cmBookmarkIds===null)await cmLoadMyBookmarks();
   var isBookmarked=cmBookmarkIds.has(commissionId);
   if(isBookmarked){
-    var del=await window.supabase.from('commission_bookmarks').delete().eq('user_id',AUTH.user.id).eq('commission_id',commissionId);
+    var del=await window.supabase.from('commission_bookmarks').delete({count:"exact"}).eq('user_id',AUTH.user.id).eq('commission_id',commissionId);
+    if(!del.error&&del.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
     if(del.error){toast('처리 실패: '+del.error.message);return;}
     cmBookmarkIds.delete(commissionId);
     cmBumpBookmarkCount(commissionId,-1);
@@ -5164,7 +5173,8 @@ async function cmDeleteCommission(id){
   if(!(await confirmDialog("이 커미션을 삭제할까요? 삭제하면 되돌릴 수 없어요.")))return;
   // DB에서 커미션 삭제(RLS로 본인만). cascade로 이미지·작업사례·신청·광고 '기록'이 자동 삭제됨.
   // 삭제 직전에 DB 트리거가 보관본(admin_commission_deletions)에 사본을 남긴다.
-  var res=await window.supabase.from("commissions").delete().eq("id",id);
+  var res=await window.supabase.from("commissions").delete({count:"exact"}).eq("id",id);
+  if(!res.error&&res.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(res.error){toast("삭제 실패: "+res.error.message);return;}
   // ⚠️ **저장소 파일은 일부러 지우지 않는다(2026-08-08).**
   //    예전에는 여기서 R2 파일까지 지웠는데, 그러면 보관본에 주소만 남고 그림은 사라져
@@ -5284,7 +5294,8 @@ function cmMyApplicationsHTML(){
 async function cmDecideApplication(applicationId,status){
   var app=cmMyApplications.find(function(x){return x.id===applicationId;});
   if(!app)return;
-  var upd=await window.supabase.from('commission_applications').update({status:status,decided_at:new Date().toISOString()}).eq('id',applicationId);
+  var upd=await window.supabase.from('commission_applications').update({status:status,decided_at:new Date().toISOString()},{count:"exact"}).eq('id',applicationId);
+  if(!upd.error&&upd.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(upd.error){toast('처리 실패: '+upd.error.message);return;}
   app.status=status;
   var listEl=document.getElementById('cmMyList');
@@ -5305,7 +5316,8 @@ async function cmDecideApplication(applicationId,status){
 async function cmBulkStatus(status){
   if(!AUTH.user)return;
   if(cmMyList.length===0){toast('등록된 커미션이 없어요','⚠');return;}
-  var upd=await window.supabase.from('commissions').update({status:status}).eq('author_id',AUTH.user.id);
+  var upd=await window.supabase.from('commissions').update({status:status},{count:"exact"}).eq('author_id',AUTH.user.id);
+  if(!upd.error&&upd.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(upd.error){toast('처리 실패: '+upd.error.message);return;}
   cmMyList.forEach(function(c){c.status=status;});
   document.getElementById('cmMyList').innerHTML=cmMyListHTML();
@@ -6656,7 +6668,8 @@ async function removeEmoticonFromPack(emoId){
   if(!(await confirmDialog("이 이모티콘을 팩에서 뺄까요?")))return;
   var row=(cnt.data||[]).find(function(x){return x.id===emoId;});
   var urlRes=await window.supabase.from("emoticons").select("url").eq("id",emoId).single();
-  var r=await window.supabase.from("emoticons").delete().eq("id",emoId);
+  var r=await window.supabase.from("emoticons").delete({count:"exact"}).eq("id",emoId);
+  if(!r.error&&r.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(r.error){toast("실패: "+r.error.message);return;}
   if(urlRes.data&&urlRes.data.url)deleteFromStorage([urlRes.data.url]); // 저장소 파일도 정리
   delete EMO_BY_ID[emoId];
@@ -6669,7 +6682,8 @@ async function renameEmoticonPack(id,cur){
   if(v==null)return;
   v=v.trim();
   if(v.length<2){toast("2자 이상 적어주세요");return;}
-  var r=await window.supabase.from("emoticon_packs").update({title:v}).eq("id",id);
+  var r=await window.supabase.from("emoticon_packs").update({title:v},{count:"exact"}).eq("id",id);
+  if(!r.error&&r.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(r.error){toast("변경 실패: "+r.error.message);return;}
   toast("이름을 바꿨어요");
   await loadMyEmoticons();
@@ -6683,7 +6697,8 @@ async function deleteEmoticonPack(id){
     var u=await window.supabase.from("emoticons").select("url").eq("pack_id",id);
     urls=(u.data||[]).map(function(x){return x.url;}).filter(Boolean);
   }catch(e){}
-  var r=await window.supabase.from("emoticon_packs").delete().eq("id",id);
+  var r=await window.supabase.from("emoticon_packs").delete({count:"exact"}).eq("id",id);
+  if(!r.error&&r.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(r.error){toast("삭제 실패: "+r.error.message);return;}
   if(urls.length)deleteFromStorage(urls); // 저장소에 파일만 남지 않게
   toast("삭제했어요","🗑");
@@ -6691,7 +6706,8 @@ async function deleteEmoticonPack(id){
   openEmoticonManage();
 }
 async function unaddEmoticonPack(id){
-  var r=await window.supabase.from("user_emoticon_packs").delete().eq("user_id",AUTH.user.id).eq("pack_id",id);
+  var r=await window.supabase.from("user_emoticon_packs").delete({count:"exact"}).eq("user_id",AUTH.user.id).eq("pack_id",id);
+  if(!r.error&&r.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(r.error){toast("실패: "+r.error.message);return;}
   toast("이모티콘함에서 뺐어요");
   await loadMyEmoticons();
@@ -6831,7 +6847,8 @@ function reportEmoticonPack(packId){
 async function adminDeleteEmoticonPack(packId){
   if(!(AUTH.profile&&AUTH.profile.is_admin))return;
   if(!(await confirmDialog("이 이모티콘 팩을 삭제할까요? 담아간 사람들에게서도 사라집니다.")))return;
-  var r=await window.supabase.from("emoticon_packs").delete().eq("id",packId);
+  var r=await window.supabase.from("emoticon_packs").delete({count:"exact"}).eq("id",packId);
+  if(!r.error&&r.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(r.error){toast("삭제 실패: "+r.error.message);return;}
   await _logModeration("delete",null,null,"이모티콘 팩 #"+packId);
   toast("이모티콘을 삭제했어요","🗑");
@@ -6844,7 +6861,8 @@ async function togglePack(packId){
   if(!AUTH.user){toast("로그인이 필요해요");return;}
   var p=EMO_MARKET.find(function(x){return x.id===packId;});if(!p)return;
   if(p.mine){
-    var d=await window.supabase.from("user_emoticon_packs").delete().eq("user_id",AUTH.user.id).eq("pack_id",packId);
+    var d=await window.supabase.from("user_emoticon_packs").delete({count:"exact"}).eq("user_id",AUTH.user.id).eq("pack_id",packId);
+    if(!d.error&&d.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
     if(d.error){toast("실패: "+d.error.message);return;}
     p.mine=false;toast("이모티콘함에서 뺐어요");
   }else{
@@ -7372,8 +7390,10 @@ async function _submitPostBody(){
         board:edState.board,category:edState.tag,title:title,content:text,content_html:html||null,
         stage:edState.img?stage:null,reviewed_nickname:reviewedNick,reviewed_user_id:reviewedUserId,commission_post_id:commissionPostId,
         commission_sentiment:sentiment
-      }).eq("id",ep.dbId);
+      },{count:"exact"}).eq("id",ep.dbId);
       if(upd.error){toast("수정 실패: "+upd.error.message);return;}
+      // RLS가 막으면 오류 없이 0행 — 이대로 진행하면 이미지만 갈아끼워져 글이 반쯤 수정된 것처럼 보인다
+      if(upd.count===0){toast("수정되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
       var delImgs=await window.supabase.from("post_images").delete().eq("post_id",ep.dbId);
       if(delImgs.error)console.error(delImgs.error);
       if(edState.images.length){
@@ -9079,7 +9099,8 @@ async function toggleFollowFromList(userId,nickname,btnEl){
   var following=FOLLOW.has(userId);
   if(btnEl)btnEl.disabled=true;
   if(following){
-    var del=await window.supabase.from("follows").delete().eq("follower_id",AUTH.user.id).eq("followee_id",userId);
+    var del=await window.supabase.from("follows").delete({count:"exact"}).eq("follower_id",AUTH.user.id).eq("followee_id",userId);
+    if(!del.error&&del.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
     if(del.error){toast("처리 실패: "+del.error.message);if(btnEl)btnEl.disabled=false;return;}
     FOLLOW.delete(userId);
   }else{
@@ -9094,7 +9115,8 @@ async function toggleFollowFromList(userId,nickname,btnEl){
 function closeFollowList(){var m=document.getElementById("followListModal");if(m)m.classList.remove("open");document.body.style.overflow="";}
 async function unfollowFromProfile(uid){
   if(!AUTH.user||!window.supabase)return;
-  var del=await window.supabase.from("follows").delete().eq("follower_id",AUTH.user.id).eq("followee_id",uid);
+  var del=await window.supabase.from("follows").delete({count:"exact"}).eq("follower_id",AUTH.user.id).eq("followee_id",uid);
+  if(!del.error&&del.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(del.error){toast("처리 실패: "+del.error.message);return;}
   var nm=FOLLOW_NAME[uid]||"회원";
   FOLLOW.delete(uid);
@@ -9210,8 +9232,9 @@ async function adminBlindPost(reportId,postDbId,on){
   var res=await window.supabase.from("posts").update(
     on?{blinded:true,blinded_at:new Date().toISOString(),blind_reason:"운영자 임시조치"}
       :{blinded:false,blinded_at:null,blind_reason:null}
-  ).eq("id",postDbId);
+  ,{count:"exact"}).eq("id",postDbId);
   if(res.error){toast("처리 실패: "+res.error.message);return;}
+  if(res.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   await _logModeration(on?"blind":"unblind",postDbId,reportId,null);
   postsLoadedAt=0; // 목록에 반영되도록 다음 이동 때 새로 불러옴
   toast(on?"글을 가렸어요":"가림을 해제했어요");
@@ -9235,7 +9258,8 @@ async function adminDeleteReportedCommission(reportId,commissionId){
 }
 async function adminDeleteReportedEmoticon(reportId,packId){
   if(!(await confirmDialog("이 이모티콘 팩을 삭제할까요? 담아간 사람들에게서도 사라집니다.")))return;
-  var r=await window.supabase.from("emoticon_packs").delete().eq("id",packId);
+  var r=await window.supabase.from("emoticon_packs").delete({count:"exact"}).eq("id",packId);
+  if(!r.error&&r.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(r.error){toast("삭제 실패: "+r.error.message);return;}
   await window.supabase.from("reports").update({resolved:true}).eq("id",reportId);
   await _logModeration("delete",null,reportId,"이모티콘 팩 #"+packId);
@@ -9729,7 +9753,8 @@ async function saveNick(){
   if(v.length<2||v.length>12){toast("닉네임은 2~12자여야 해요");return;}
   if(!/^[가-힣a-zA-Z0-9]+$/.test(v)){toast("닉네임에는 한글·영문·숫자만 사용할 수 있어요");return;}
   if(AUTH.user&&window.supabase){
-    var res=await window.supabase.from("profiles").update({nickname:v}).eq("id",AUTH.user.id);
+    var res=await window.supabase.from("profiles").update({nickname:v},{count:"exact"}).eq("id",AUTH.user.id);
+    if(!res.error&&res.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
     if(res.error){
       if(res.error.code==="23505"){toast("이미 사용 중인 닉네임이에요");}
       else{toast("저장 실패: "+res.error.message);}
@@ -9822,7 +9847,8 @@ async function toggleFollow(followeeId,nickname){
   if(!followeeId||followeeId===AUTH.user.id||!window.supabase)return;
   var following=FOLLOW.has(followeeId);
   if(following){
-    var del=await window.supabase.from("follows").delete().eq("follower_id",AUTH.user.id).eq("followee_id",followeeId);
+    var del=await window.supabase.from("follows").delete({count:"exact"}).eq("follower_id",AUTH.user.id).eq("followee_id",followeeId);
+    if(!del.error&&del.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
     if(del.error){toast("처리 실패: "+del.error.message);return;}
     FOLLOW.delete(followeeId);
     toast(dispName(nickname)+"님 팔로우를 취소했어요");
@@ -9858,7 +9884,8 @@ async function helpful(pid,ci,el){
   if(!AUTH.user){toast("로그인이 필요해요");loginWithGoogle();return;}
   var b=el.querySelector("b");
   if(c._me){
-    var del=await window.supabase.from("comment_helpful").delete().eq("comment_id",c.dbId).eq("user_id",AUTH.user.id);
+    var del=await window.supabase.from("comment_helpful").delete({count:"exact"}).eq("comment_id",c.dbId).eq("user_id",AUTH.user.id);
+    if(!del.error&&del.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
     if(del.error){toast("처리 실패: "+del.error.message);return;}
     c.h=Math.max(0,(c.h||1)-1);c._me=false;
     if(c.h<=0&&b)b.remove();else if(b)b.textContent=c.h;

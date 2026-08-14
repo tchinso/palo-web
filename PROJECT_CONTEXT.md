@@ -1690,6 +1690,13 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 점검 후 일괄 수정 3차 — RLS 무음 실패 가드 25곳 (2026-08-14, 단독 배포)
+Postgres RLS는 UPDATE/DELETE를 막을 때 **오류 없이 0행**을 돌려준다. "성공했어요"를 표시하는 25곳에 가드를 넣었다: 글·댓글·커미션 삭제, 글 수정, 프로필 5종(bio·커버·아바타·닉네임·고정글), 커미션 상태·신청 처리, 이모티콘 6곳, 팔로우 3곳, 좋아요·도움돼요·커미션북마크, 관리자 블라인드.
+- **⚠️ `.select()` 대신 `{count:'exact'}`** — RETURNING은 SELECT 정책의 검문을 받아 블라인드·성인글에서 "지워졌는데 실패 표시" 오탐이 난다. count는 영향받은 행 수라 정책과 무관. **실측: RLS 차단 update → `error=null, count=0`** (dev에서 프로덕션 DB 상대 확인).
+- 가드는 기존 error 검사 **앞뒤 어디든** 안전 — `if(!X.error&&X.count===0)`은 오류 케이스와 겹치지 않는다(코드모드가 호출 줄 바로 다음에 삽입).
+- **의도적으로 뺀 곳**: `user_notes` 삭제·글북마크 토글("지울 게 원래 없던" 경우도 0행이라 오탐), `post_images`/`commission_images` 전체삭제(0행이 정상일 수 있음), 부가 갱신(last_message_at·알림 읽음·푸시 prefs)과 관리자 best-effort(reports.resolved·캠페인) 약 20곳 — fire-and-forget이 맞다.
+- 한글이 bash heredoc에서 깨져 코드모드는 `.mjs` 파일로 작성해 실행(deadcode.mjs 교훈 재적용).
+
 ### 점검 후 일괄 수정 2차 — `esc()`에 `'` 추가 (2026-08-14, 단독 배포)
 호출처 294곳이라 **단독 배포로 격리**. 현재 HTML 속성이 전부 큰따옴표라 뚫린 곳은 없었지만, 누가 홑따옴표 속성을 하나만 써도 XSS 통로가 되는 구조였다.
 - 인라인 onclick의 `esc(cmQ(u))` 이중 이스케이프는 안전 — **HTML 엔티티가 먼저 풀린 뒤 JS가 파싱**하므로 cmQ의 백슬래시가 살아 있다.
