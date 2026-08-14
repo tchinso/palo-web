@@ -8392,7 +8392,7 @@ function guestRenderRoom(d,firstTime){
   // 코드가 아직 없으면(=방을 만들기 전, 문의 초안) 코드 상자 대신 경고 배너를 보여준다
   var band=GUEST.code
     ? guestCodeBoxHTML(!!firstTime)
-    : '<div class="g-draftwarn">🔓 <b>로그인하지 않고 문의해요.</b> 첫 메시지를 보내면 <b>채팅방 코드</b>를 드려요 — 브라우저 기록이 지워져도 그 코드로 다시 들어올 수 있어요. 답장 알림은 받을 수 없어요. <span class="g-link" onclick="openLoginModal()">로그인하고 문의하기</span></div>';
+    : '<div class="g-draftwarn">🔓 <b>로그인하지 않고 문의하는 중이에요.</b> 브라우저 기록이 지워지면 채팅방으로 다시 돌아오지 못할 수 있어요. 첫 메시지를 보내면 드리는 <b>채팅방 코드</b>를 입력하면 돌아올 수 있지만, <b>로그인하고 문의하시는 걸 추천드려요.</b> <span class="g-link" onclick="openLoginModal()">로그인하고 문의하기</span></div>';
   el.innerHTML=
     '<div class="cr-top">'+
       '<button class="cr-back" onclick="guestStopPoll();screenBack()" aria-label="뒤로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>'+
