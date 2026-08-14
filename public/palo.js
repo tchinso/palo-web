@@ -912,7 +912,7 @@ var GOOGLE_G_SVG='<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA433
 function _gisReady(){return !!(window.google&&window.google.accounts&&window.google.accounts.id);}
 // 네이버 로그인 노출 스위치: 네이버 개발자센터 '검수'가 승인되면 이 값을 true로만 바꿔 배포하면 네이버 버튼이 다시 나타남.
 // (검수 전에는 앱 소유자만 로그인 가능하므로 일반 사용자에게 잠시 숨김)
-var NAVER_LOGIN_ENABLED=false;
+var NAVER_LOGIN_ENABLED=true; // 2026-08-14 네이버 검수 승인 → 일반 사용자 로그인 개방
 // 트위터(X) 로그인 노출 스위치 — X 개발자 앱을 만들고 Supabase에 키를 넣은 뒤 true로 바꿔 배포하면 버튼이 나타남.
 // (설정 전에 켜 두면 눌렀을 때 오류만 나므로 기본은 꺼 둠. docs/트위터-로그인-설정.md 참고)
 var TWITTER_LOGIN_ENABLED=true;

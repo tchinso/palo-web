@@ -1690,6 +1690,9 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 네이버 로그인 개방 (2026-08-14, 검수 통과)
+네이버 개발자센터 재검수 통과(소명서 PDF 제출) → `NAVER_LOGIN_ENABLED=true` 한 줄로 개방(설계대로). 개방 전 확인: 서버 라우트 정상(실서버 `/api/auth/naver/start`가 nid.naver.com으로 302, client_id 환경변수 살아 있음), 방침 위탁표에 네이버(주) 기재 완료, `isIdAccount()`가 `user_metadata.provider="naver"`를 소셜로 분류(복구메일 차단), 가입 트리거(프로필·밴 홀드)는 admin.createUser에도 동작. 검증(dev): 로그인 모달에 구글/네이버/X 세 버튼 나란히 표시, `loginWithNaver()` 연결.
+
 ### 채팅창 상단 고정 포기 — 단순화 (2026-08-14, 사용자 결정)
 "상단(닉네임·배너)을 무조건 고정하려는 것 때문에 문제가 생기는 듯 — 고정 안 해도 됨. 단 입력창 자동 선택은 금지(직접 탭해야 열리게)."
 - `fitChatRoom`에서 **top 보정 제거** — iOS의 화면 이동(vv.offsetTop)과 싸우던 부분이 움직임 튐·틈 비침의 공통 원인이었다. 이제 이 함수의 일은 하나: **입력줄을 키보드 위에 얹는 것**(bottom만). 키보드가 떠 있는 동안 머리가 잠시 가려지는 건 허용.
