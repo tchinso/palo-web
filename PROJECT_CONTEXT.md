@@ -1690,6 +1690,12 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 채팅창 키보드 이동을 부드럽게 (2026-08-14, 사용자 요청)
+"다른 사이트처럼 입력창이 스무스하게 올라가게" — 기존엔 `bottom`에만 CSS 전환(0.24s)이 있고 `top` 보정에는 없어서 위는 툭 튀고 아래만 미끄러졌다.
+- `fitChatRoom(instant)` — **키보드 개폐(resize)는 0.22s 전환으로 부드럽게, 손가락 팬(scroll)은 즉시**. 스크롤에까지 전환을 걸면 화면이 손가락을 늦게 따라오는 고무줄이 된다. 리스너가 `e.type==="scroll"`로 구분해 전달.
+- `leaveChat`에서 `style.transition`도 초기화.
+- 검증(dev): 전환 문자열·scroll 즉시 이동(120px)·닫을 때 초기화 확인. **⚠️ 숨긴 탭에선 CSS 전환이 진행되지 않아**(rAF·lazy와 같은 환경 제약) 미끄러지는 모습 자체는 실기기 확인. 더 다듬을 여지: iOS가 키보드 열며 scroll 이벤트도 쏘면 그 구간은 즉시 이동으로 떨어짐 — 부족하면 scroll에도 80ms 짧은 전환을 거는 게 다음 수.
+
 ### 🐛 채팅 입력 중 뒤 화면이 비치던 문제 (2026-08-14, 사용자 신고)
 키보드가 올라오는 **애니메이션 동안** 방을 줄이는(top/bottom 보정) 타이밍과 iOS의 화면 이동이 어긋나 위아래 틈으로 뒤 커미션 상세가 잠깐 비쳤다.
 - `.chatroom.open::before`로 **화면 전체 크기의 배경막**(var(--bg), position:fixed)을 방 뒤에 깔았다 — 틈이 생겨도 배경색만 보인다. 타이밍을 맞추려는 접근(불가능에 가깝다) 대신 틈 자체를 무해하게.

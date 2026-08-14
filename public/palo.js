@@ -8055,8 +8055,13 @@ function autoGrowChatInput(ta){
 }
 // 채팅방 오버레이: top은 고정(헤더 안 움직임)하고 bottom만 키보드 높이만큼 올려 아래에서만 줄어들게 함.
 // CSS transition(bottom)으로 한 프레임 점프가 아니라 부드럽게 올라오는 효과.
-function fitChatRoom(){
+/* instant=true 면 전환 없이 즉시 이동.
+   ⚠️ 키보드 개폐(resize)는 부드럽게 미끄러지고, 손가락 팬(scroll)은 즉시 따라가야 한다 —
+      스크롤에까지 전환을 걸면 화면이 손가락을 0.2초 늦게 따라오는 고무줄이 된다. */
+function fitChatRoom(instant){
   var el=document.getElementById("chatRoom");if(!el||!el.classList.contains("open"))return;
+  el.style.transition=instant?"none"
+    :"top .22s cubic-bezier(.33,0,.2,1),bottom .22s cubic-bezier(.33,0,.2,1)";
   var vv=window.visualViewport;
   var kb=vv?Math.max(0,Math.round((window.innerHeight||0)-vv.height-(vv.offsetTop||0))):0;
   // ⚠️ 위쪽도 보정한다(2026-08-14). iOS는 키보드가 뜨면 입력창을 보이게 하려고
@@ -8080,7 +8085,7 @@ function leaveChat(){
   document.body.classList.remove("chat-open");
   unlockBodyForChat();
   var el=document.getElementById("chatRoom");
-  if(el){el.classList.remove("open","kb-up");el.innerHTML="";el.style.height="";el.style.transform="";el.style.bottom="";el.style.top="";}
+  if(el){el.classList.remove("open","kb-up");el.innerHTML="";el.style.height="";el.style.transform="";el.style.bottom="";el.style.top="";el.style.transition="";}
   if(chatRoomVpListener&&window.visualViewport){window.visualViewport.removeEventListener("resize",chatRoomVpListener);window.visualViewport.removeEventListener("scroll",chatRoomVpListener);chatRoomVpListener=null;}
 }
 /* ---------- 알림 (DB 저장, notifications 테이블) ---------- */
@@ -8417,7 +8422,7 @@ function guestRenderRoom(d,firstTime){
   //    없으면 키보드가 떠도 방 크기가 안 줄어 입력창이 키보드 뒤에 숨고, iOS가 화면을
   //    밀어 상단 배너가 시야 밖으로 나갔다(2026-08-14 사용자 신고의 진짜 원인).
   if(window.visualViewport&&!chatRoomVpListener){
-    chatRoomVpListener=fitChatRoom;
+    chatRoomVpListener=function(e){fitChatRoom(!!e&&e.type==="scroll");};
     window.visualViewport.addEventListener("resize",chatRoomVpListener);
     window.visualViewport.addEventListener("scroll",chatRoomVpListener);
   }
@@ -8669,7 +8674,7 @@ function renderChatView(partnerName,messages,opts){
   fitChatRoom();
   autoGrowChatInput(document.getElementById("chatInput"));
   if(window.visualViewport&&!chatRoomVpListener){
-    chatRoomVpListener=fitChatRoom;
+    chatRoomVpListener=function(e){fitChatRoom(!!e&&e.type==="scroll");};
     window.visualViewport.addEventListener("resize",chatRoomVpListener);
     window.visualViewport.addEventListener("scroll",chatRoomVpListener);
   }
