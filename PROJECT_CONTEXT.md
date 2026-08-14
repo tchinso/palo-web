@@ -1666,6 +1666,10 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 - `guard_guest_msg` 트리거: `sender_id`가 비면 **표 자신이** 손님방인지 확인. 정책 문구에 기대지 않는다.
 - **⚠️ `notify_new_message()`를 함께 고쳐야 한다.** 안 고치면 손님방에서 **작가가 답장을 못 한다** — 받는 사람이 `user2_id`(=NULL)가 되어 `notifications.user_id`에 NULL을 넣으려다 나는 예외가 INSERT 전체를 되돌려, 알림만이 아니라 **메시지 자체가 안 보내진다**. 받는 사람이 없으면 알림을 건너뛰게 했다.
 - **코드 생성에 `random()`을 쓰지 않는다**(예측 가능). 코어 내장 `gen_random_uuid()` 사용 — `pgcrypto`는 확장 의존이라 피한다(예전에 `digest()`로 가입 트리거가 깨졌다). 헷갈리는 `I·O·0·1`을 뺀 32자 알파벳 12자리(60비트). `256 % 32 = 0`이라 바이트 나머지에 치우침이 없다. 저장은 붙여서, 표시만 `XXXX-XXXX-XXXX`. `norm_guest_code()`가 소문자·대시·공백을 다듬어 비교한다.
+- **🐛 `conversations_unique_pair` (2026-08-14 배포 후 사용자 신고, "두 번째 문의부터 duplicate key")**
+  기존 유일 인덱스가 `unique (LEAST(user1_id,user2_id), GREATEST(user1_id,user2_id))` 인데 **LEAST/GREATEST는 NULL을 무시한다.** 손님방은 `user2_id`가 비어 있어 `LEAST(작가,NULL)=작가`, `GREATEST(작가,NULL)=작가` → **한 작가에게 오는 모든 손님 문의가 `(작가,작가)` 한 자리로 뭉쳐** 첫 문의만 통과했다. `where guest_code is null`을 붙여 손님방을 규칙에서 뺐다.
+  **⚠️ 교훈: `CREATE UNIQUE INDEX`로 만든 것은 `pg_constraint`에 안 나온다.** 스키마를 조사할 때 `pg_indexes`를 같이 보지 않아서 놓쳤다. 앞으로 표 구조를 볼 땐 `pg_constraint` + `pg_indexes` 둘 다.
+  고치는 SQL은 인덱스 정의를 추측하지 않고 `pg_indexes.indexdef`를 읽어 조건만 덧붙인다. 확인 쿼리에도 항목을 넣었다.
 - `rl_msg`는 그대로 쓴다 — 문서상 **"비로그인은 IP만 적용"**이라 이미 손님을 고려한 구조다(채팅 30/분·IP 80).
 - 성인 커미션은 비로그인 문의를 막는다(본인확인을 할 방법이 없다).
 

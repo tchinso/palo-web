@@ -46,6 +46,34 @@ create unique index if not exists conversations_guest_code_uniq
 create index if not exists conversations_guest_owner
   on public.conversations(user1_id, last_message_at desc) where guest_code is not null;
 
+-- ⚠️ 기존 유일 인덱스 conversations_unique_pair 를 손님방에서 빼야 한다.
+--    (2026-08-14 실제로 터진 뒤 추가 — 이걸 빠뜨리면 "두 번째 문의부터" 막힌다)
+--    그 인덱스는 "같은 두 사람 사이에 방이 둘 생기지 않게" 이렇게 걸려 있다:
+--       unique (LEAST(user1_id,user2_id), GREATEST(user1_id,user2_id))
+--    그런데 LEAST/GREATEST는 NULL을 무시한다. 손님방은 user2_id가 비어 있으므로
+--       LEAST(작가,NULL)=작가,  GREATEST(작가,NULL)=작가
+--    가 되어 **한 작가에게 오는 모든 손님 문의가 (작가,작가) 한 자리로 뭉친다.**
+--    첫 문의만 통과하고 두 번째부터 duplicate key 오류가 난다.
+--    ⚠️ 이건 pg_constraint 에 안 나온다(CREATE UNIQUE INDEX 로 만든 것이라 '제약'이 아니다).
+--       스키마를 조사할 땐 pg_indexes 도 함께 볼 것.
+--    지금 걸린 정의를 그대로 읽어서 조건만 덧붙인다(정의를 추측하지 않는다).
+do $$
+declare v_def text;
+begin
+  select indexdef into v_def from pg_indexes
+   where schemaname='public' and tablename='conversations'
+     and indexname='conversations_unique_pair';
+  if v_def is null then
+    raise notice 'conversations_unique_pair 없음 — 건너뜀';
+  elsif position(' where ' in lower(v_def)) > 0 then
+    raise notice '이미 조건 있음: %', v_def;
+  else
+    execute 'drop index public.conversations_unique_pair';
+    execute v_def || ' where guest_code is null';
+    raise notice '손님방 제외로 다시 만듦';
+  end if;
+end $$;
+
 -- 방의 모양을 강제한다: 손님방이면 상대가 없고, 일반방이면 상대가 있다.
 -- (둘 다 채워지거나 둘 다 비는 어중간한 행이 생기지 않게)
 do $$
@@ -333,6 +361,14 @@ select '코드 유일 인덱스',
 union all
 select '방 모양 제약',
        case when exists(select 1 from pg_constraint where conname='conversations_guest_shape') then '✅' else '❌' end
+union all
+select '중복방 인덱스에서 손님방 제외',
+       case when exists(select 1 from pg_indexes
+                        where schemaname='public' and indexname='conversations_unique_pair'
+                          and indexdef ilike '%where%guest_code is null%') then '✅'
+            when not exists(select 1 from pg_indexes
+                        where schemaname='public' and indexname='conversations_unique_pair') then '— (인덱스 없음)'
+            else '❌ 두 번째 문의부터 막힌다' end
 union all
 select '손님 메시지 가드',
        case when exists(select 1 from pg_trigger where tgname='guard_guest_msg') then '✅' else '❌' end
