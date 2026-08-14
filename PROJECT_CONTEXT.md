@@ -1690,6 +1690,12 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 🐛 하단 탭이 가끔 사라진 채 남던 문제 (2026-08-14, 사용자 신고 — 내 회귀)
+원인: **`body.kb-open` 주인이 둘**이었다. 원래 focus 기반 시스템(focusin/focusout + `touchKeyboard()` coarse 판정 + 화면 교체 시 `syncKbOpen` 안전장치 — 몇 주째 동작, "focusout이 안 오는" 케이스까지 문서화돼 있었음)이 있는 걸 모르고, 어제 커미션 등록 바 수정 때 visualViewport resize 기반 토글러를 **하나 더** 얹었다. focusout이 끈 것을 키보드 닫힘 애니메이션 중의 **늦은 resize가 다시 켜서** 탭바가 숨은 채 고착("가끔 사라짐").
+- **수정: 중복 토글러 제거** — focus 기반 한 곳만 남김. 어제 확장한 CSS(`.cm-reg-bottom` 등 하단 바 숨김)는 유지되므로 등록 바 수정 효과도 그대로(오히려 focusin이 resize보다 빠름).
+- 검증(dev): 고착 시나리오 재현(blur 후 늦은 resize) → 탭바 유지 ✅. ⚠️ 에뮬 확인 한계: 숨긴 패널은 `hasFocus=false`라 focus 이벤트 자체가 발생하지 않음(rAF·lazy·transition과 같은 환경 제약 계열) — focusin 경로는 기존 실서버 검증에 의존.
+- ⚠️ 교훈: 전역 상태 클래스(body.*)를 새로 토글하기 전에 **기존 주인부터 grep**. 주석에 경고 남김.
+
 ### 배포에서 개발 주석 자동 제거 (2026-08-14, 사용자 지적)
 F12로 palo.js의 개발 주석(1,110줄 — 요청 배경·설계 이유·어뷰징 대응 설명)이 그대로 보였다. **주석을 지우지 않는다** — 이 프로젝트의 기억이다. 대신 배포만 압축본으로:
 - **`scripts/minify-public.mjs`** (빌드 첫 단계, `npm run build`가 실행): terser로 `palo.min.js`·`agegate.min.js` 생성. 주석 전부 제거, `console.log/debug/info` 제거(**error·warn은 오류 기록용 유지**), **mangle 없음**(인라인 `onclick="함수명()"`이 전역 이름으로 부르므로 이름을 바꾸면 전부 깨진다), 소스맵 없음. 554KB→426KB.

@@ -8068,20 +8068,12 @@ function autoGrowChatInput(ta){
 }
 // 채팅방 오버레이: top은 고정(헤더 안 움직임)하고 bottom만 키보드 높이만큼 올려 아래에서만 줄어들게 함.
 // CSS transition(bottom)으로 한 프레임 점프가 아니라 부드럽게 올라오는 효과.
-/* ===== 키보드 감지(전역) ====================================================
-   iOS는 키보드가 떠 있는 동안 position:fixed 를 화면에 못 박지 못한다 — fixed의 기준이
-   '보이는 영역'이 아니라 레이아웃 뷰포트라서, 스크롤하면 고정 바가 내용을 따라 떠다닌다
-   (2026-08-14 커미션 등록의 미리보기·등록 바로 실제 신고). 싸우지 않는다:
-   키보드가 떠 있는 동안 body.kb-open 을 붙이고, CSS가 하단 고정 바들을 숨긴다.
-   ⚠️ 문턱 80px — iOS 사파리는 주소창을 접었다 펼 때도 뷰포트 높이가 ~50px 출렁여서,
-      그걸 키보드로 오인하면 스크롤할 때마다 탭바가 깜빡인다. */
-if(window.visualViewport){
-  window.visualViewport.addEventListener("resize",function(){
-    var vv=window.visualViewport;
-    var kb=Math.max(0,Math.round((window.innerHeight||0)-vv.height-(vv.offsetTop||0)));
-    document.body.classList.toggle("kb-open",kb>80);
-  });
-}
+/* ⚠️ body.kb-open(키보드 중 하단 바 숨김)의 주인은 **아래쪽 focusin/focusout 한 곳뿐**이다.
+   2026-08-14에 여기 visualViewport resize 기반 토글러를 하나 더 얹었다가 —
+   기존 focus 기반 시스템이 있는 걸 모르고 — 두 주인이 경쟁했다: focusout이 끈 것을
+   키보드 닫힘 애니메이션 중의 늦은 resize가 다시 켜서, **탭바가 사라진 채 고착**됐다
+   (같은 날 사용자 신고로 발견·제거). 키보드 판정을 다시 만들 일이 있으면 먼저
+   focusin/focusout 쪽(isTextInput·touchKeyboard·syncKbOpen)을 볼 것. */
 
 /* instant=true 면 전환 없이 즉시 이동.
    ⚠️ 키보드 개폐(resize)는 부드럽게 미끄러지고, 손가락 팬(scroll)은 즉시 따라가야 한다 —
