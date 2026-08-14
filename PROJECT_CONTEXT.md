@@ -1690,6 +1690,13 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 커미션 등록 흐름 점검 — 3건 수정 (2026-08-15, 사용자 요청)
+등록 과정 전수 검토. 성인 등록은 클라(`cmSetAdult`가 `isAdultVerified()`)+RLS(restrictive insert/update `not is_adult or is_adult_verified()`) 이중으로 안전. 발견·수정 3건:
+1. **🔴 가격 검증 없음**: 필수검사가 `cmReg.price` truthy만 봐서 **음수(-5000)·소수(1.5)·12자리 초거대 숫자가 통과**(실측)했다. 저장되면 상세에 "-5,000원~"으로 표시. `cmNormalizePrice(v)`: `/^\d+$/` + 0~1억 범위 → 정수 문자열 or null. 필수검사·저장 양쪽에서 사용. input에 `min=0 step=1000 inputmode=numeric` 추가(키보드 단계에서도 차단). 검증: 정규화 10/10, 음수 입력 시 가격 미충족으로 막힘.
+2. **🔴 수정 시 사진 유실 위험**: 편집 경로가 `update → 전체 delete → insert` 순서라, 마지막 insert가 실패하면 옛 이미지는 지워지고 새것은 안 들어와 **사진이 통째로 사라지는데도 "수정되었어요"**. → **새 이미지 insert 성공 뒤에만 옛것 삭제**(반환 id를 keep, 그 외만 delete). insert 실패면 중단·안내, delete 실패는 console(사진이 남는 게 사라지는 것보다 낫다).
+3. **🟡 등록 시 이미지 실패 무음**: 커미션 insert 성공 후 이미지 insert 실패를 `console.error`만 하고 "등록 성공" 표시. → "커미션은 등록됐지만 사진 저장에 실패했어요. 수정에서 다시 올려주세요" 안내(커미션은 이미 생겼으니 롤백 안 함 — 재등록하면 중복).
+- 미수정(수용): 업로드했다 취소한 R2 고아 파일(로그인·본인폴더 한정, 위험 낮음), 커미션 삭제 시 R2 정리는 별도 라우트가 담당(기존).
+
 ### 등록 빈 항목 안내 — 디자인·내용 개선 (2026-08-15, 사용자 요청)
 토스트 한 줄 → 표준 폼 검증 3종 세트:
 - **문구**: 단수 "설명 항목이 아직 비어 있어요" / 복수 "아직 4곳이 비어 있어요 — 샘플 이미지, 제목, 가격, 설명" (조사 '을(를)' 어색함 제거)

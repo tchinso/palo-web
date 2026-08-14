@@ -4652,7 +4652,7 @@ function cmRenderRegisterScreen(){
       '<div class="cm-reg-label">커미션 제목 <span class="cm-reg-req">*</span></div>'+
       '<input class="cm-reg-input" id="cmRegTitle" placeholder="예: LD 반신 채색 커미션" oninput="cmCheckReg()" value="'+esc(cmReg.title)+'">'+
       '<div class="cm-reg-label">가격 <span class="cm-reg-req">*</span></div>'+
-      '<div class="cm-reg-price"><input class="cm-reg-input" id="cmRegPrice" type="number" placeholder="19000" oninput="cmCheckReg()" value="'+esc(cmReg.price)+'"><span class="cm-unit">원 ~</span></div>'+
+      '<div class="cm-reg-price"><input class="cm-reg-input" id="cmRegPrice" type="number" inputmode="numeric" min="0" step="1000" placeholder="19000" oninput="cmCheckReg()" value="'+esc(cmReg.price)+'"><span class="cm-unit">원 ~</span></div>'+
       '<div class="cm-reg-label">커미션 태그 <span class="cm-reg-sub">선택 · 최대 5개 · 검색어 노출에 사용돼요</span></div>'+
       '<input class="cm-reg-input" id="cmRegTagInput" placeholder="예: 반신, 두상, 빠른마감 (입력 후 Enter)" onkeydown="cmOnTagKey(event)">'+
       '<div class="cm-reg-taglist" id="cmRegTagList">'+tagsHTML+'</div>'+
@@ -4996,11 +4996,21 @@ function cmSetReviewEvent(on){
 }
 /* 아직 안 채운 필수 항목들. 버튼 활성 판정·안내 문구·빈 칸 표시·스크롤이 전부 이 목록 하나를
    쓴다 — 여러 곳이 따로 살면 안내와 실제 조건이 어긋난다. el은 화면에서 그 칸을 찾는 id. */
+/* 가격은 0 이상의 정수만 받는다 — number 입력은 음수·소수·지수까지 허용해서
+   (실측: -5000·1.5·999999999999 통과) "-5,000원~" 같은 값이 저장됐다.
+   반환: 올바르면 정수 문자열, 아니면 null. */
+function cmNormalizePrice(v){
+  var s=String(v==null?'':v).trim();
+  if(!/^\d+$/.test(s))return null;      // 숫자만(음수·소수·문자 배제)
+  var n=parseInt(s,10);
+  if(!(n>=0)||n>100000000)return null;  // 0 ~ 1억 원
+  return String(n);
+}
 function cmRegMissing(){
   var m=[];
   if(!cmReg.images.length)m.push({label:'샘플 이미지',el:'cmRegImgs'});
   if(!cmReg.title.trim())m.push({label:'제목',el:'cmRegTitle'});
-  if(!cmReg.price)m.push({label:'가격',el:'cmRegPrice'});
+  if(cmNormalizePrice(cmReg.price)==null)m.push({label:'가격',el:'cmRegPrice'});
   if(!cmReg.desc.trim())m.push({label:'설명',el:'cmRegDescEditor'});
   if(cmReg.reviewEventOn&&!cmReg.reviewEventBenefit.trim())m.push({label:'리뷰 이벤트 혜택',el:'cmRegRevBenefit'});
   return m;
@@ -5074,7 +5084,7 @@ async function cmSubmitReg(){
   function _fail(){cmRegSubmitting=false;if(_btn){_btn.disabled=false;_btn.textContent=_label;}}
   var row={
     title:cmReg.title.trim(),
-    price:cmReg.price,
+    price:cmNormalizePrice(cmReg.price),  // 검증을 통과한 정수 문자열로 저장(음수·소수 차단)
     tags:cmReg.tags.slice(),
     status:cmReg.status,
     period:cmReg.period.trim(),
@@ -5089,23 +5099,36 @@ async function cmSubmitReg(){
     is_adult:!!cmReg.isAdult
   };
   var commissionId;
+  var imgRows=cmReg.images.map(function(url,i){return{commission_id:null,url:url,sort:i};});
   try{
     if(cmReg.editingId){
-      var upd=await window.supabase.from('commissions').update(row).eq('id',cmReg.editingId).select().single();
-      if(upd.error){toast('수정 실패: '+upd.error.message);_fail();return;}
       commissionId=cmReg.editingId;
-      var delImgs=await window.supabase.from('commission_images').delete().eq('commission_id',commissionId);
-      if(delImgs.error)console.error(delImgs.error);
+      imgRows.forEach(function(r){r.commission_id=commissionId;});
+      /* ⚠️ 순서 주의(2026-08-15 점검): 이미지를 지우기 **전에 새 이미지부터 넣는다.**
+         예전엔 update → 전체 delete → insert 였는데, 마지막 insert가 실패하면
+         옛 이미지는 이미 지워졌고 새 이미지는 안 들어와 **커미션에서 사진이 통째로 사라졌다**
+         (그런데도 "수정되었어요" 토스트). 이제 새 이미지 insert가 성공한 뒤에만 옛것을 지운다. */
+      var newImgs=imgRows.length?await window.supabase.from('commission_images').insert(imgRows).select('id'):{data:[]};
+      if(newImgs.error){toast('이미지 저장에 실패했어요. 다시 시도해주세요');_fail();return;}
+      var keepIds=(newImgs.data||[]).map(function(x){return x.id;});
+      var delOld=keepIds.length
+        ? await window.supabase.from('commission_images').delete().eq('commission_id',commissionId).not('id','in','('+keepIds.join(',')+')')
+        : await window.supabase.from('commission_images').delete().eq('commission_id',commissionId);
+      if(delOld.error)console.error(delOld.error); // 옛것이 남는 건 사진이 사라지는 것보다 훨씬 낫다
+      var upd=await window.supabase.from('commissions').update(row).eq('id',commissionId).select().single();
+      if(upd.error){toast('수정 실패: '+upd.error.message);_fail();return;}
     }else{
       row.author_id=AUTH.user.id;
       var saved=await window.supabase.from('commissions').insert(row).select().single();
       if(saved.error){toast('등록 실패: '+saved.error.message);_fail();return;}
       commissionId=saved.data.id;
-    }
-    if(cmReg.images.length){
-      var imgRows=cmReg.images.map(function(url,i){return{commission_id:commissionId,url:url,sort:i};});
-      var savedImgs=await window.supabase.from('commission_images').insert(imgRows);
-      if(savedImgs.error)console.error(savedImgs.error);
+      if(imgRows.length){
+        imgRows.forEach(function(r){r.commission_id=commissionId;});
+        var savedImgs=await window.supabase.from('commission_images').insert(imgRows);
+        // ⚠️ 이미지 실패를 조용히 넘기면(예전 동작) 커미션이 사진 없이 등록되는데도 "등록 성공"이 뜬다.
+        //    커미션은 이미 만들어졌으므로 되돌리지 않되(다시 등록하면 중복), 사실대로 알린다.
+        if(savedImgs.error){toast('커미션은 등록됐지만 사진 저장에 실패했어요. 수정에서 다시 올려주세요','⚠️');}
+      }
     }
   }catch(e){toast('저장 중 오류가 났어요. 다시 시도해주세요');_fail();return;}
   cmRegSubmitting=false; // 성공 — 화면이 곧 내 커미션 목록으로 바뀌므로 버튼은 복구할 필요 없음
