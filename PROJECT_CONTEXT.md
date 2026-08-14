@@ -1690,6 +1690,13 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 🐛 채팅 입력 중 뒤 화면이 비치던 문제 (2026-08-14, 사용자 신고)
+키보드가 올라오는 **애니메이션 동안** 방을 줄이는(top/bottom 보정) 타이밍과 iOS의 화면 이동이 어긋나 위아래 틈으로 뒤 커미션 상세가 잠깐 비쳤다.
+- `.chatroom.open::before`로 **화면 전체 크기의 배경막**(var(--bg), position:fixed)을 방 뒤에 깔았다 — 틈이 생겨도 배경색만 보인다. 타이밍을 맞추려는 접근(불가능에 가깝다) 대신 틈 자체를 무해하게.
+- ⚠️ `z-index:-1` 필수 — positioned 가상요소는 기본으로 정적 자식들 **위에** 그려진다. `.chatroom`이 z-index:75로 자기 스택 문맥을 만들므로 -1이어도 뒤 화면보다는 위.
+- ⚠️ `@media(max-width:600px)`로 모바일만 — 데스크톱은 방이 560px이라 좌우로 뒤 화면이 보이는 게 정상.
+- 검증: 키보드 중간 상태 흉내(top=60/bottom=240)에서 위 틈·키보드 자리 모두 elementFromPoint가 배경막을 반환, 복원 정상.
+
 ### 🐛 비로그인 문의 배너 — 2차 수정, 진짜 원인 (2026-08-14, 재신고)
 자동 포커스 제거(1차)로는 안 고쳐졌다. **진짜 원인 두 개**:
 - **`guestRenderRoom`이 visualViewport 리스너를 안 붙였다** — 로그인 채팅방(renderChatView)은 붙이는데 손님 방만 빠짐. 키보드가 떠도 방이 안 줄어 입력창이 키보드 뒤에 숨고, iOS가 입력창을 보이려고 화면을 밀어(pan) 상단 배너가 시야 밖으로. 키보드를 닫아도 민 상태가 남는다.

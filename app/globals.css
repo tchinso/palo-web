@@ -1339,6 +1339,15 @@
   /* 채팅방 오버레이 (이미지 1) — body 최상위 fixed 전체화면 */
   .chatroom{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:75;background:var(--bg);flex-direction:column;max-width:560px;margin:0 auto;transition:bottom .24s cubic-bezier(.33,0,.2,1)}
   .chatroom.open{display:flex}
+  /* 키보드가 올라오는 동안 방을 줄이면(top/bottom 보정) 잠깐 위아래에 틈이 생겨
+     뒤에 있던 화면이 비쳐 보인다(2026-08-14 사용자 신고). 방 뒤에 화면 전체 크기의
+     배경막을 깔아 틈으로는 배경색만 보이게 한다.
+     ⚠️ z-index:-1 필수 — 없으면 (positioned인) 이 막이 방의 내용 위에 그려진다.
+        .chatroom이 z-index:75로 자기 문맥을 만들므로 -1이어도 뒤 화면보다는 위다.
+     ⚠️ 모바일에서만 — 넓은 화면에선 방이 560px이라 좌우로 뒤 화면이 보이는 게 정상이다. */
+  @media(max-width:600px){
+    .chatroom.open::before{content:"";position:fixed;top:0;bottom:0;left:0;right:0;background:var(--bg);z-index:-1}
+  }
   .cr-top{flex-shrink:0;display:flex;align-items:center;gap:6px;background:var(--brand);color:#fff;padding:calc(env(safe-area-inset-top,0px) + 10px) 10px 10px}
   .cr-back{background:none;border:none;color:#fff;cursor:pointer;padding:4px;display:flex}
   .cr-back svg{width:26px;height:26px}
