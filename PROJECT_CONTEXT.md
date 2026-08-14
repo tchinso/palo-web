@@ -1690,6 +1690,13 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 프로필 자유 링크 추가 (2026-08-15, 사용자 요청)
+트위터·인스타·이메일은 그대로 두고, 아무 사이트나 넣는 링크 하나(`sns_link`) 추가.
+- **DB(사용자 실행)**: `docs/sql/profile-sns-link.sql` — `profiles`에 `sns_link text` 컬럼. (기존 sns_* 컬럼은 SQL 파일에 기록 없이 대시보드로 추가됐던 것 — 이건 파일로 남김)
+- **⚠️ URL 안전 검증**: 자유 링크라 아무 값이나 오므로 `pfSafeUrl(v)` — http/https만, 스킴 없으면 https 보정, `javascript:`·`data:`·`mailto:` 등 다른 스킴은 **null(거부)**. 렌더는 통과한 것만, 저장 전에도 검증. `rel="noopener nofollow"`.
+- 프로필 조회는 자기·타인 모두 `select("*")`라 컬럼만 생기면 자동으로 흘러옴. 렌더 투영 2곳(`renderProfileHeader`·`openUserProfile`)에 `sns_link` 전달, 편집 모달 로드/저장에 `pfLinkInput`(최대 300자).
+- 검증(dev): pfSafeUrl 7/7(pixiv·www 보정·javascript/data/mailto 거부), 모달 칸 존재·값 로드, 위험 링크 렌더 제외.
+
 ### 커미션 등록 흐름 점검 — 3건 수정 (2026-08-15, 사용자 요청)
 등록 과정 전수 검토. 성인 등록은 클라(`cmSetAdult`가 `isAdultVerified()`)+RLS(restrictive insert/update `not is_adult or is_adult_verified()`) 이중으로 안전. 발견·수정 3건:
 1. **🔴 가격 검증 없음**: 필수검사가 `cmReg.price` truthy만 봐서 **음수(-5000)·소수(1.5)·12자리 초거대 숫자가 통과**(실측)했다. 저장되면 상세에 "-5,000원~"으로 표시. `cmNormalizePrice(v)`: `/^\d+$/` + 0~1억 범위 → 정수 문자열 or null. 필수검사·저장 양쪽에서 사용. input에 `min=0 step=1000 inputmode=numeric` 추가(키보드 단계에서도 차단). 검증: 정규화 10/10, 음수 입력 시 가격 미충족으로 막힘.

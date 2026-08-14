@@ -372,6 +372,15 @@ function pfSnsUrl(type,v){
   v=v.replace(/^@/,'');
   return type==='twitter'?('https://x.com/'+v):('https://instagram.com/'+v);
 }
+/* 자유 링크를 안전한 URL로. http/https만 허용하고(javascript:·data: 등 차단),
+   스킴이 없으면 https://를 붙여 준다. 만들 수 없으면 null(=링크 안 보임). */
+function pfSafeUrl(v){
+  v=String(v||'').trim();
+  if(!v)return null;
+  if(/^https?:\/\//i.test(v))return v;
+  if(/^[a-z][a-z0-9+.-]*:/i.test(v))return null; // 다른 스킴(javascript:·mailto: 등)은 거부
+  return 'https://'+v;                            // 스킴 없으면 https로 보정
+}
 function pfReviewStats(userId,nickname){
   var reviews=POSTS.filter(function(p){
     if(p.board!=='review')return false;
@@ -401,6 +410,10 @@ function pfHeroHTML(p,isSelf,reviewStats,bookmarkCount,actionsHTML){
   if(p.sns_twitter)links+='<a class="pfh-link" href="'+esc(pfSnsUrl('twitter',p.sns_twitter))+'" target="_blank" rel="noopener" title="트위터(X)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg></a>';
   if(p.sns_instagram)links+='<a class="pfh-link" href="'+esc(pfSnsUrl('instagram',p.sns_instagram))+'" target="_blank" rel="noopener" title="인스타그램"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>';
   if(p.sns_email)links+='<a class="pfh-link" href="mailto:'+esc(p.sns_email)+'" title="이메일"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 4l8 7 8-7"/></svg></a>';
+  // 자유 링크(블로그·픽시브·포트폴리오 등) — 아무 사이트나 되므로 http/https만 통과시킨다
+  // (pfSafeUrl이 javascript: 같은 위험한 스킴을 걸러 낸다). 아이콘은 일반 '링크' 모양.
+  var freeUrl=p.sns_link?pfSafeUrl(p.sns_link):null;
+  if(freeUrl)links+='<a class="pfh-link" href="'+esc(freeUrl)+'" target="_blank" rel="noopener nofollow" title="링크"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg></a>';
   var editLinksBtn=isSelf?'<button type="button" class="pfh-edit-btn" onclick="openPfEditModal()">✏️ 소개글 · 링크 편집</button>':'';
   var pctHTML=reviewStats.pct==null?'<div class="n">-</div>':'<div class="n good">'+reviewStats.pct+'%</div>';
   var bmHTML=bookmarkCount==null?'…':bookmarkCount;
@@ -425,6 +438,7 @@ function openPfEditModal(){
   document.getElementById('pfTwitterInput').value=(AUTH.profile&&AUTH.profile.sns_twitter)||'';
   document.getElementById('pfInstaInput').value=(AUTH.profile&&AUTH.profile.sns_instagram)||'';
   document.getElementById('pfEmailInput').value=(AUTH.profile&&AUTH.profile.sns_email)||'';
+  var lk=document.getElementById('pfLinkInput');if(lk)lk.value=(AUTH.profile&&AUTH.profile.sns_link)||'';
   document.getElementById('pfEditModal').classList.add('open');
 }
 function closePfEdit(){document.getElementById('pfEditModal').classList.remove('open');}
@@ -434,10 +448,14 @@ async function savePfEdit(){
   var tw=document.getElementById('pfTwitterInput').value.trim();
   var ig=document.getElementById('pfInstaInput').value.trim();
   var em=document.getElementById('pfEmailInput').value.trim();
-  var res=await window.supabase.from('profiles').update({bio:bio||null,sns_twitter:tw||null,sns_instagram:ig||null,sns_email:em||null},{count:"exact"}).eq('id',AUTH.user.id);
+  var lkEl=document.getElementById('pfLinkInput');
+  var lk=lkEl?lkEl.value.trim().slice(0,300):'';
+  // 저장 전에 안전 검증 — 위험 스킴이면 알리고 멈춘다(빈 값은 통과 = 링크 없음)
+  if(lk&&!pfSafeUrl(lk)){toast('링크 주소를 확인해주세요 (http/https만 가능)');return;}
+  var res=await window.supabase.from('profiles').update({bio:bio||null,sns_twitter:tw||null,sns_instagram:ig||null,sns_email:em||null,sns_link:lk||null},{count:"exact"}).eq('id',AUTH.user.id);
   if(!res.error&&res.count===0){toast("반영되지 않았어요. 새로고침 후 다시 시도해주세요");return;}
   if(res.error){toast('저장 실패: '+res.error.message);return;}
-  if(AUTH.profile){AUTH.profile.bio=bio||null;AUTH.profile.sns_twitter=tw||null;AUTH.profile.sns_instagram=ig||null;AUTH.profile.sns_email=em||null;}
+  if(AUTH.profile){AUTH.profile.bio=bio||null;AUTH.profile.sns_twitter=tw||null;AUTH.profile.sns_instagram=ig||null;AUTH.profile.sns_email=em||null;AUTH.profile.sns_link=lk||null;}
   closePfEdit();toast('프로필을 저장했어요','✓');
   openProfile();
 }
@@ -8072,7 +8090,7 @@ async function openUserProfile(userId,keepStack){
   var theirReviewList=pfArtistReviewList(userId,profile.nickname);
   var h='<div class="profile">';
   h+=pfHeroHTML({nickname:profile.nickname,level:profile.level,avatar_url:profile.avatar_url,
-    cover_url:profile.cover_url,bio:profile.bio,sns_twitter:profile.sns_twitter,sns_instagram:profile.sns_instagram,sns_email:profile.sns_email},
+    cover_url:profile.cover_url,bio:profile.bio,sns_twitter:profile.sns_twitter,sns_instagram:profile.sns_instagram,sns_email:profile.sns_email,sns_link:profile.sns_link},
     false,theirReviewStats,theirBookmarkCount,
     // 채팅·뮤트·차단·메모는 남의 프로필에서만(자기 자신에겐 의미가 없다). 내용은 renderPfHeroActions가 채운다.
     canChat?'<div class="pfh-acts" id="pfHeroActions"></div>':'');
@@ -9100,7 +9118,7 @@ function renderMyProfile(){
      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></button></div>';
   h+=pfHeroHTML({nickname:ME.nick,level:myLevel,avatar_url:AUTH.profile&&AUTH.profile.avatar_url,
     cover_url:AUTH.profile&&AUTH.profile.cover_url,bio:AUTH.profile&&AUTH.profile.bio,
-    sns_twitter:AUTH.profile&&AUTH.profile.sns_twitter,sns_instagram:AUTH.profile&&AUTH.profile.sns_instagram,sns_email:AUTH.profile&&AUTH.profile.sns_email},
+    sns_twitter:AUTH.profile&&AUTH.profile.sns_twitter,sns_instagram:AUTH.profile&&AUTH.profile.sns_instagram,sns_email:AUTH.profile&&AUTH.profile.sns_email,sns_link:AUTH.profile&&AUTH.profile.sns_link},
     true,myReviewStats,null);
   // 내 공개 프로필 보기 (포스타입식 '프로필 보기' 링크)
   h+='<button type="button" class="pf-viewpublic" onclick="openUserProfile(\''+AUTH.user.id+'\')"><span>내 공개 프로필 보기</span>'+
