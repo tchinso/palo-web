@@ -1690,6 +1690,11 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 점검 후 일괄 수정 2차 — `esc()`에 `'` 추가 (2026-08-14, 단독 배포)
+호출처 294곳이라 **단독 배포로 격리**. 현재 HTML 속성이 전부 큰따옴표라 뚫린 곳은 없었지만, 누가 홑따옴표 속성을 하나만 써도 XSS 통로가 되는 구조였다.
+- 인라인 onclick의 `esc(cmQ(u))` 이중 이스케이프는 안전 — **HTML 엔티티가 먼저 풀린 뒤 JS가 파싱**하므로 cmQ의 백슬래시가 살아 있다.
+- 검증(dev) 7종: 기본 이스케이프, 렌더 왕복(원문 복원), **onclick 왕복(`'` 든 URL이 원본 그대로 전달)**, `hlEsc` 하이라이트, `data-search` 속성 왕복(getAttribute가 디코드), `withEmoticons` 무영향, 홈 21글 정상 렌더.
+
 ### 점검 후 일괄 수정 1차 — 저위험 묶음 5건 (2026-08-14)
 점검(1~8회차) 완료 후 승인받은 수정을 위험 격리를 위해 나눠 배포. 1차는 저위험 한 줄들:
 - **`--muted` `#a294a0`→`#766871`** — 배경 대비 2.7→4.9:1(WCAG 4.5 충족). 같은 모브 계열 유지, `--muted-2`(장식용)는 그대로. 사이트 전체 회색 글자가 일제히 진해지는 시각 변화 있음.

@@ -1326,7 +1326,11 @@ async function logout(){
   openProfile();
 }
 
-function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+/* HTML 이스케이프. '도 &#39;로 바꾼다(2026-08-14 보강) — 이 코드베이스의 HTML 속성은 전부
+   큰따옴표라 당장 뚫린 곳은 없었지만, 나중에 누가 홑따옴표 속성을 하나만 써도 그 순간
+   XSS 통로가 되는 구조였다. 인라인 onclick 안의 esc(cmQ(u)) 이중 이스케이프도 안전하다 —
+   HTML 엔티티가 먼저 풀린 뒤 JS가 파싱하므로 cmQ의 백슬래시가 그대로 살아 있다. */
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function boardName(id){
   for(var g of BOARDS)for(var b of g.items)if(b.id===id)return b.name;
   if(id==="trade")return"커미션 구인구직";
