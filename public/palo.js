@@ -3203,7 +3203,6 @@ var cmReviews=[
   {who:'초코라떼',type:'불호',ctype:'흉상',txt:'그림은 좋았는데 예정보다 조금 늦어졌어요. 그래도 결과물은 만족합니다.',date:'2026.07.12'}
 ];
 var cmMyList=[]; // cmOpenMy()가 Supabase에서 실제로 불러와 채움
-var CM_TYPES=['두상','흉상','반신','전신','SD','이모티콘','배경','기타'];
 var CM_BAD_REASONS=['퀄리티 불만족','마감 기한 미준수','소통이 어려웠어요','스타일이 요청과 달랐어요','기타'];
 // 작가가 거래 정책을 직접 안 적었을 때 뜨는 기본 면책 문구(신청서·상세 공용)
 var CM_DEFAULT_POLICY_HTML='commi는 결제를 중개하지 않고 소통 공간만 제공하는 서비스로, 거래의 당사자가 아니에요.<br>작업 범위·기한·환불 등은 작가님과 신청자님이 직접 정하며, 거래 중 사기·분쟁 등 어떤 문제가 생겨도 commi는 대금을 보증·환불하거나 법적 책임을 지지 않아요.<br>미성년자 거래는 보호자 동의가 없으면 취소될 수 있어요.';
@@ -3211,7 +3210,7 @@ var cmTopTags=[]; // cmLoadCommissions()가 실제 사용 빈도순으로 채움
 var cmBookmarkIds=null; // 로그인 후 Set으로 채워짐(북마크한 커미션 id들)
 /* showAdult: 인증을 마친 사람이 성인 커미션을 목록에 띄울지 말지. 기본은 **끔** —
    인증했다고 해서 늘 보고 싶은 건 아니고, 옆 사람과 화면을 같이 볼 수도 있다. */
-var cmState={activeTag:null,wrType:null,wrCtype:null,query:'',sort:'home',showAdult:false};
+var cmState={activeTag:null,wrType:null,wrCommissionId:null,query:'',sort:'home',showAdult:false};
 try{cmState.showAdult=localStorage.getItem('cmShowAdult')==='1';}catch(e){}
 var cmReg={images:[],tags:[],status:'open',editingId:null};
 var cmDetailCtx={from:'list',idx:0};
@@ -4431,7 +4430,8 @@ function cmDelWrImg(i){
   document.getElementById('cmWrImgs').innerHTML=cmWrImgsHTML();
   cmCheckWriteSubmit();
 }
-function cmOpenWrite(commissionId){
+var cmWrCommissions=[]; // 후기 작성 화면의 선택지(이 작가의 커미션 {id,title} 목록)
+async function cmOpenWrite(commissionId){
   if(!AUTH.user){
     toast('로그인 후 후기를 작성할 수 있어요','🔒');
     loginWithGoogle();
@@ -4439,10 +4439,26 @@ function cmOpenWrite(commissionId){
   }
   enterScreen("cmWrite",function(){cmOpenReviews(commissionId);});
   cmReviewCommissionId=commissionId;
-  cmState.wrType=null;cmState.wrCtype=null;cmState.wrBadReason=null;
+  cmState.wrType=null;cmState.wrBadReason=null;
   cmWr={images:[]};
   var commission=cmData.find(function(c){return c.id===commissionId;});
-  var typeOptions=(commission&&commission.tags&&commission.tags.length)?commission.tags:CM_TYPES;
+  /* "어떤 커미션이었나요?"의 선택지 — 예전엔 이 커미션의 **태그**(두상·흉상…)를 보여줬는데,
+     골라도 저장만 되고 아무 데도 안 쓰였다(commission_ctype은 표시하는 곳이 없다).
+     이제 이 작가의 **커미션 제목**을 보여주고, 고르면 후기가 그 커미션의 id에 연결된다
+     (2026-08-14 사용자 요청). 그래야 만족률·후기 목록·후기 카드 제목이 고른 커미션으로
+     정확히 집계된다 — 전부 commission_id 기준이라 연동이 자동으로 따라온다. */
+  cmWrCommissions=[{id:commissionId,title:(commission&&commission.title)||'이 커미션'}];
+  cmState.wrCommissionId=commissionId; // 들어온 커미션을 기본 선택 — 대부분 그 커미션 후기다
+  if(commission&&commission.authorId&&window.supabase){
+    // 성인 커미션은 RLS(restrictive)가 미인증자에게 행 자체를 안 주므로 여기서도 자동으로 빠진다
+    var listRes=await window.supabase.from('commissions').select('id,title')
+      .eq('author_id',commission.authorId).order('created_at',{ascending:false});
+    if(!listRes.error&&listRes.data&&listRes.data.length){
+      cmWrCommissions=listRes.data;
+      if(!cmWrCommissions.some(function(c){return c.id===commissionId;}))
+        cmWrCommissions.unshift({id:commissionId,title:(commission&&commission.title)||'이 커미션'});
+    }
+  }
   document.getElementById("main").innerHTML='<div class="cm-root">'+
     '<div class="cm-sub-top"><svg onclick="screenBack()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg><b>후기 작성</b></div>'+
     '<div class="cm-wr">'+
@@ -4451,8 +4467,10 @@ function cmOpenWrite(commissionId){
         '<div class="cm-hb-btn good" id="cmHbGood" onclick="cmSelectHB(\'good\')"><div class="cm-ic">😊</div><div class="cm-t">만족 후기</div></div>'+
         '<div class="cm-hb-btn bad" id="cmHbBad" onclick="cmSelectHB(\'bad\')"><div class="cm-ic">😐</div><div class="cm-t">불호 후기</div></div>'+
       '</div>'+
-      '<div class="cm-wr-label">커미션 타입 <span class="cm-wr-sub">어떤 커미션이었나요?</span></div>'+
-      '<div class="cm-wr-types" id="cmWrTypes">'+typeOptions.map(function(t){return '<div class="cm-wr-type" onclick="cmSelectType(this,\''+cmQ(t)+'\')">'+esc(t)+'</div>';}).join('')+'</div>'+
+      '<div class="cm-wr-label">받은 커미션 <span class="cm-wr-sub">어떤 커미션이었나요?</span></div>'+
+      '<div class="cm-wr-types" id="cmWrTypes">'+cmWrCommissions.map(function(c){
+        return '<div class="cm-wr-type'+(c.id===cmState.wrCommissionId?' sel':'')+'" onclick="cmSelectCommission(this,'+c.id+')">'+esc(c.title||'제목 없음')+'</div>';
+      }).join('')+'</div>'+
       '<div class="cm-wr-label" id="cmWrReasonLabel" style="display:none">불호 이유 <span class="cm-wr-sub">해당하는 이유를 골라주세요</span></div>'+
       '<div class="cm-wr-types" id="cmWrReasons" style="display:none">'+CM_BAD_REASONS.map(function(r){return '<div class="cm-wr-type cm-wr-reason" onclick="cmSelectBadReason(this,\''+cmQ(r)+'\')">'+esc(r)+'</div>';}).join('')+'</div>'+
       '<div class="cm-wr-label">받은 커미션 사진 <span class="cm-reg-req">*</span> <span class="cm-wr-sub">필수 · 최대 5장</span></div>'+
@@ -4479,8 +4497,8 @@ function cmSelectHB(v){
   }
   cmCheckWriteSubmit();
 }
-function cmSelectType(el,t){
-  cmState.wrCtype=t;
+function cmSelectCommission(el,id){
+  cmState.wrCommissionId=id;
   document.querySelectorAll('#cmWrTypes .cm-wr-type').forEach(function(x){x.classList.remove('sel')});
   el.classList.add('sel');
   cmCheckWriteSubmit();
@@ -4492,14 +4510,19 @@ function cmSelectBadReason(el,r){
   cmCheckWriteSubmit();
 }
 function cmCheckWriteSubmit(){
-  var ok=cmState.wrType&&cmState.wrCtype&&(cmState.wrType!=='bad'||cmState.wrBadReason)&&cmWr.images.length>0;
+  var ok=cmState.wrType&&cmState.wrCommissionId!=null&&(cmState.wrType!=='bad'||cmState.wrBadReason)&&cmWr.images.length>0;
   document.getElementById('cmWrSubmit').disabled=!ok;
 }
 async function cmSubmitReview(){
   if(!AUTH.user){toast('로그인 후 후기를 작성할 수 있어요','🔒');return;}
-  if(cmReviewCommissionId==null){toast('커미션 정보를 찾을 수 없어요');return;}
+  var targetId=(cmState.wrCommissionId!=null)?cmState.wrCommissionId:cmReviewCommissionId;
+  if(targetId==null){toast('커미션 정보를 찾을 수 없어요');return;}
   if(!cmWr.images.length){toast('후기 사진을 최소 1장 넣어주세요','📷');return;}
+  // 작가 정보는 들어온 커미션에서 — 선택지가 전부 같은 작가의 커미션이라 어느 걸 골라도 같다
   var commission=cmData.find(function(c){return c.id===cmReviewCommissionId;});
+  // ctype 칸에는 고른 커미션의 제목을 남긴다(예전 데이터와 같은 성격 — "무엇에 대한 후기인지"의 글자 표기)
+  var picked=cmWrCommissions.find(function(c){return c.id===targetId;});
+  var pickedTitle=picked?(picked.title||''):'';
   var txt=document.getElementById('cmWrText').value.trim();
   var sentiment=cmState.wrType;
   var title=sentimentTitle(sentiment);
@@ -4515,8 +4538,8 @@ async function cmSubmitReview(){
     reviewed_user_id:commission?commission.authorId:null,
     commission_post_id:null,
     commission_sentiment:sentiment,
-    commission_id:cmReviewCommissionId,
-    commission_ctype:cmState.wrCtype,
+    commission_id:targetId,
+    commission_ctype:pickedTitle||null,
     commission_bad_reason:sentiment==='bad'?cmState.wrBadReason:null
   }).select().single();
   if(saved.error){toast('저장 실패: '+saved.error.message);return;}
@@ -4531,10 +4554,10 @@ async function cmSubmitReview(){
     images:cmWr.images.length?cmWr.images.slice():undefined,
     isManagerPick:false,pickPosition:null,pickedAt:null,adLocked:false,
     reviewedNickname:commission?commission.artist:null,reviewedUserId:commission?commission.authorId:null,commissionPostId:null,commissionSentiment:sentiment,
-    commissionId:cmReviewCommissionId,commissionCtype:cmState.wrCtype,commissionBadReason:sentiment==='bad'?cmState.wrBadReason:null,
+    commissionId:targetId,commissionCtype:pickedTitle||null,commissionBadReason:sentiment==='bad'?cmState.wrBadReason:null,
     content:txt?txt.split('\n').filter(Boolean):[],html:undefined,comments:[]});
   toast('후기가 등록되었어요! 감사합니다','😊');
-  cmOpenReviews(cmReviewCommissionId);
+  cmOpenReviews(targetId); // 후기가 붙은(고른) 커미션의 후기 목록으로 — 방금 쓴 글이 바로 보인다
 }
 function cmOpenRegister(editId){
   if(!AUTH.user){

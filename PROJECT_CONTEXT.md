@@ -1690,6 +1690,17 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 후기 작성 — 태그 대신 커미션 제목 선택 + id 연동 (2026-08-14, 사용자 요청)
+후기 작성의 "커미션 타입"이 그 커미션의 **태그**(두상·흉상…)를 보여줬는데, 골라도 `commission_ctype`에 저장만 되고 **표시하는 곳이 아무 데도 없었다**(조사로 확인 — 렌더 0곳, 트리거 미사용). 이제 **이 작가의 커미션 제목**을 보여주고, 고르면 후기의 `commission_id`가 그 커미션으로 연결된다.
+- **연동이 자동으로 따라오는 이유**: 만족률·상세의 후기 목록(`cmCommissionReviews`)·후기 카드 제목(`reviewItemTitleFor`)이 전부 `commission_id` 기준이라, id만 바꾸면 나머지가 다 맞는다. 이게 "다른 부분도 연동"의 실체 — 별도 수정 없음.
+- `cmOpenWrite`가 async로: 작가의 커미션 목록을 `commissions.select('id,title').eq('author_id',…)`로 조회. **성인 커미션은 RLS(restrictive)가 미인증 조회자에게 행을 안 주므로 선택지에서 자동으로 빠진다.** 조회 실패 시 들어온 커미션 하나만 선택지로(폴백).
+- 들어온 커미션을 **기본 선택** — 대부분 그 커미션 후기라 한 번 덜 누른다.
+- `commission_ctype`에는 고른 커미션의 **제목**을 남긴다(칼럼 성격 유지 — "무엇에 대한 후기인지"의 글자 표기. 스키마 변경 없음).
+- 제출 후 `cmOpenReviews(고른 커미션)`으로 이동 — 방금 쓴 후기가 바로 보인다.
+- `cmSelectType`→`cmSelectCommission`, `cmState.wrCtype`→`wrCommissionId`, 미사용이 된 `CM_TYPES` 상수 제거.
+- **영향 없음 확인**: trade 구직글 후기(`openReviewFor`→`commission_post_id` 통로)는 별개 경로라 그대로. 기존 후기 데이터(태그가 ctype에 저장된 것)도 표시에 안 쓰여 영향 없음.
+- 검증(dev): 선택지에 작가의 커미션 2건 제목 표시·기본 선택 정확, 칩 클릭 시 `wrCommissionId` 전환·선택 표시 이동, 사진 없으면 제출 잠김.
+
 ### 복구용 이메일을 아이디 계정 전용으로 (2026-08-14, 사용자 요청)
 소셜(구글·네이버·X) 가입자는 복구용 이메일을 등록하지 못하게 함 — 복구는 그 서비스 몫이라 우리가 해줄 게 없고, 등록하면 오히려 **사고**가 된다.
 - **⚠️ 소셜이 이메일을 바꾸면 생기는 실제 위험**: 네이버 로그인은 **이메일로 계정을 찾는다**(`admin.createUser` 후 이메일 매칭). 복구용 등록 = `auth.updateUser({email})` = 로그인 이메일 변경 → 다음 네이버 로그인 때 옛 이메일로 **새 계정이 만들어져 계정이 둘로 갈라진다.** 구글·X는 identity 매칭이라 로그인은 유지되지만 프로필 이메일이 실제와 어긋난다.
