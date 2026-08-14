@@ -31,6 +31,24 @@ language sql stable as $$
     where table_schema = 'public' and table_name = p_table and column_name = p_col);
 $$;
 
+-- 어떤 역할이 그 함수를 실행할 수 있는지.
+-- ⚠️ has_function_privilege('anon','public.blocked_me()','EXECUTE') 처럼 쓰면 안 된다 —
+--    인자 타입이 한 글자라도 다르면 "function does not exist" 오류로 **쿼리 전체가 죽는다**
+--    (blocked_me 는 실제로 blocked_me(uuid) 였다). 카탈로그를 직접 읽으면 이름만으로 안전하다.
+--    proacl 이 비어 있으면 기본 권한(PUBLIC 에 EXECUTE)이므로 grantee=0(PUBLIC)도 인정한다.
+create or replace function pg_temp.can_exec(p_fn text, p_role text) returns boolean
+language sql stable as $$
+  select exists(
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+    left join pg_roles r on r.oid = a.grantee
+    where n.nspname = 'public' and p.proname = p_fn
+      and a.privilege_type = 'EXECUTE'
+      and (a.grantee = 0 or r.rolname = p_role));
+$$;
+
 select 파일,
        case when 있음 then '✅ 실행됨' else '❌ 아직' end as 상태,
        근거
@@ -46,8 +64,7 @@ from (values
   ('commission-report.sql',     pg_temp.has_col('reports','commission_id'),              '칼럼 reports.commission_id'),
   ('chat-image.sql',            pg_temp.has_col('messages','image_url'),                 '칼럼 messages.image_url'),
   ('user-blocks.sql',           pg_temp.has_fn('blocked_me'),                            '함수 blocked_me'),
-  ('user-blocks-fix-anon.sql',  coalesce(has_function_privilege('anon','public.blocked_me()','EXECUTE'), false),
-                                                                                         'anon 의 blocked_me 실행권한'),
+  ('user-blocks-fix-anon.sql',  pg_temp.can_exec('blocked_me','anon'),                   'anon 의 blocked_me 실행권한'),
   ('user-notes.sql',            to_regclass('public.user_notes') is not null,            '표 user_notes'),
   ('post-bookmarks.sql',        to_regclass('public.post_bookmarks') is not null,        '표 post_bookmarks'),
   ('site-rules.sql',            to_regclass('public.site_settings') is not null,         '표 site_settings'),
