@@ -1690,6 +1690,12 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 🐛 홈 화면 앱(PWA)에서 하단 탭바가 떠다니던 문제 (2026-08-15, 사용자 신고)
+iOS **standalone(홈 화면 추가)**에서는 키보드가 닫혀도 화면 밀림(`visualViewport.offsetTop>0`)이 남는 경우가 있다 — 사파리는 스스로 되돌리지만 홈 화면 앱은 안 되돌려서, 고정된 탭바가 뜬 채 스크롤을 따라다닌다.
+- **수정**: kb-open의 focusout 핸들러(단일 소유자)에서 키보드 애니메이션 뒤(250ms) 밀림이 남아 있고 다른 입력에 포커스가 없으면 **제자리 `scrollTo`로 강제 재정착**. 밀림이 없으면 아무 일도 안 함, 입력 간 이동(키보드 유지) 중에는 발동 안 함.
+- 검증(dev): 밀림 잔존+blur → scrollTo 1회, 밀림 없음 → 0회, 입력 간 이동 → 0회. ⚠️ 진짜 standalone 재현은 실기기 필요 — 홈 화면 앱에서 입력 후 확인 요청.
+- ⚠️ 테스트 함정: 합성 focusout만 흘리면 activeElement가 안 바뀌어 가드에 (올바르게) 막힌다 — 실제 `blur()`를 먼저 부를 것.
+
 ### 🐛 하단 탭이 가끔 사라진 채 남던 문제 (2026-08-14, 사용자 신고 — 내 회귀)
 원인: **`body.kb-open` 주인이 둘**이었다. 원래 focus 기반 시스템(focusin/focusout + `touchKeyboard()` coarse 판정 + 화면 교체 시 `syncKbOpen` 안전장치 — 몇 주째 동작, "focusout이 안 오는" 케이스까지 문서화돼 있었음)이 있는 걸 모르고, 어제 커미션 등록 바 수정 때 visualViewport resize 기반 토글러를 **하나 더** 얹었다. focusout이 끈 것을 키보드 닫힘 애니메이션 중의 **늦은 resize가 다시 켜서** 탭바가 숨은 채 고착("가끔 사라짐").
 - **수정: 중복 토글러 제거** — focus 기반 한 곳만 남김. 어제 확장한 CSS(`.cm-reg-bottom` 등 하단 바 숨김)는 유지되므로 등록 바 수정 효과도 그대로(오히려 focusin이 resize보다 빠름).

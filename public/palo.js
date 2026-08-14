@@ -10124,7 +10124,20 @@ syncNotifBadge();
   function isTextInput(el){return el&&(el.tagName==="INPUT"||el.tagName==="TEXTAREA"||el.isContentEditable);}
   function touchKeyboard(){return !!(window.matchMedia&&window.matchMedia("(pointer: coarse)").matches);}
   document.addEventListener("focusin",function(e){if(isTextInput(e.target)&&touchKeyboard())document.body.classList.add("kb-open");});
-  document.addEventListener("focusout",function(e){if(isTextInput(e.target))document.body.classList.remove("kb-open");});
+  document.addEventListener("focusout",function(e){
+    if(!isTextInput(e.target))return;
+    document.body.classList.remove("kb-open");
+    /* iOS 홈 화면 앱(standalone): 키보드가 닫혀도 화면이 밀린 채(visualViewport.offsetTop>0)로
+       남는 경우가 있다 — 사파리는 스스로 되돌리지만 홈 화면 앱은 안 되돌려서, 고정된 하단
+       탭바가 뜬 채 스크롤을 따라다닌다(2026-08-15 사용자 신고). 키보드 애니메이션이 끝난 뒤
+       밀림이 남아 있으면 제자리 스크롤로 강제 재정착시킨다(밀림이 없으면 아무 일도 안 함). */
+    setTimeout(function(){
+      var vv=window.visualViewport;
+      if(vv&&(vv.offsetTop||0)>0&&!isTextInput(document.activeElement)){
+        window.scrollTo(window.scrollX||0,window.scrollY||0);
+      }
+    },250);
+  });
   // 포커스된 입력칸이 화면 교체로 **사라지면 focusout이 오지 않는** 브라우저가 있다.
   // 그러면 하단 탭이 숨은 채 남는다 → 화면이 바뀔 때 실제 포커스를 보고 맞춘다.
   window.syncKbOpen=function(){
