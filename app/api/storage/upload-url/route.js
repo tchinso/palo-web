@@ -72,12 +72,16 @@ export async function POST(request) {
     const signed = await getSignedUrl(
       r2Client(),
       // 서명에 포함된 헤더는 브라우저도 **똑같이 보내야** 서명이 맞는다.
-      // 그래서 Content-Type만 넣는다(Cache-Control까지 넣으면 클라이언트가 빠뜨릴 때 403이 난다).
-      // 캐시는 Cloudflare가 커스텀 도메인에서 처리한다.
+      // Cache-Control은 넣지 않는다(클라이언트가 빠뜨리면 403) — 캐시는 Cloudflare Cache Rule이 담당.
+      // ContentLength는 넣는다(2026-08-14): 위의 size 검사는 클라이언트가 신고한 값이라
+      // 거짓말하면 그만이었다 — 서명에 넣으면 **R2가 실제 바이트 수를 강제**한다.
+      // 브라우저는 PUT의 Content-Length를 스스로 body 크기로 채우므로(개발자가 못 바꾸는
+      // 보호 헤더) 정직한 업로드는 항상 일치하고, 신고보다 큰 파일을 밀어넣으면 403이 난다.
       new PutObjectCommand({
         Bucket: R2_BUCKET,
         Key: objectKey,
         ContentType: contentType,
+        ContentLength: size,
         // ⚠️ 첨부 파일은 **브라우저에서 열리지 않고 반드시 내려받아지게** 한다.
         //    우리 도메인에서 무언가가 렌더되면 그 자체로 피싱·스크립트 실행 통로가 된다.
         //    (이미지 폴더에는 붙이지 않는다 — 본문에 그대로 보여야 하므로)
