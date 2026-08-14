@@ -4747,7 +4747,7 @@ function cmRenderRegisterScreen(){
       '</div>'+
     '</div>'+
     '<div class="cm-reg-bottom"><button class="cm-prev" onclick="cmPreviewReg()">미리보기</button>'+
-      '<button class="cm-reg-btn" id="cmRegSubmit" onclick="cmSubmitReg()" disabled>'+(editing?'수정 완료':'등록하기')+'</button></div>'+
+      '<button class="cm-reg-btn is-off" id="cmRegSubmit" aria-disabled="true" onclick="cmSubmitReg()">'+(editing?'수정 완료':'등록하기')+'</button></div>'+
   '</div>';
   window.scrollTo({top:0,behavior:"smooth"});
   cmCheckReg();
@@ -4994,14 +4994,27 @@ function cmSetReviewEvent(on){
   if(wrap)wrap.style.display=cmReg.reviewEventOn?'':'none';
   cmCheckReg();
 }
+/* 아직 안 채운 필수 항목의 이름들. 버튼 활성 판정과 "눌렀을 때 안내"가 같은 목록을 쓴다 —
+   두 곳이 따로 살면 안내와 실제 조건이 어긋난다. */
+function cmRegMissing(){
+  var m=[];
+  if(!cmReg.images.length)m.push('샘플 이미지');
+  if(!cmReg.title.trim())m.push('제목');
+  if(!cmReg.price)m.push('가격');
+  if(!cmReg.desc.trim())m.push('설명');
+  if(cmReg.reviewEventOn&&!cmReg.reviewEventBenefit.trim())m.push('리뷰 이벤트 혜택 내용');
+  return m;
+}
 function cmCheckReg(){
   cmSyncReg();
-  var ok=cmReg.images.length>0&&
-    cmReg.title.trim()&&
-    cmReg.price&&
-    cmReg.desc.trim()&& // 태그는 선택으로 바뀜(2026-08-15) — 필수는 이미지·제목·가격·설명
-    (!cmReg.reviewEventOn||cmReg.reviewEventBenefit.trim()); // 리뷰 이벤트 켰으면 혜택 내용 필수
-  document.getElementById('cmRegSubmit').disabled=!ok;
+  /* ⚠️ disabled 대신 .is-off 클래스 — disabled면 클릭 이벤트 자체가 안 와서,
+     눌러도 왜 안 되는지 알려줄 방법이 없다(2026-08-15 사용자 요청). 모양은 잿빛 그대로,
+     실제 차단은 cmSubmitReg 첫머리의 빈 항목 검사가 한다. */
+  var btn=document.getElementById('cmRegSubmit');
+  var off=cmRegMissing().length>0;
+  btn.classList.toggle('is-off',off);
+  btn.setAttribute('aria-disabled',off?'true':'false');
+  btn.disabled=false; // 예전 코드가 남긴 disabled가 있으면 해제
 }
 function cmPreviewReg(){
   cmSyncReg();
@@ -5022,6 +5035,9 @@ function cmPreviewReg(){
 var cmRegSubmitting=false; // 재진입 잠금 — 응답을 기다리는 동안 또 누르면 커미션이 두 개 생긴다
 async function cmSubmitReg(){
   cmSyncReg();
+  // 빈 필수 항목이 있으면 무엇인지 알려준다 — 조용한 무반응은 "버튼이 고장났다"로 읽힌다
+  var missing=cmRegMissing();
+  if(missing.length){toast(missing.join(' · ')+'을(를) 채워주세요','✍️');return;}
   if(!AUTH.user){toast('로그인 후 이용할 수 있어요','🔒');return;}
   if(cmRegSubmitting){toast('저장 중이에요, 잠시만요');return;} // 조용히 무시하면 "안 눌린다"가 된다
   cmRegSubmitting=true;

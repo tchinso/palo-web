@@ -2402,6 +2402,9 @@
   .cm-reg-bottom .cm-prev{flex:1;background:var(--brand-soft);color:var(--brand-2);border:none;font-size:15px;font-weight:700;padding:15px;border-radius:12px;cursor:pointer}
   .cm-reg-bottom .cm-reg-btn{flex:1.4;background:var(--brand);color:#fff;border:none;font-size:15px;font-weight:800;padding:15px;border-radius:12px;cursor:pointer}
   .cm-reg-bottom .cm-reg-btn:disabled{background:var(--muted-2);cursor:not-allowed}
+  /* '비활성처럼 보이지만 눌리는' 상태 — disabled로 막으면 클릭 자체가 안 와서
+     무엇이 비었는지 알려줄 기회가 없다(2026-08-15). 모양만 잿빛, 클릭은 받는다. */
+  .cm-reg-bottom .cm-reg-btn.is-off{background:var(--muted-2)}
   /* 웹(데스크톱)에서는 하단 탭바가 없어 버튼 바가 브라우저 창 맨 아래에 고정돼, 480px 폼과 멀리
      떨어져 누르기 어색했음 → 데스크톱에선 고정 해제하고 폼 끝에 자연스럽게 배치(모바일은 그대로 고정) */
   @media(min-width:861px){
@@ -2903,16 +2906,14 @@ body.ed-page #toTop{display:none!important}
 }
 
 /* ===== 키보드가 떠 있는 동안의 하단 고정 요소 처리 =====
-   iOS는 키보드 중엔 fixed가 스크롤을 따라 움직여 바가 화면 중간을 떠다닌다
-   (2026-08-14 커미션 등록에서 신고). body.kb-open은 palo.js가 관리.
-   · 탭바·FAB — 입력 중엔 필요 없으므로 숨긴다.
-   · 폼 제출 바(등록·신청·후기) — ⚠️ 숨기면 안 된다: 입력 중에 등록을 누르려던 사용자에게
-     버튼이 사라져 "등록이 안 눌린다"는 신고가 됐다(2026-08-15). 대신 **문서 흐름(static)으로
-     내려** 폼 끝에 둔다 — 흐름 안에 있으면 떠다니는 게 물리적으로 불가능하고, 스크롤로
-     항상 닿는다. 키보드가 닫히면 다시 하단 고정으로 돌아온다. */
+   body.kb-open은 palo.js(focusin/focusout)가 관리. 탭바·FAB만 숨긴다(입력 중 불필요).
+   ⚠️ 폼 제출 바(등록·신청·후기)는 **아무것도 하지 않는다** — 두 번의 시행착오 끝의 결론:
+      · display:none(1차) → 버튼이 사라져 "등록이 안 눌린다" 신고
+      · position:static으로 폼 끝 이동(2차) → 태그 입력 순간 바가 순간이동해 "사라졌다" 신고
+      그냥 fixed로 두면 키보드 중엔 그 뒤에 가려졌다가(모든 앱의 표준 동작) 닫히는 즉시
+      제자리에 있다. 키보드 중 스크롤 시의 일시적 떠다님은 iOS 고유 동작으로 수용하고,
+      닫힌 뒤의 잔류 밀림은 focusout의 재정착 스크롤이 잡는다. */
 body.kb-open .cm-fab-wrap,body.kb-open .tabbar{display:none}
-body.kb-open .cm-reg-bottom,body.kb-open .cm-apply-bar,body.kb-open .cm-wr-submit{
-  position:static;transform:none;max-width:none;left:auto;bottom:auto}
 
 /* ===== 두 번 톡톡 확대(double-tap zoom) 전역 차단 =====
    핀치줌을 허용하면서(WCAG) '두 번 톡톡' 확대도 같이 살아났는데, 그러면 브라우저가
