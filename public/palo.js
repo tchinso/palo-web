@@ -4092,7 +4092,9 @@ function cmDetailHTML(d,idx){
   var descHTML=d.descHtml?sanitizePostHtml(d.descHtml):null;
   var usageHTML=d.usage?esc(d.usage).replace(/\n/g,'<br>'):'';
   var policyHTML=d.policy?('<p>'+esc(d.policy).replace(/\n/g,'<br>')+'</p>'):('<p>'+CM_DEFAULT_POLICY_HTML+'</p>');
-  var tags=(d.tags&&d.tags.length)?d.tags:['두상','흉상','반신','드림'];
+  // 태그는 선택 입력(2026-08-15) — 없으면 줄 자체를 안 그린다.
+  // ⚠️ 예전 데모 폴백(두상·흉상·반신·드림)을 그대로 두면 태그 없는 커미션에 가짜 태그가 떠 버린다.
+  var tags=(d.tags&&d.tags.length)?d.tags:[];
   var hasImages=!!(d.images&&d.images.length);
   var sliderHTML=cmSliderHTML(hasImages?d.images:null,idx);
   var samples='';
@@ -4162,7 +4164,7 @@ function cmDetailHTML(d,idx){
         '<div class="cm-acc-c"><p>'+usageHTML+'</p></div></div>'):'')+
       '<div class="cm-acc"><div class="cm-acc-h" onclick="this.parentElement.classList.toggle(\'open\')"><b>거래 정책 안내</b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 15l6-6 6 6"/></svg></div>'+
         '<div class="cm-acc-c">'+policyHTML+'</div></div>'+
-      '<div class="cm-d-tags">'+tags.map(function(t){return '<div class="cm-t">#'+esc(t)+'</div>';}).join('')+'</div>'+
+      (tags.length?('<div class="cm-d-tags">'+tags.map(function(t){return '<div class="cm-t">#'+esc(t)+'</div>';}).join('')+'</div>'):'')+
       '<div class="cm-sub-card"><div class="cm-l"><div class="cm-ci">P</div><div><div class="cm-nm">'+esc(channel)+'</div></div></div>'+
       // 구독 = 이 작가 팔로우. 본인 커미션에는 의미가 없어 숨긴다.
       ((d.authorId&&(!AUTH.user||AUTH.user.id!==d.authorId))
@@ -4651,7 +4653,7 @@ function cmRenderRegisterScreen(){
       '<input class="cm-reg-input" id="cmRegTitle" placeholder="예: LD 반신 채색 커미션" oninput="cmCheckReg()" value="'+esc(cmReg.title)+'">'+
       '<div class="cm-reg-label">가격 <span class="cm-reg-req">*</span></div>'+
       '<div class="cm-reg-price"><input class="cm-reg-input" id="cmRegPrice" type="number" placeholder="19000" oninput="cmCheckReg()" value="'+esc(cmReg.price)+'"><span class="cm-unit">원 ~</span></div>'+
-      '<div class="cm-reg-label">커미션 태그 <span class="cm-reg-req">*</span> <span class="cm-reg-sub">최대 5개 · 검색어 노출에 사용돼요</span></div>'+
+      '<div class="cm-reg-label">커미션 태그 <span class="cm-reg-sub">선택 · 최대 5개 · 검색어 노출에 사용돼요</span></div>'+
       '<input class="cm-reg-input" id="cmRegTagInput" placeholder="예: 반신, 두상, 빠른마감 (입력 후 Enter)" onkeydown="cmOnTagKey(event)">'+
       '<div class="cm-reg-taglist" id="cmRegTagList">'+tagsHTML+'</div>'+
       '<div class="cm-reg-taghint'+(cmReg.tags.length>=5?' full':'')+'" id="cmRegTagHint">'+cmReg.tags.length+'/5개</div>'+
@@ -4675,7 +4677,7 @@ function cmRenderRegisterScreen(){
       '<input class="cm-reg-input" id="cmRegPeriod" placeholder="예: 3~7일 이내" oninput="cmCheckReg()" value="'+esc(cmReg.period)+'">'+
       '<div class="cm-reg-label">신청 가능 수 <span class="cm-reg-sub">몇 명까지 받을지</span></div>'+
       '<input class="cm-reg-input" id="cmRegSlots" type="number" placeholder="예: 8" oninput="cmCheckReg()" value="'+esc(cmReg.slots)+'">'+
-      '<div class="cm-reg-label">커미션 설명 <span class="cm-reg-req">*</span></div>'+
+      '<div class="cm-reg-label">커미션 설명 <span class="cm-reg-req">*</span> <span class="cm-reg-sub">필수 · 입력해야 등록할 수 있어요</span></div>'+
       /* 설명란 서식 도구.
          ⚠️ 글쓰기에 있는 **투표·링크·파일은 일부러 넣지 않았다** — 커미션 설명은 안내문이지
             게시글이 아니고, 그 셋은 각각 투표 저장·외부 링크 검사·업로드 경로가 딸려 온다.
@@ -4997,8 +4999,7 @@ function cmCheckReg(){
   var ok=cmReg.images.length>0&&
     cmReg.title.trim()&&
     cmReg.price&&
-    cmReg.tags.length>0&&
-    cmReg.desc.trim()&&
+    cmReg.desc.trim()&& // 태그는 선택으로 바뀜(2026-08-15) — 필수는 이미지·제목·가격·설명
     (!cmReg.reviewEventOn||cmReg.reviewEventBenefit.trim()); // 리뷰 이벤트 켰으면 혜택 내용 필수
   document.getElementById('cmRegSubmit').disabled=!ok;
 }
