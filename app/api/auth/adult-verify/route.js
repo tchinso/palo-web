@@ -65,7 +65,11 @@ export async function POST(request) {
   if (!verificationId || verificationId.length > 200) return bad("본인확인 정보가 올바르지 않아요.");
 
   const supa = createClient(url, key, { auth: { persistSession: false } });
-  const ip = clientIp(request);
+  // IP는 앞 3자리만 저장한다(초대 가입과 같은 기준) — 원본 IP를 방침에 없는 채로
+  // 무기한 보관하고 있었다(7·8회차 점검). 남용 감별에는 앞 3자리면 충분하고,
+  // 일일 시도 제한은 user_id 기준이라 마스킹과 무관하다.
+  const rawIp = clientIp(request);
+  const ip = rawIp ? rawIp.split(".").slice(0, 3).join(".") : rawIp;
 
   // ── 1. 요청한 사람이 누구인지 확인(로그인 토큰 검증) ──
   const authHeader = request.headers.get("authorization") || "";
