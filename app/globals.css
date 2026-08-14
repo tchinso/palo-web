@@ -1371,11 +1371,20 @@
   .g-owner-band{flex-shrink:0;background:var(--surface-2);border-bottom:1px solid var(--line);
     padding:9px 14px;font-size:12px;line-height:1.6;color:var(--muted)}
   .g-owner-band b{color:var(--ink-2)}
-  /* 문의 초안 배너 — 창을 따로 띄우지 않는 대신 여기서 경고한다 */
-  .g-draftwarn{flex-shrink:0;background:#fff6e5;border-bottom:1.5px solid #f0d9a8;
-    padding:11px 14px;font-size:12.5px;line-height:1.65;color:#7a5a12}
-  .g-draftwarn b{color:#5e440c}
-  .g-link{color:var(--brand-2);font-weight:800;cursor:pointer;text-decoration:underline;white-space:nowrap}
+  /* 문의 초안 배너 — 창을 따로 띄우지 않는 대신 여기서 경고한다.
+     아이콘 | 제목·본문·버튼의 2단 구성 — 글 덩어리 끝의 밑줄 링크보다
+     "추천 행동(로그인)"이 버튼으로 또렷하게 보이게 한다. */
+  .g-draftwarn{flex-shrink:0;display:flex;gap:11px;background:#fff6e5;
+    border-bottom:1.5px solid #f0d9a8;padding:13px 14px}
+  .g-dw-ic{flex-shrink:0;width:32px;height:32px;border-radius:11px;background:#fdeccb;
+    display:flex;align-items:center;justify-content:center;font-size:16px}
+  .g-dw-body{min-width:0}
+  .g-dw-title{display:block;font-size:13.5px;font-weight:800;color:#5e440c;margin:1px 0 4px}
+  .g-dw-body p{font-size:12.5px;line-height:1.6;color:#7a5a12;margin:0 0 9px}
+  .g-dw-body p b{color:#5e440c}
+  .g-dw-cta{background:linear-gradient(120deg,var(--brand),var(--grape));color:#fff;border:none;
+    padding:8px 15px;border-radius:11px;font-family:inherit;font-size:12.5px;font-weight:800;
+    cursor:pointer;box-shadow:0 2px 8px rgba(255,93,162,.25)}
   /* 코드 상자 — 처음엔 펼친 채로(.open), 이후엔 머리만 남기고 접힌다 */
   .g-codebox{flex-shrink:0;background:var(--surface-2);border-bottom:1px solid var(--line)}
   .g-code-head{display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer}
