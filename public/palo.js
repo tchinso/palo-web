@@ -3797,6 +3797,9 @@ async function cmToggleSubscribe(authorId,nickname){
 }
 var cmPendingChatRef=null; // {commissionId,title,conversationId} — 다음에 보낼 메시지에 커미션 참조를 붙일지
 async function cmOpenChatAbout(authorId,commissionId,commissionTitle){
+  // 로그인하지 않았어도 문의는 할 수 있다 — 코드를 받아 그 방으로 다시 들어오는 방식
+  // (openChat은 로그인을 요구하므로 여기서 갈라진다)
+  if(!AUTH.user){guestOpenInquiry(commissionId,commissionTitle);return;}
   await openChat(authorId);
   if(!currentConversationId||!AUTH.user)return; // openChat 자체 가드(로그인/셀프채팅)에 걸린 경우
   cmPendingChatRef={commissionId:commissionId,title:commissionTitle,conversationId:currentConversationId};
@@ -7922,6 +7925,9 @@ function fitChatRoom(){
 }
 function leaveChat(){
   unsubscribeFromChat();
+  // 비로그인 문의방은 실시간 대신 주기적으로 가져오므로, 방을 떠날 때 반드시 멈춘다
+  // (안 멈추면 다른 화면에서도 5초마다 조회가 계속 나간다)
+  if(typeof guestStopPoll==="function")guestStopPoll();
   currentConversationId=null;
   currentChatPartnerId=null;
   cmPendingChatRef=null;
@@ -8094,8 +8100,240 @@ function chatMessagesHtml(messages){
 }
 var chatListCache=null; // 마지막으로 그린 채팅 목록 데이터 — 재방문 시 즉시 표시용(뒤에서 최신으로 교체)
 var _chatListBack=null; // 채팅 목록에서 '뒤로' 갈 곳(들어온 곳 기억): 홈 탭이면 goHome, 프로필 메뉴면 openProfile
+/* 작가가 비로그인 문의방을 여는 경로.
+   손님은 계정이 없어서 openChat(상대id)를 쓸 수 없다 — 방 번호로 직접 연다.
+   작가 자신은 user1_id라 RLS를 그대로 통과하므로 표를 평소처럼 조회하면 된다. */
+async function openGuestRoomAsOwner(conversationId,guestName){
+  if(!AUTH.user)return;
+  closeNotif();
+  currentConversationId=conversationId;
+  currentChatPartnerId=null;              // 누를 프로필이 없다
+  currentChatPartnerName=guestName||"손님";
+  currentChatPartnerAvatar=null;
+  var msgRes=await window.supabase.from("messages").select("*")
+    .eq("conversation_id",conversationId).order("created_at",{ascending:true});
+  if(msgRes.error){toast("대화를 불러오지 못했어요: "+msgRes.error.message);return;}
+  enterScreen("chatRoom",openChatList);
+  await ensureChatEmoticons(msgRes.data||[]);
+  await chatImageSupported();
+  renderChatView(currentChatPartnerName,msgRes.data||[]);
+  subscribeToChat(conversationId);
+  window.supabase.rpc("mark_messages_read",{p_conversation_id:conversationId}).then(function(){});
+}
+
+/* ===== 비로그인 커미션 문의 ===================================================
+   로그인하지 않은 사람도 작가에게 문의할 수 있게 한다. 계정이 없으니 방을 다시 찾을
+   열쇠가 따로 필요한데, 그게 **채팅방 코드**다.
+   ⚠️ 표는 비로그인에게 잠겨 있다. 여기서 하는 모든 일은 guest_* RPC로만 이뤄진다
+      (docs/sql/guest-commission-chat.sql). 화면에서 코드로 거르는 게 아니라 **서버가 검증한다** —
+      화면에서만 거르면 아무나 남의 대화를 통째로 읽을 수 있다.
+   ⚠️ 실시간(Realtime)도 RLS를 따르므로 손님에겐 이벤트가 오지 않는다.
+      대신 방을 열어 둔 동안에만 주기적으로 새 메시지를 가져온다(닫으면 멈춘다). */
+var GUEST={code:null,convId:null,artist:"작가",lastId:0,timer:null};
+var GUEST_KEY="palo_guest_chats";
+function guestSaved(){try{var a=JSON.parse(localStorage.getItem(GUEST_KEY)||"[]");return Array.isArray(a)?a:[];}catch(e){return[];}}
+function guestRemember(rec){
+  var a=guestSaved().filter(function(x){return x.code!==rec.code;});
+  a.unshift(rec);if(a.length>20)a=a.slice(0,20);
+  try{localStorage.setItem(GUEST_KEY,JSON.stringify(a));}catch(e){}
+}
+function guestFmtCode(c){ // 화면에 보일 때만 4자씩 끊는다(저장·비교는 붙여서)
+  c=String(c||"");
+  return c.length===12?(c.slice(0,4)+"-"+c.slice(4,8)+"-"+c.slice(8)):c;
+}
+function guestCloseAsk(){var m=document.getElementById("guestAskModal");if(m)m.remove();}
+function guestOpenInquiry(commissionId,title){
+  guestCloseAsk();
+  var m=document.createElement("div");
+  m.className="rules-scrim open";m.id="guestAskModal";
+  m.onclick=function(e){if(e.target===m)guestCloseAsk();};
+  m.innerHTML='<div class="rules g-ask">'+
+    '<h3>💬 문의하기</h3>'+
+    '<p class="g-sub">'+esc(title||"커미션")+'</p>'+
+    '<div class="g-warn"><b>로그인하지 않고 보내요</b>'+
+      '<ul><li>이 브라우저의 기록이 지워지면 대화를 찾을 수 없어요</li>'+
+      '<li>답장이 와도 알림을 받을 수 없어요</li></ul>'+
+      '보내면 <b>채팅방 코드</b>를 드려요. 그 코드로 언제든 다시 들어올 수 있어요.</div>'+
+    '<textarea id="guestAskText" rows="4" placeholder="문의 내용을 적어주세요."></textarea>'+
+    '<div class="g-row">'+
+      '<button type="button" class="g-btn ghost" onclick="guestCloseAsk()">취소</button>'+
+      '<button type="button" class="g-btn ghost" onclick="guestCloseAsk();openLoginModal()">로그인하고 문의</button>'+
+      '<button type="button" class="g-btn" id="guestAskGo" onclick="guestSubmitInquiry('+commissionId+')">보내기</button>'+
+    '</div></div>';
+  document.body.appendChild(m);
+  var t=document.getElementById("guestAskText");if(t)t.focus();
+}
+var GUEST_ERRS={
+  empty_message:"문의 내용을 적어주세요",
+  too_long:"내용이 너무 길어요(2000자까지)",
+  no_commission:"커미션을 찾을 수 없어요",
+  adult_login_required:"성인 커미션은 로그인 후 본인확인을 해야 문의할 수 있어요",
+  no_room:"그 코드로 된 문의를 찾을 수 없어요. 코드를 다시 확인해주세요"
+};
+async function guestSubmitInquiry(commissionId){
+  var t=document.getElementById("guestAskText"),btn=document.getElementById("guestAskGo");
+  var v=((t&&t.value)||"").trim();
+  if(!v){toast("문의 내용을 적어주세요");return;}
+  if(btn){btn.disabled=true;btn.textContent="보내는 중…";}
+  var res=await window.supabase.rpc("guest_start_commission_chat",{p_commission_id:commissionId,p_message:v});
+  if(btn){btn.disabled=false;btn.textContent="보내기";}
+  // 도배 제한(rl_msg)에 걸리면 여기로 온다 — 서버 문구를 그대로 보여준다
+  if(res.error){toast("보내지 못했어요: "+res.error.message);return;}
+  var d=res.data||{};
+  if(!d.ok){toast(GUEST_ERRS[d.error]||"보내지 못했어요");return;}
+  guestCloseAsk();
+  guestRemember({code:d.code,title:d.commission_title||"",commissionId:commissionId,at:Date.now()});
+  guestOpenRoom(d.code,true);
+}
+/* 코드로 방 열기. firstTime이면 코드 배너를 펼친 채로 시작한다 —
+   여기서 코드를 놓치면 대화를 통째로 잃기 때문에 처음 한 번은 접어두지 않는다. */
+async function guestOpenRoom(code,firstTime){
+  var res=await window.supabase.rpc("guest_fetch_chat",{p_code:code,p_after:0});
+  if(res.error){toast("불러오지 못했어요: "+res.error.message);return;}
+  var d=res.data||{};
+  if(!d.ok){toast(GUEST_ERRS[d.error]||"불러오지 못했어요");return;}
+  GUEST.code=code;GUEST.convId=d.conversation_id;GUEST.artist=d.artist_nickname||"작가";
+  GUEST.lastId=0;
+  guestRemember({code:code,title:(guestSaved().find(function(x){return x.code===code;})||{}).title||"",at:Date.now()});
+  userLeftHome=true;
+  enterScreen("guestRoom",function(){guestStopPoll();goHome();});
+  guestRenderRoom(d,firstTime);
+  guestStartPoll();
+  window.supabase.rpc("guest_mark_read",{p_code:code}).then(function(){});
+}
+function guestMessagesHtml(msgs){
+  if(!msgs||!msgs.length)return '<div class="cr-empty">아직 대화가 없어요.</div>';
+  var h="",lastDay="";
+  msgs.forEach(function(m){
+    var dayKey=new Date(m.created_at).toDateString();
+    if(dayKey!==lastDay){h+='<div class="cr-divider"><span>'+esc(chatDividerLabel(m.created_at))+'</span></div>';lastDay=dayKey;}
+    var time='<span class="cr-time">'+esc(chatTimeLabel(m.created_at))+'</span>';
+    var content=(m.image_url
+      ? '<img class="cr-img" src="'+esc(m.image_url)+'" alt="사진" loading="lazy" onclick="openImageViewer(&quot;'+cmQ(m.image_url)+'&quot;)">'
+      : withEmoticons(esc(m.content)));
+    // mine: 서버가 'sender_id가 비어 있음'(=손님이 보냄)으로 판정해서 내려준다
+    if(m.mine){
+      h+='<div class="cr-row mine"><div class="cr-meta">'+time+'</div>'+
+        '<div class="cr-bubble">'+content+'</div></div>';
+    }else{
+      h+='<div class="cr-row other first"><div class="cr-ava">'+avatarHTML(GUEST.artist,null)+'</div>'+
+        '<div class="cr-other-main"><div class="cr-name">'+esc(GUEST.artist)+'</div>'+
+        '<div class="cr-other-line"><div class="cr-bubble">'+content+'</div>'+time+'</div></div></div>';
+    }
+  });
+  return h;
+}
+function guestCodeBoxHTML(open){
+  return '<div class="g-codebox'+(open?' open':'')+'" id="guestCodeBox">'+
+    '<div class="g-code-head" onclick="guestToggleCode()">'+
+      '<span class="g-code-key">🔑 채팅방 코드</span>'+
+      '<code class="g-code">'+esc(guestFmtCode(GUEST.code))+'</code>'+
+      '<span class="g-code-toggle">▾</span></div>'+
+    '<div class="g-code-body">'+
+      '<p>이 코드를 <b>저장해두세요.</b> 로그인하지 않아서, 브라우저 기록이 지워지면 이 코드가 대화를 되찾는 유일한 방법이에요. 답장 알림도 받을 수 없어요.</p>'+
+      '<div class="g-row"><button type="button" class="g-btn" onclick="guestCopyCode()">코드 복사</button>'+
+      '<button type="button" class="g-btn ghost" onclick="openLoginModal()">로그인해서 계속 받기</button></div>'+
+    '</div></div>';
+}
+function guestToggleCode(){var b=document.getElementById("guestCodeBox");if(b)b.classList.toggle("open");}
+function guestCopyCode(){
+  var v=guestFmtCode(GUEST.code);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(v).then(function(){toast("코드를 복사했어요","🔑")},function(){toast("복사에 실패했어요")});
+  }else toast("이 브라우저에서는 복사를 지원하지 않아요");
+}
+function guestRenderRoom(d,firstTime){
+  var el=document.getElementById("chatRoom");
+  if(!el)return;
+  el.innerHTML=
+    '<div class="cr-top">'+
+      '<button class="cr-back" onclick="guestStopPoll();screenBack()" aria-label="뒤로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>'+
+      '<div class="cr-title">'+esc(GUEST.artist)+'</div>'+
+    '</div>'+
+    guestCodeBoxHTML(!!firstTime)+
+    '<div id="chatMessages" class="cr-msgs">'+guestMessagesHtml(d.messages)+'</div>'+
+    '<div class="cr-inputrow">'+
+      '<textarea id="guestInput" rows="1" placeholder="메시지를 입력하세요." oninput="autoGrowChatInput(this)" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();guestSend();}"></textarea>'+
+      '<button class="cr-send" onclick="guestSend()" aria-label="전송"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>'+
+    '</div>';
+  el.classList.add("open");
+  lockBodyForChat();fitChatRoom();
+  (d.messages||[]).forEach(function(m){if(m.id>GUEST.lastId)GUEST.lastId=m.id;});
+  var box=document.getElementById("chatMessages");if(box)box.scrollTop=box.scrollHeight;
+}
+async function guestSend(){
+  var inp=document.getElementById("guestInput");if(!inp)return;
+  var v=inp.value.trim();if(!v||!GUEST.code)return;
+  inp.disabled=true;
+  var res=await window.supabase.rpc("guest_send_message",{p_code:GUEST.code,p_content:v});
+  inp.disabled=false;
+  if(res.error){toast("전송 실패: "+res.error.message);return;}
+  var d=res.data||{};
+  if(!d.ok){toast(GUEST_ERRS[d.error]||"전송 실패");return;}
+  inp.value="";autoGrowChatInput(inp);
+  await guestPoll();
+}
+async function guestPoll(){
+  if(!GUEST.code)return;
+  var res=await window.supabase.rpc("guest_fetch_chat",{p_code:GUEST.code,p_after:GUEST.lastId});
+  if(res.error||!res.data||!res.data.ok)return;
+  var fresh=res.data.messages||[];
+  if(!fresh.length)return;
+  var box=document.getElementById("chatMessages");if(!box)return;
+  if(box.querySelector(".cr-empty"))box.innerHTML="";
+  var atBottom=(box.scrollHeight-box.scrollTop-box.clientHeight)<60; // 위를 읽는 중이면 끌어내리지 않는다
+  box.insertAdjacentHTML("beforeend",guestMessagesHtml(fresh));
+  fresh.forEach(function(m){if(m.id>GUEST.lastId)GUEST.lastId=m.id;});
+  if(atBottom)box.scrollTop=box.scrollHeight;
+  window.supabase.rpc("guest_mark_read",{p_code:GUEST.code}).then(function(){});
+}
+function guestStartPoll(){
+  guestStopPoll();
+  // ⚠️ 화면이 숨겨져 있으면 브라우저가 타이머를 늦추므로, 돌아왔을 때 한 번 즉시 가져온다.
+  GUEST.timer=setInterval(function(){if(document.visibilityState==="visible")guestPoll();},5000);
+}
+function guestStopPoll(){if(GUEST.timer){clearInterval(GUEST.timer);GUEST.timer=null;}}
+/* 코드로 다시 들어오기 */
+function guestPromptCode(){
+  var v=prompt("채팅방 코드를 입력해주세요 (예: ABCD-EFGH-JKLM)");
+  if(v==null)return;
+  v=v.trim();
+  if(!v){toast("코드를 입력해주세요");return;}
+  guestOpenRoom(v.replace(/[^A-Za-z0-9]/g,"").toUpperCase(),false);
+}
+/* 비로그인 상태의 채팅 탭 — 로그인을 강요하는 대신 내가 보낸 문의를 보여준다 */
+function guestRenderChatTab(){
+  var list=guestSaved();
+  var h='<div class="chatlist"><div class="g-tab-head"><h3>문의 내역</h3>'+
+    '<button type="button" class="g-btn ghost" onclick="guestPromptCode()">코드로 열기</button></div>';
+  if(!list.length){
+    h+='<div class="pf-empty">아직 문의한 커미션이 없어요.<br>커미션 상세에서 "문의하기"를 눌러보세요.<br><br>'+
+       '<span style="color:var(--muted);font-size:12.5px">예전에 받은 채팅방 코드가 있다면 위 <b>코드로 열기</b>를 눌러주세요.</span></div>';
+  }else{
+    h+='<div class="chatlist-rows">';
+    list.forEach(function(x){
+      h+='<div class="clist-row" onclick="guestOpenRoom(\''+cmQ(x.code)+'\',false)">'+
+        '<div class="clist-ava"><div class="clist-guest">📩</div></div>'+
+        '<div class="clist-mid"><div class="clist-name">'+esc(x.title||"커미션 문의")+'</div>'+
+        '<div class="clist-last">코드 '+esc(guestFmtCode(x.code))+'</div></div></div>';
+    });
+    h+='</div><div class="g-tab-note">이 목록은 <b>이 브라우저에만</b> 저장돼요. 기록을 지우면 사라지니 코드를 따로 보관해주세요.</div>';
+  }
+  h+='</div>';
+  document.getElementById("main").innerHTML=h;
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
 async function openChatList(origin){
-  if(!AUTH.user){toast("로그인이 필요해요");loginWithGoogle();return;}
+  if(!AUTH.user){
+    // 로그인을 강요하지 않는다 — 비로그인으로 보낸 문의가 있을 수 있다
+    curTab="chat";userLeftHome=true;
+    if(!navigatingBack)resetScreens();
+    enterScreen("chatList",function(){goHome();});
+    _setTabUrl("chat");leaveChat();closeNotif();syncTabs("chat");
+    guestRenderChatTab();
+    return;
+  }
   // origin: 'profile'→뒤로=프로필, 'home'→뒤로=홈, 미지정→기존 유지(채팅방에서 목록으로 복귀할 때 원래 자리 보존)
   if(origin==='profile')_chatListBack=openProfile;
   else if(origin==='home')_chatListBack=goHome;
@@ -8171,13 +8409,17 @@ function renderChatList(convs,partnerIds,nickById,avaById,lastMsgByConv,unreadBy
     h+='<div class="chatlist-rows" id="chatlistRows">';
     convs.forEach(function(c,i){
       var pid=partnerIds[i];
-      var name=nickById[pid]||"알 수 없음";
+      // 비로그인 문의방은 상대 계정이 없다(user2_id가 비어 있음). 그대로 두면 "알 수 없음"이 뜨므로
+      // 방에 저장해 둔 임시 이름을 쓰고, 누르면 계정 대신 방 번호로 연다.
+      var isGuest=!!c.guest_code;
+      var name=isGuest?(c.guest_name||"손님"):(nickById[pid]||"알 수 없음");
       var last=lastMsgByConv[c.id];
       var preview=last?(last.commission_id?"🎨 커미션 문의":(last.image_url?"📷 사진":last.content)):"";
       var unread=unreadByConv[c.id]||0;
       var srch=(name+" "+(last?last.content:"")).toLowerCase();
-      h+='<div class="clist-row" data-search="'+esc(srch)+'" onclick="openChat(\''+cmQ(pid)+'\')">'+
-        '<div class="clist-ava">'+avatarHTML(name,avaById&&avaById[pid])+'</div>'+
+      var open=isGuest?('openGuestRoomAsOwner('+c.id+',\''+cmQ(name)+'\')'):('openChat(\''+cmQ(pid)+'\')');
+      h+='<div class="clist-row" data-search="'+esc(srch)+'" onclick="'+open+'">'+
+        '<div class="clist-ava">'+(isGuest?'<div class="clist-guest">📩</div>':avatarHTML(name,avaById&&avaById[pid]))+'</div>'+
         '<div class="clist-mid"><div class="clist-name">'+esc(name)+'</div>'+
           '<div class="clist-last">'+esc(preview)+'</div></div>'+
         '<div class="clist-right"><div class="clist-date">'+(last?chatListDate(last.created_at):"")+'</div>'+

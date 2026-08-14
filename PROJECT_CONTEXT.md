@@ -1654,6 +1654,31 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 - **관찰 범위를 `attributes:['class']`까지 넓혔으므로 rAF로 프레임당 1회로 묶었다** — 안 그러면 class가 자주 바뀌는 자리에서 getComputedStyle이 연달아 돈다.
 - **손대지 않은 것**: `themeColor`/`theme_color`가 `#e07aa6`(분홍)로 배경(`#fbf7f8`)과 다르다. 이건 브라우저 주소창·PWA 상태바 색이라 **화면마다 다르지는 않다**(브랜드색 의도로 보임). 바꾸려면 두 곳(`app/layout.js`, `app/manifest.js`)을 함께.
 
+### 비로그인 커미션 문의 채팅 + 채팅방 코드 (2026-08-14, 사용자 요청)
+로그인하지 않은 사람도 "문의하기"로 작가에게 말을 걸 수 있다. 계정이 없으니 방을 다시 찾을 열쇠가 따로 필요한데, 그게 **채팅방 코드**다. SQL: `docs/sql/guest-commission-chat.sql`.
+
+**막는 방식 — 여기가 핵심.** 비로그인은 `auth.uid()`가 없어 기존 RLS가 통하지 않는다. 흔한 실수가 "`anon`에게 표를 열어주고 화면에서 코드로 거르는 것"인데 그러면 아무나 남의 대화를 통째로 읽는다. **표는 끝까지 잠가두고** 손님의 모든 접근을 `security definer` 함수 4개로만 한다(`guest_start_commission_chat`/`guest_fetch_chat`/`guest_send_message`/`guest_mark_read`). 코드 검증은 서버가 한다.
+
+**실측으로 확인하고 쓴 스키마**(추측 금지 — 이 세션에서 `blocked_me()` 인자 타입과 `365` 표식을 두 번 틀렸다): `conversations.user1_id/user2_id`, `messages.sender_id` 모두 `uuid NOT NULL` + FK→`auth.users`, `CHECK(user1_id <> user2_id)`, `messages` 트리거 2개(`rl_msg` BEFORE=도배제한 / `on_message_insert_notify` AFTER=알림).
+
+- `user2_id`·`sender_id`의 `NOT NULL`을 푼다(비어 있으면 "손님"). **기존 정책·CHECK는 손댈 필요 없다** — `auth.uid() = NULL`은 참이 아니라 **NULL**이라 RLS가 그대로 막고, `CHECK`도 NULL이면 통과한다(거짓일 때만 막으므로).
+- `conversations_guest_shape` CHECK로 방 모양 강제(손님방=상대 없음, 일반방=상대 있음).
+- `guard_guest_msg` 트리거: `sender_id`가 비면 **표 자신이** 손님방인지 확인. 정책 문구에 기대지 않는다.
+- **⚠️ `notify_new_message()`를 함께 고쳐야 한다.** 안 고치면 손님방에서 **작가가 답장을 못 한다** — 받는 사람이 `user2_id`(=NULL)가 되어 `notifications.user_id`에 NULL을 넣으려다 나는 예외가 INSERT 전체를 되돌려, 알림만이 아니라 **메시지 자체가 안 보내진다**. 받는 사람이 없으면 알림을 건너뛰게 했다.
+- **코드 생성에 `random()`을 쓰지 않는다**(예측 가능). 코어 내장 `gen_random_uuid()` 사용 — `pgcrypto`는 확장 의존이라 피한다(예전에 `digest()`로 가입 트리거가 깨졌다). 헷갈리는 `I·O·0·1`을 뺀 32자 알파벳 12자리(60비트). `256 % 32 = 0`이라 바이트 나머지에 치우침이 없다. 저장은 붙여서, 표시만 `XXXX-XXXX-XXXX`. `norm_guest_code()`가 소문자·대시·공백을 다듬어 비교한다.
+- `rl_msg`는 그대로 쓴다 — 문서상 **"비로그인은 IP만 적용"**이라 이미 손님을 고려한 구조다(채팅 30/분·IP 80).
+- 성인 커미션은 비로그인 문의를 막는다(본인확인을 할 방법이 없다).
+
+**클라(`public/palo.js`)**
+- `cmOpenChatAbout`: 비로그인이면 `guestOpenInquiry()`로 갈라진다(`openChat`은 로그인을 요구).
+- 첫 메시지를 보내면 **코드 배너를 펼친 채로** 시작한다(`guestCodeBoxHTML(firstTime)`). 여기서 놓치면 대화를 통째로 잃으므로 처음 한 번은 접지 않는다. 이후엔 머리만 남기고 접힌다.
+- **⚠️ 실시간(Realtime)도 RLS를 따르므로 손님에겐 이벤트가 오지 않는다.** 방을 열어 둔 동안만 5초 폴링(`guestStartPoll`), `visibilityState==="visible"`일 때만 조회. **`leaveChat()`에서 반드시 멈춘다** — 안 멈추면 다른 화면에서도 계속 나간다.
+- 목록은 `localStorage`(`palo_guest_chats`, 최대 20개)에만 남는다. 지워져도 코드로 복구된다(`guestPromptCode`).
+- 비로그인 채팅 탭은 로그인을 강요하지 않고 문의 내역 + "코드로 열기"를 보여준다.
+- 작가 쪽: `renderChatList`가 손님방이면 `guest_name`을 쓰고 `openGuestRoomAsOwner(방id, 이름)`로 연다(상대 계정이 없어 `openChat(상대id)`를 쓸 수 없다). 작가는 `user1_id`라 RLS를 그대로 통과하므로 표를 평소처럼 조회한다.
+
+**검증(dev, 실제 DB)**: 문의 전송→코드 발급(`2CQT-N9PM-2D6J`)→메시지 2건 왕복→`localStorage` 삭제 후 **코드만으로 복구**→틀린 코드는 `no_room`→소문자+대시 입력도 통함→**손님이 `conversations`·`messages`를 직접 조회하면 0행**(RLS가 조용히 거름)→**직접 INSERT는 막힘**→작가 목록 렌더(손님방 `📩 손님 XXXX` + 안읽음 배지, 일반방은 그대로).
+
 ### 🐛 링크로 들어오면 홈이 깜빡 보였다 바뀌던 문제 (2026-08-14, 사용자 신고)
 커미션 링크를 붙여넣어 열면 잠시 홈 목록이 보였다가 커미션 상세로 바뀌었다. **원인이 두 개였다.**
 
