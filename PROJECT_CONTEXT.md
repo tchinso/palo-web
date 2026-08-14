@@ -1690,6 +1690,11 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 비로그인 문의 — 작가 표시 + 읽음 배지 오류 (2026-08-14, 사용자 요청·신고)
+**① 작가에게 비로그인 표시**: 채팅 목록의 손님방 이름 옆 `비로그인` 배지(`.g-badge`), 채팅방 제목에도 같은 배지 + 상단 설명 띠(`.g-owner-band`: "상대는 알림을 받지 못해 답이 늦을 수 있고, 채팅방 코드로 다시 들어와요"). `renderChatView(name,msgs,opts)`에 `opts.guest` 추가 — 기존 호출부(2개 인자)는 그대로 동작.
+
+**② 🐛 읽어도 배지 1이 안 사라지던 오류**: `mark_messages_read`가 `sender_id != auth.uid()`로 "내가 안 보낸 메시지"를 골랐는데, 손님 메시지는 `sender_id`가 NULL → `NULL != uid`는 NULL(참 아님) → **갱신 대상에서 빠져 영영 안 읽음**. `is distinct from`으로 교체(NULL을 '다른 값'으로 취급). guest-commission-chat.sql §5.5에 추가. **⚠️ 이 프로젝트에서 NULL 비교 함정 세 번째** — RLS 통과(의도대로), unique_pair 뭉침(버그), 읽음 처리(버그). `sender_id`/`user2_id`가 NULL일 수 있게 된 뒤로는 **모든 `=`/`!=` 비교를 `is (not) distinct from` 기준으로 다시 볼 것.**
+
 ### 🐛 링크로 들어오면 홈이 깜빡 보였다 바뀌던 문제 (2026-08-14, 사용자 신고)
 커미션 링크를 붙여넣어 열면 잠시 홈 목록이 보였다가 커미션 상세로 바뀌었다. **원인이 두 개였다.**
 

@@ -1360,6 +1360,12 @@
     padding:11px 18px;border-radius:13px;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer}
   .g-btn:disabled{opacity:.55;cursor:default}
   .g-btn.ghost{background:none;color:var(--ink-2);border:1.5px solid var(--line-2)}
+  /* 작가에게 보이는 비로그인 표시 — 목록·채팅방 제목의 배지 + 방 상단 설명 띠 */
+  .g-badge{display:inline-block;vertical-align:1px;background:var(--surface-2);color:var(--muted);
+    border:1px solid var(--line-2);font-size:10.5px;font-weight:800;padding:1.5px 7px;border-radius:999px;white-space:nowrap}
+  .g-owner-band{flex-shrink:0;background:var(--surface-2);border-bottom:1px solid var(--line);
+    padding:9px 14px;font-size:12px;line-height:1.6;color:var(--muted)}
+  .g-owner-band b{color:var(--ink-2)}
   /* 문의 초안 배너 — 창을 따로 띄우지 않는 대신 여기서 경고한다 */
   .g-draftwarn{flex-shrink:0;background:#fff6e5;border-bottom:1.5px solid #f0d9a8;
     padding:11px 14px;font-size:12.5px;line-height:1.65;color:#7a5a12}

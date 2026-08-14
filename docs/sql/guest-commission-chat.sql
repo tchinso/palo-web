@@ -328,6 +328,23 @@ begin
 end $$;
 
 
+-- ── 5.5 읽음 처리 RPC의 NULL 함정 (2026-08-14 실제로 터진 뒤 추가) ────────
+-- 기존 mark_messages_read 는 "내가 안 보낸 메시지"를 이렇게 골랐다:
+--    sender_id != auth.uid()
+-- 손님 메시지는 sender_id 가 NULL 이라 NULL != uid → NULL(참 아님) → 갱신 안 됨.
+-- 작가가 방을 열어 읽어도 손님 메시지가 영영 '안 읽음'으로 남아 배지 1이 안 사라졌다.
+-- is distinct from 은 NULL 을 '다른 값'으로 취급하므로 손님 메시지도 잡힌다.
+create or replace function public.mark_messages_read(p_conversation_id bigint) returns void as $$
+begin
+  update public.messages
+  set is_read = true
+  where conversation_id = p_conversation_id
+    and sender_id is distinct from auth.uid()
+    and is_read = false;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+
 -- ── 6. 실행 권한 ─────────────────────────────────────────────────────────
 -- ⚠️ Postgres는 함수를 만들 때 EXECUTE를 PUBLIC에 준다.
 --    `revoke from anon` 만으로는 안 막히고 **PUBLIC에서 회수**해야 한다(예전에 겪음).

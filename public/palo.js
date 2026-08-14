@@ -8133,7 +8133,7 @@ async function openGuestRoomAsOwner(conversationId,guestName){
   enterScreen("chatRoom",openChatList);
   await ensureChatEmoticons(msgRes.data||[]);
   await chatImageSupported();
-  renderChatView(currentChatPartnerName,msgRes.data||[]);
+  renderChatView(currentChatPartnerName,msgRes.data||[],{guest:true});
   subscribeToChat(conversationId);
   window.supabase.rpc("mark_messages_read",{p_conversation_id:conversationId}).then(function(){});
 }
@@ -8459,9 +8459,10 @@ function renderChatList(convs,partnerIds,nickById,avaById,lastMsgByConv,unreadBy
       var unread=unreadByConv[c.id]||0;
       var srch=(name+" "+(last?last.content:"")).toLowerCase();
       var open=isGuest?('openGuestRoomAsOwner('+c.id+',\''+cmQ(name)+'\')'):('openChat(\''+cmQ(pid)+'\')');
+      var nameHtml=esc(name)+(isGuest?' <span class="g-badge">비로그인</span>':'');
       h+='<div class="clist-row" data-search="'+esc(srch)+'" onclick="'+open+'">'+
         '<div class="clist-ava">'+(isGuest?'<div class="clist-guest">📩</div>':avatarHTML(name,avaById&&avaById[pid]))+'</div>'+
-        '<div class="clist-mid"><div class="clist-name">'+esc(name)+'</div>'+
+        '<div class="clist-mid"><div class="clist-name">'+nameHtml+'</div>'+
           '<div class="clist-last">'+esc(preview)+'</div></div>'+
         '<div class="clist-right"><div class="clist-date">'+(last?chatListDate(last.created_at):"")+'</div>'+
           (unread>0?'<span class="clist-unread">'+unread+'</span>':'')+'</div>'+
@@ -8481,15 +8482,19 @@ function filterChatList(q){
     rows[i].style.display=(!q||s.indexOf(q)>=0)?"":"none";
   }
 }
-function renderChatView(partnerName,messages){
+function renderChatView(partnerName,messages,opts){
   var el=document.getElementById("chatRoom");
   if(!el)return;
+  // 비로그인 문의방(작가 시점): 제목에 배지 + 상대의 상태를 설명하는 띠를 붙인다.
+  // 작가가 알아야 답장 템포를 조절할 수 있다 — 상대는 알림을 못 받아 답이 늦을 수 있다.
+  var isGuest=!!(opts&&opts.guest);
   el.innerHTML=
     '<div class="cr-top">'+
       '<button class="cr-back" onclick="screenBack()" aria-label="뒤로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>'+
-      '<div class="cr-title">'+esc(partnerName)+'</div>'+
+      '<div class="cr-title">'+esc(partnerName)+(isGuest?' <span class="g-badge">비로그인</span>':'')+'</div>'+
       '<button class="cr-report" onclick="reportChat()" aria-label="신고"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></button>'+
     '</div>'+
+    (isGuest?'<div class="g-owner-band">📩 로그인하지 않고 보낸 문의예요. 상대는 <b>알림을 받지 못해</b> 답이 늦을 수 있고, 채팅방 코드로 다시 들어와요.</div>':'')+
     '<div id="chatMessages" class="cr-msgs">'+chatMessagesHtml(messages)+'</div>'+
     '<div class="cr-inputrow">'+
       '<button class="cr-icon" id="chatAttachBtn" style="display:'+(_chatImgSupported?'':'none')+'" onclick="pickChatImage()" aria-label="사진 보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>'+
