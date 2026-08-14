@@ -63,15 +63,6 @@ export const BODY_HTML = `
       <button onclick="openWrite()">commi 시작하기</button>
     </div>
     <div class="widget">
-      <div class="w-title"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18"/><path d="M5 4h13l-2 4 2 4H5"/></svg>이번 주 챌린지</div>
-      <div class="chal">
-        <div class="k">7월 넷째 주</div>
-        <h5 class="serif">"비 오는 창가"</h5>
-        <div class="d"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6M19 3l3 3"/></svg>마감 2일 · 38명 참여 중</div>
-        <button class="chal-cta" onclick="selectBoard('challenge')">챌린지 보기</button>
-      </div>
-    </div>
-    <div class="widget">
       <div class="w-title"><svg class="ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 3s5 4 5 9a5 5 0 0 1-10 0c0-2 1-3 1-3s0 2 2 2 1-4 2-8z"/></svg>지금 뜨거운 이야기</div>
       <div id="hotList"><div class="hot" onclick="openPost(7)"><span class="rank serif">1</span><div><div class="ht">AI 그림, 우리 커뮤니티에선 어디까지 허용할지 의견 모아요</div><div class="hm">💬 3 · 수다</div></div></div><div class="hot" onclick="openPost(2)"><span class="rank serif">2</span><div><div class="ht">몇 년째 실력이 제자리인 것 같을 때 다들 어떻게 뚫으셨어요?</div><div class="hm">💬 2 · 고민</div></div></div><div class="hot" onclick="openPost(4)"><span class="rank serif">3</span><div><div class="ht">클립스튜디오 손 그림자 3초 만에 넣는 루틴 공유합니다</div><div class="hm">💬 1 · 팁</div></div></div></div>
     </div>
