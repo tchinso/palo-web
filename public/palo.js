@@ -3864,7 +3864,7 @@ function cmRenderApplyForm(commission){
     '<div class="cm-sub-top"><svg onclick="screenBack()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg><b>커미션 신청서</b></div>'+
     '<div class="cm-reg">'+
       '<div class="cm-reg-label">참고 이미지 <span class="cm-reg-sub">선택 · 최대 5장</span></div>'+
-      '<input type="file" id="cmAppFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" class="hidden" onchange="cmOnApplyFileChange(event)">'+
+      '<input type="file" id="cmAppFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="hidden" onchange="cmOnApplyFileChange(event)">'+
       '<div class="cm-reg-imgs" id="cmAppImgs">'+cmApplyImgsHTML()+'</div>'+
       '<div class="cm-reg-label">추가 요청사항 <span class="cm-reg-sub">선택</span></div>'+
       '<textarea class="cm-reg-textarea" id="cmAppExtra" placeholder="원하는 스타일, 참고 사항 등을 자유롭게 적어주세요."></textarea>'+
@@ -3881,10 +3881,24 @@ function cmPickApplyImg(){
   if(cmApp.images.length>=5){toast('최대 5장까지 올릴 수 있어요','⚠');return;}
   document.getElementById('cmAppFileInput').click();
 }
+/* 여러 장 선택을 순서대로 업로드(2026-08-14 사용자 요청 — 예전엔 files[0]만 써서
+   여러 장을 올리려면 고르기를 장수만큼 반복해야 했다).
+   ⚠️ 병렬로 쏘지 않고 한 장씩 기다린다 — 고른 순서대로 들어가고(sort가 순서를 보존),
+      업로드 URL 발급 제한(분당 60회)에도 여유가 남는다.
+   isFull: 최대 장수 판정. 꽉 차면 남은 장수를 알려주고 멈춘다(장마다 경고가 반복되지 않게). */
+async function cmUploadMany(e,uploadOne,isFull){
+  var fs=[].slice.call(e.target.files||[]);
+  e.target.value=''; // 같은 사진을 다시 고를 수 있게 비운다
+  for(var i=0;i<fs.length;i++){
+    if(isFull&&isFull()){
+      if(fs.length-i>0)toast('최대 장수에 도달해 남은 '+(fs.length-i)+'장은 올리지 않았어요','⚠');
+      break;
+    }
+    await uploadOne(fs[i]); // 형식·용량 검사와 안내는 각 업로드 함수가 한다(실패한 장만 건너뜀)
+  }
+}
 function cmOnApplyFileChange(e){
-  var f=e.target.files[0];
-  e.target.value='';
-  if(f)cmUploadApplyImg(f);
+  cmUploadMany(e,cmUploadApplyImg,function(){return cmApp.images.length>=5;});
 }
 async function cmUploadApplyImg(file){
   if(!AUTH.user){toast('로그인 후 이용할 수 있어요','🔒');return;}
@@ -4252,7 +4266,7 @@ function cmOpenWorksampleForm(commissionId,back){
       '<div class="cm-reg-label">제목 <span class="cm-reg-req">*</span></div>'+
       '<input class="cm-reg-input" id="cmWsTitle" placeholder="예: LD 반신 채색 작업" oninput="cmWsCheck()">'+
       '<div class="cm-reg-label">작업 이미지 <span class="cm-reg-req">*</span> <span class="cm-reg-sub">여러 장 가능 · 최대 10장</span></div>'+
-      '<input type="file" id="cmWsFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" class="hidden" onchange="cmWsOnFileChange(event)">'+
+      '<input type="file" id="cmWsFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="hidden" onchange="cmWsOnFileChange(event)">'+
       '<div class="cm-reg-imgs" id="cmWsImgs">'+cmWsImgsHTML()+'</div>'+
       '<div class="cm-reg-label">상세 설명 <span class="cm-reg-sub">작업 내용, 소요 기간 등 자유롭게</span></div>'+
       '<textarea class="cm-reg-textarea" id="cmWsDesc" placeholder="어떤 작업이었는지, 소요 기간, 특이사항 등을 자유롭게 적어주세요."></textarea>'+
@@ -4321,7 +4335,7 @@ function cmWsImgsHTML(){
   return h;
 }
 function cmWsPickImg(){if(cmWsForm.images.length>=10){toast('최대 10장까지 올릴 수 있어요','⚠');return;}document.getElementById('cmWsFileInput').click();}
-function cmWsOnFileChange(e){var f=e.target.files[0];e.target.value='';if(f)cmWsUploadImg(f);}
+function cmWsOnFileChange(e){cmUploadMany(e,cmWsUploadImg,function(){return cmWsForm.images.length>=10;});}
 async function cmWsUploadImg(file){
   if(!AUTH.user){toast('로그인 후 이용할 수 있어요','🔒');return;}
   if(ALLOWED_IMAGE_TYPES.indexOf(file.type)===-1){toast('이미지 파일만 올릴 수 있어요');return;}
@@ -4400,9 +4414,7 @@ function cmPickWrImg(){
   document.getElementById('cmWrFileInput').click();
 }
 function cmOnWrFileChange(e){
-  var f=e.target.files[0];
-  e.target.value='';
-  if(f)cmUploadWrImg(f);
+  cmUploadMany(e,cmUploadWrImg,function(){return cmWr.images.length>=5;});
 }
 async function cmUploadWrImg(file){
   if(!AUTH.user){toast('로그인 후 이용할 수 있어요','🔒');return;}
@@ -4474,7 +4486,7 @@ async function cmOpenWrite(commissionId){
       '<div class="cm-wr-label" id="cmWrReasonLabel" style="display:none">불호 이유 <span class="cm-wr-sub">해당하는 이유를 골라주세요</span></div>'+
       '<div class="cm-wr-types" id="cmWrReasons" style="display:none">'+CM_BAD_REASONS.map(function(r){return '<div class="cm-wr-type cm-wr-reason" onclick="cmSelectBadReason(this,\''+cmQ(r)+'\')">'+esc(r)+'</div>';}).join('')+'</div>'+
       '<div class="cm-wr-label">받은 커미션 사진 <span class="cm-reg-req">*</span> <span class="cm-wr-sub">필수 · 최대 5장</span></div>'+
-      '<input type="file" id="cmWrFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" class="hidden" onchange="cmOnWrFileChange(event)">'+
+      '<input type="file" id="cmWrFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="hidden" onchange="cmOnWrFileChange(event)">'+
       '<div class="cm-reg-imgs" id="cmWrImgs">'+cmWrImgsHTML()+'</div>'+
       '<div class="cm-wr-label">후기 내용 <span class="cm-wr-sub">선택 · 한 줄도 좋아요</span></div>'+
       '<textarea class="cm-wr-text" id="cmWrText" placeholder="작가님과의 거래는 어떠셨나요? (안 쓰셔도 괜찮아요)"></textarea>'+
@@ -4605,7 +4617,7 @@ function cmRenderRegisterScreen(){
     '<div class="cm-ws-shortcut" onclick="cmOpenWsCommissionPicker()"><span>🎨 이미 등록한 커미션에 최신 작업물 올리기</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>'+
     '<div class="cm-reg">'+
       '<div class="cm-reg-label">샘플 이미지 <span class="cm-reg-req">*</span> <span class="cm-reg-sub">최대 10장</span></div>'+
-      '<input type="file" id="cmRegFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" class="hidden" onchange="cmOnRegFileChange(event)">'+
+      '<input type="file" id="cmRegFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="hidden" onchange="cmOnRegFileChange(event)">'+
       '<div class="cm-reg-imgs" id="cmRegImgs">'+imgsHTML+'</div>'+
       '<div class="cm-reg-label">커미션 제목 <span class="cm-reg-req">*</span></div>'+
       '<input class="cm-reg-input" id="cmRegTitle" placeholder="예: LD 반신 채색 커미션" oninput="cmCheckReg()" value="'+esc(cmReg.title)+'">'+
@@ -4681,7 +4693,7 @@ function cmRenderRegisterScreen(){
           return '<button type="button" onmousedown="cmDescSaveSelection();event.preventDefault();cmDescSetSize('+s[1]+')" style="font-size:'+Math.min(s[1],20)+'px">'+s[0]+'</button>';
         }).join('')+
       '</div>'+
-      '<input type="file" id="cmRegDescFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" class="hidden" onchange="cmDescOnFile(event)">'+
+      '<input type="file" id="cmRegDescFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="hidden" onchange="cmDescOnFile(event)">'+
       '<div class="cm-reg-editor" id="cmRegDescEditor" contenteditable="true" data-ph="그림체, 작업 범위(두상/흉상/반신), 추가금 안내 등을 자유롭게 적어주세요." oninput="cmCheckReg()">'+(cmReg.descHtml||(cmReg.desc?esc(cmReg.desc).replace(/\n/g,"<br>"):''))+'</div>'+
       '<div class="cm-reg-label">작업물 사용 권한 <span class="cm-reg-sub">선택</span></div>'+
       '<textarea class="cm-reg-textarea" id="cmRegUsage" placeholder="예: 비상업적 굿즈/SNS 게시 가능, 출처 표기 부탁" oninput="cmCheckReg()">'+esc(cmReg.usage)+'</textarea>'+
@@ -4736,9 +4748,7 @@ function cmPickSampleImg(){
   document.getElementById('cmRegFileInput').click();
 }
 function cmOnRegFileChange(e){
-  var f=e.target.files[0];
-  e.target.value='';
-  if(f)cmUploadSampleImg(f);
+  cmUploadMany(e,cmUploadSampleImg,function(){return cmReg.images.length>=10;});
 }
 async function cmUploadSampleImg(file){
   if(!AUTH.user){toast('로그인 후 이용할 수 있어요','🔒');return;}
@@ -4874,9 +4884,8 @@ function cmDescPickImage(e){
   document.getElementById('cmRegDescFileInput').click();
 }
 function cmDescOnFile(e){
-  var f=e.target.files[0];
-  e.target.value='';
-  if(f)cmUploadDescImg(f);
+  // 설명 본문 삽입은 장수 제한이 없다 — 고른 순서대로 커서 위치에 차례로 들어간다
+  cmUploadMany(e,cmUploadDescImg,null);
 }
 async function cmUploadDescImg(file){
   if(!AUTH.user){toast('로그인 후 이용할 수 있어요','🔒');return;}
