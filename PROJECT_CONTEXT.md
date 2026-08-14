@@ -1690,6 +1690,12 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 점검 후 일괄 수정 7차(마지막) — 핀치줌 허용 (2026-08-14)
+`maximumScale:1, userScalable:false`가 저시력 사용자의 확대를 막고 있었다(WCAG 1.4.4 위반). **순서가 중요**: 확대 금지를 먼저 풀면 iOS가 16px 미만 입력창 포커스마다 화면을 자동 확대하고 되돌리지 않는다 — 그래서 **입력창 16px 통일이 선행**.
+- 16개 규칙을 16px로: 헤더/서랍/모바일/채팅목록/이모티콘 검색, 댓글창, 채팅 입력(.chat-inputrow — .cr-inputrow는 이미 16), 커미션 등록 input/textarea, 메모, 닉네임(.nick-in + 로그인 모달), 마케팅 spend, **본문 contenteditable(.ed-content 15.5→16 — contenteditable도 iOS가 확대한다)**, 투표 질문/선택지(.ed-poll-q/.ed-poll-opt-in).
+- 검증: 보이는 입력창 전수에서 16px 미만 0개(체크박스 13.3px 2개는 확대 유발 안 함 — 텍스트 입력만 해당), viewport 메타에서 확대 금지 제거 확인, 헤더 높이·가로 넘침 무변화, 댓글창 폭 정상.
+- **⚠️ 새 입력창 규칙**: font-size 16px 미만 금지 — layout.js viewport 주석에 경고.
+
 ### 점검 후 일괄 수정 6차 — 목록 썸네일 파이프라인 (2026-08-14)
 목록이 167px 칸에 219KB 원본을 통째로 받던 문제(3회차). **DB 변경 없이** 감:
 - **주소 유도 방식**: 썸네일 키 = 원본 키 + `.thumb.webp`. `thumbOf(u)`가 주소만 보고 유도(우리 이미지 도메인일 때만). DB 칼럼·마이그레이션·조회 변경 전부 불필요.

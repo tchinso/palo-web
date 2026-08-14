@@ -41,9 +41,10 @@ export const metadata = {
 
 export const viewport = {
   themeColor: "#e07aa6",
-  // 입력창(14~15px) 포커스 시 iOS가 화면을 자동 확대하는 것 방지 — 앱처럼 고정 배율
-  maximumScale: 1,
-  userScalable: false,
+  // 확대 금지를 풀었다(2026-08-14) — 저시력 사용자의 핀치줌을 막는 건 접근성 위반(WCAG 1.4.4).
+  // 원래 막았던 이유(입력창 14~15px 포커스 시 iOS 자동 확대)는 모든 입력창을 16px로
+  // 올려서 해결했다. ⚠️ 새 입력창을 만들 때 font-size를 16px 미만으로 주면
+  // iOS에서 포커스마다 화면이 확대되니 반드시 16px 이상으로.
 };
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
