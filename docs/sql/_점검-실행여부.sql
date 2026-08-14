@@ -55,9 +55,11 @@ select 파일,
 from (values
   ('adult-verification.sql',    pg_temp.has_fn('post_is_adult'),                         '함수 post_is_adult'),
   ('adult-verification-2.sql',  pg_temp.has_col('adult_verify_log','verification_id'),   '칼럼 adult_verify_log.verification_id'),
+  -- ⚠️ '365'로 찾으면 안 된다 — 실제 조건은 interval '1 year' 라서 안 걸린다(오탐 겪음).
+  --    원래 함수 본문에는 adult_verified_at 이 아예 없으므로 이게 확실한 표식이다.
   ('adult-verification-3.sql',  exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
                                        where n.nspname='public' and p.proname='is_adult_verified'
-                                         and p.prosrc like '%365%'),                     '1년 만료(365) 반영 여부'),
+                                         and p.prosrc like '%adult_verified_at%'),       'is_adult_verified 에 adult_verified_at 조건'),
   ('commission-adult.sql',      pg_temp.has_fn('commission_is_adult'),                   '함수 commission_is_adult'),
   ('commission-adult-2.sql',    pg_temp.has_fn('adult_commission_stubs'),                '함수 adult_commission_stubs'),
   ('commission-bump.sql',       pg_temp.has_fn('bump_commission'),                       '함수 bump_commission'),
