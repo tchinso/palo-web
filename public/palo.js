@@ -4604,6 +4604,7 @@ function cmOpenRegister(editId){
     loginWithGoogle();
     return;
   }
+  cmRegSubmitting=false; // 화면을 새로 열면 잠금 초기화 — 이전 시도가 네트워크에서 영영 안 돌아온 경우의 고착 방지
   cmReg={images:[],tags:[],status:'open',editingId:editId||null,title:'',price:'',period:'',slots:'',desc:'',descHtml:'',usage:'',policy:'',form:[],reviewEventOn:false,reviewEventBenefit:'',isAdult:false};
   if(editId){
     var c=cmMyList.find(function(x){return x.id===editId});
@@ -5021,7 +5022,7 @@ var cmRegSubmitting=false; // 재진입 잠금 — 응답을 기다리는 동안
 async function cmSubmitReg(){
   cmSyncReg();
   if(!AUTH.user){toast('로그인 후 이용할 수 있어요','🔒');return;}
-  if(cmRegSubmitting)return;
+  if(cmRegSubmitting){toast('저장 중이에요, 잠시만요');return;} // 조용히 무시하면 "안 눌린다"가 된다
   cmRegSubmitting=true;
   // 누르자마자 버튼으로 반응을 보여준다 — 서버 응답까지 1~2초간 아무 일도 없으면
   // "씹혔다"고 느껴 다시 누르게 된다(2026-08-14 사용자 신고의 한 축)

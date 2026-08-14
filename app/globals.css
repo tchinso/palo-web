@@ -2902,12 +2902,17 @@ body.ed-page #toTop{display:none!important}
   .notif-banner .nb-go{padding:8px 13px;font-size:12px}
 }
 
-/* ===== 키보드가 떠 있는 동안 하단 고정 바 숨김 =====
+/* ===== 키보드가 떠 있는 동안의 하단 고정 요소 처리 =====
    iOS는 키보드 중엔 fixed가 스크롤을 따라 움직여 바가 화면 중간을 떠다닌다
-   (2026-08-14 커미션 등록에서 신고). 입력 중엔 하단 바가 필요 없다 —
-   키보드를 닫으면 다시 나타나며 제자리에 붙는다. body.kb-open은 palo.js가 관리. */
-body.kb-open .cm-reg-bottom,body.kb-open .cm-apply-bar,body.kb-open .cm-wr-submit,
+   (2026-08-14 커미션 등록에서 신고). body.kb-open은 palo.js가 관리.
+   · 탭바·FAB — 입력 중엔 필요 없으므로 숨긴다.
+   · 폼 제출 바(등록·신청·후기) — ⚠️ 숨기면 안 된다: 입력 중에 등록을 누르려던 사용자에게
+     버튼이 사라져 "등록이 안 눌린다"는 신고가 됐다(2026-08-15). 대신 **문서 흐름(static)으로
+     내려** 폼 끝에 둔다 — 흐름 안에 있으면 떠다니는 게 물리적으로 불가능하고, 스크롤로
+     항상 닿는다. 키보드가 닫히면 다시 하단 고정으로 돌아온다. */
 body.kb-open .cm-fab-wrap,body.kb-open .tabbar{display:none}
+body.kb-open .cm-reg-bottom,body.kb-open .cm-apply-bar,body.kb-open .cm-wr-submit{
+  position:static;transform:none;max-width:none;left:auto;bottom:auto}
 
 /* ===== 두 번 톡톡 확대(double-tap zoom) 전역 차단 =====
    핀치줌을 허용하면서(WCAG) '두 번 톡톡' 확대도 같이 살아났는데, 그러면 브라우저가
