@@ -1077,7 +1077,24 @@ async function emailLogin(){
    아이디로 가입한 계정은 연결된 메일함이 없어 비밀번호를 찾을 수 없다.
    여기서 실제 이메일을 등록하면 확인 메일이 가고, 링크를 누르면 그 이메일이 계정에 연결돼
    이후 "비밀번호 찾기"를 쓸 수 있다. 아이디 로그인은 login_ids 표 덕분에 그대로 유지된다. */
+/* 아이디로 가입한 계정인가 — 복구용 이메일을 등록할 수 있는 유일한 대상.
+   ⚠️ 소셜 계정을 provider로만 가르면 안 된다: 네이버는 서버가 admin.createUser로
+      실제 이메일을 넣어 만들기 때문에 Supabase 안에서는 provider가 'email'이다
+      (표식은 user_metadata.provider="naver"에만 있다).
+   ⚠️ 소셜 계정이 여기서 이메일을 바꾸면 등록이 아니라 **사고**가 된다 —
+      네이버 로그인은 이메일로 계정을 찾으므로, 바꾼 뒤 네이버로 다시 로그인하면
+      옛 이메일로 새 계정이 만들어져 계정이 둘로 갈라진다. 구글·X도 프로필 이메일이
+      실제와 어긋난다. 그리고 애초에 해줄 수 있는 게 없다 — 복구는 그 서비스 몫이다. */
+function isIdAccount(){
+  var u=AUTH.user;if(!u)return false;
+  var md=u.user_metadata||{};
+  if(md.signup_type==="id"||md.login_id)return true;   // 가입 라우트(/api/auth/signup)가 남기는 표식
+  if(md.provider==="naver")return false;                // 네이버 (위 주석 참고)
+  if(/@users\.commi\.kr$/i.test(u.email||""))return true; // 표식 없는 예전 아이디 계정 폴백
+  return false;                                          // 구글·X 등 나머지 전부
+}
 function openRecoveryEmail(){
+  if(!isIdAccount()){toast("구글·네이버·X로 가입한 계정은 그 서비스에서 복구할 수 있어 등록이 필요 없어요");return;}
   var m=document.getElementById("recoveryModal");if(!m)return;
   var cur=(AUTH.user&&AUTH.user.email)||"";
   var isInternal=/@users\.commi\.kr$/i.test(cur);
@@ -1163,6 +1180,9 @@ async function saveRecoveryEmail(){
   if(!email||email.indexOf("@")<1||email.indexOf(".")<0){setHint("이메일 주소를 확인해주세요.");return;}
   if(/@users\.commi\.kr$/i.test(email)){setHint("실제로 사용하는 이메일을 입력해주세요.");return;}
   if(!AUTH.user){setHint("로그인 상태를 확인해주세요.");return;}
+  // 메뉴를 숨겼어도 함수는 남아 있으므로 저장 직전에 한 번 더 막는다(이중 안전장치).
+  // 소셜 계정의 이메일을 바꾸면 네이버 로그인이 계정을 못 찾는 사고가 난다(isIdAccount 주석 참고).
+  if(!isIdAccount()){setHint("외부 서비스로 가입한 계정은 복구용 이메일을 등록할 수 없어요.");return;}
   if(btn){btn.disabled=true;btn.textContent="보내는 중…";}
   try{
     var r=await window.supabase.auth.updateUser({email:email});
@@ -8894,7 +8914,8 @@ function renderMyProfile(){
   h+=pfSection('설정','프로필과 계정 정보를 관리해요',
      pfRow(pfMiniIcon('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>'),'닉네임 변경',"openNickModal()",{})+
      pfRow(pfMiniIcon('<path d="M4 4h16v9H9l-5 3z"/><path d="M4 4v16"/>'),'칭호'+(AUTH.profile&&AUTH.profile.title_id&&TITLES_BY_ID[AUTH.profile.title_id]?' <span class="pf-item-count">'+esc(TITLES_BY_ID[AUTH.profile.title_id].name)+'</span>':''),"openTitlePicker()",{})+
-     pfRow(pfMiniIcon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>'),'복구용 이메일',"openRecoveryEmail()",{}));
+     // 복구용 이메일은 아이디 계정 전용 — 소셜 계정은 메뉴 자체를 숨긴다(눌렀다 거절당하는 것보다 낫다)
+     (isIdAccount()?pfRow(pfMiniIcon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>'),'복구용 이메일',"openRecoveryEmail()",{}):''));
   h+=pfSection('약관','서비스 약관과 개인정보 처리방침을 확인해요',
      pfRow(pfMiniIcon('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>'),'이용약관',"location.href='/terms'",{})+
      pfRow(pfMiniIcon('<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'),'개인정보처리방침',"location.href='/privacy'",{}));

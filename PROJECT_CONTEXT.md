@@ -1690,6 +1690,15 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 복구용 이메일을 아이디 계정 전용으로 (2026-08-14, 사용자 요청)
+소셜(구글·네이버·X) 가입자는 복구용 이메일을 등록하지 못하게 함 — 복구는 그 서비스 몫이라 우리가 해줄 게 없고, 등록하면 오히려 **사고**가 된다.
+- **⚠️ 소셜이 이메일을 바꾸면 생기는 실제 위험**: 네이버 로그인은 **이메일로 계정을 찾는다**(`admin.createUser` 후 이메일 매칭). 복구용 등록 = `auth.updateUser({email})` = 로그인 이메일 변경 → 다음 네이버 로그인 때 옛 이메일로 **새 계정이 만들어져 계정이 둘로 갈라진다.** 구글·X는 identity 매칭이라 로그인은 유지되지만 프로필 이메일이 실제와 어긋난다.
+- **⚠️ 판별 함정**: 네이버는 Supabase 안에서 `app_metadata.provider`가 **'email'**이다(서버가 admin.createUser로 만들므로). provider로만 가르면 네이버가 아이디 계정으로 오분류된다. 표식은 `user_metadata.provider="naver"`.
+- `isIdAccount()`: ①`user_metadata.signup_type==="id"` 또는 `login_id` 있음(가입 라우트가 남김) → 아이디 계정 ②`user_metadata.provider==="naver"` → 소셜 ③이메일이 `@users.commi.kr` → 옛 아이디 계정 폴백 ④나머지(구글·X) → 소셜. **아이디 계정이 복구메일을 등록해 이메일이 실제 주소로 바뀐 뒤에도** ①의 표식으로 계속 아이디 계정으로 인식된다(재변경 가능).
+- 적용 3곳: 내 정보 설정 메뉴(아예 숨김), `openRecoveryEmail`(토스트 거절), `saveRecoveryEmail`(저장 직전 이중 가드 — 메뉴를 숨겨도 함수는 콘솔에서 호출 가능하므로).
+- 한계: 클라이언트 차단이라 본인이 Supabase API를 직접 부르면 바꿀 수는 있다(자기 계정 자해에 한정, 서버 측 차단은 Supabase auth 설정 영역이라 보류).
+- 검증(dev): 계정 유형 7종(아이디/복구등록후/옛계정/구글/네이버함정/X/비로그인) 판별 전부 통과, 소셜 상태에서 모달 강제 호출 시 안 열림.
+
 ### 비로그인 문의 — 작가 표시 + 읽음 배지 오류 (2026-08-14, 사용자 요청·신고)
 **① 작가에게 비로그인 표시**: 채팅 목록의 손님방 이름 옆 `비로그인` 배지(`.g-badge`), 채팅방 제목에도 같은 배지 + 상단 설명 띠(`.g-owner-band`: "상대는 알림을 받지 못해 답이 늦을 수 있고, 채팅방 코드로 다시 들어와요"). `renderChatView(name,msgs,opts)`에 `opts.guest` 추가 — 기존 호출부(2개 인자)는 그대로 동작.
 
