@@ -1690,6 +1690,16 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 점검 후 일괄 수정 1차 — 저위험 묶음 5건 (2026-08-14)
+점검(1~8회차) 완료 후 승인받은 수정을 위험 격리를 위해 나눠 배포. 1차는 저위험 한 줄들:
+- **`--muted` `#a294a0`→`#766871`** — 배경 대비 2.7→4.9:1(WCAG 4.5 충족). 같은 모브 계열 유지, `--muted-2`(장식용)는 그대로. 사이트 전체 회색 글자가 일제히 진해지는 시각 변화 있음.
+- **340px 이하 헤더 아이콘 36px·간격 2px** — 320px에서 14px 가로 넘침 해소(172→150px). 360px에선 40px 유지 확인.
+- **푸터 이용약관·개인정보 링크** `padding:6px 4px` — 터치 영역 16→30px.
+- **`apple-touch-icon.png` 추가** — ⚠️ layout.js가 없는 파일(`/apple-icon.png`)을 선언하고 있었음. iOS 관례 이름으로 실파일(192px 복사)을 두고 선언도 그쪽으로 수정.
+- **구글 로그인 접근성** — 겹침 구조에서 역할 교체: 보이는 버튼에 `tabindex=-1`+`aria-hidden`(장식), GIS층의 `aria-hidden` 제거, `.lg-gwrap:focus-within` 테두리로 투명 버튼의 포커스 표시. **⚠️ `gHtml` 원본은 안 건드림** — GIS 실패 시 폴백 단독 버튼은 눌리고 읽혀야 하므로 감쌀 때만 `replace`로 속성 주입.
+- **이미지 캐시 1년은 코드로 안 함**(계획 변경) — 서명 헤더에 Cache-Control을 넣으면 클라이언트가 안 보낼 때 403(업로드 전멸 위험 클래스). Cloudflare 대시보드 Cache Rule로 처리(사용자 작업, 기존 파일까지 커버).
+검증(dev): 320px 문서폭 320·h-actions 312에서 끝, muted 4.95:1 실측, 푸터 링크 30px, apple-touch-icon 200 + link 태그 확인, 로그인 모달에서 tabindex/aria/focus-within 전부 확인.
+
 ### 커미션 영역 이미지 한 번에 여러 장 올리기 (2026-08-14, 사용자 요청)
 커미션 등록의 샘플 이미지가 `files[0]`만 써서 장수만큼 고르기를 반복해야 했다. 조사해 보니 **같은 한 장짜리 패턴이 커미션 영역에 5곳** — 등록 샘플(10장)·작업샘플(10장)·후기 사진(5장)·신청서 참고(5장)·설명 본문 삽입(무제한). 글쓰기(`edFile`)·이모티콘(`emoFile`)은 이미 `multiple`이었다.
 - 공용 헬퍼 `cmUploadMany(e, uploadOne, isFull)`: 입력의 파일들을 **한 장씩 순서대로 await** — ⚠️ 병렬로 쏘지 않는 이유: ①고른 순서대로 들어가야 `sort`가 순서를 보존 ②업로드 URL 발급 제한(분당 60회) 여유 유지. 형식·용량 검사와 실패 안내는 기존 장당 업로드 함수가 그대로 담당(실패한 장만 건너뜀).

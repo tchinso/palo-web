@@ -970,7 +970,14 @@ async function openLoginModal(){
         auto_select:false,
         cancel_on_tap_outside:true
       });
-      gwrap.innerHTML='<div class="lg-gwrap">'+gHtml+'<div class="lg-gis" aria-hidden="true"></div></div>';
+      /* 접근성(6회차 점검): 예전엔 보이는 버튼이 Tab을 받는데 클릭이 막혀 있고(pointer-events:none),
+         진짜 GIS 버튼은 aria-hidden이라 스크린리더가 못 읽었다 — 키보드·스크린리더로는
+         구글 로그인이 불가능했다. 역할을 바꾼다: 보이는 버튼을 장식으로(tabindex=-1, aria-hidden),
+         GIS 겹침층은 읽히게. 포커스 표시는 .lg-gwrap:focus-within이 담당(GIS가 투명이라 안 보이므로).
+         ⚠️ gHtml 원본은 건드리지 않는다 — GIS 실패 시 폴백으로 단독 사용될 때는 눌리고 읽혀야 한다. */
+      gwrap.innerHTML='<div class="lg-gwrap">'+
+        gHtml.replace('<button type="button" class="lg-social"','<button type="button" class="lg-social" tabindex="-1" aria-hidden="true"')+
+        '<div class="lg-gis"></div></div>';
       google.accounts.id.renderButton(gwrap.querySelector(".lg-gis"),
         {theme:"outline",size:"large",type:"standard",text:"continue_with",shape:"pill",width:280,locale:"ko"});
     }catch(e){ gwrap.innerHTML=gHtml; }

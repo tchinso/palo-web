@@ -32,7 +32,9 @@ export const metadata = {
       { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
       { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
     ],
-    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+    // ⚠️ 예전엔 /apple-icon.png 를 선언했는데 그 파일이 실제로 없어서 404였다(5회차 점검).
+    //    iOS가 관례적으로 찾는 이름(/apple-touch-icon.png)으로 실제 파일을 두고 선언도 맞춘다.
+    apple: [{ url: "/apple-touch-icon.png", sizes: "192x192", type: "image/png" }],
   },
   appleWebApp: { capable: true, title: "commi", statusBarStyle: "default" },
 };
