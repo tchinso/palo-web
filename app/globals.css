@@ -2405,6 +2405,15 @@
   /* '비활성처럼 보이지만 눌리는' 상태 — disabled로 막으면 클릭 자체가 안 와서
      무엇이 비었는지 알려줄 기회가 없다(2026-08-15). 모양만 잿빛, 클릭은 받는다. */
   .cm-reg-bottom .cm-reg-btn.is-off{background:var(--muted-2)}
+  /* 등록을 눌렀는데 빈 필수 칸 — 붉은 테두리 + 한 번 살짝 흔들어 시선을 끈다.
+     표시는 등록 버튼을 눌렀을 때만 붙고, 그 칸이 채워지면 걷힌다(cmCheckReg). */
+  .cm-reg-miss{outline:2px solid #d1608f;outline-offset:2px;border-radius:12px;
+    animation:regMissPulse .5s ease 2}
+  @keyframes regMissPulse{
+    0%,100%{outline-color:#d1608f}
+    50%{outline-color:rgba(209,96,143,.25)}
+  }
+  @media(prefers-reduced-motion:reduce){.cm-reg-miss{animation:none}}
   /* 웹(데스크톱)에서는 하단 탭바가 없어 버튼 바가 브라우저 창 맨 아래에 고정돼, 480px 폼과 멀리
      떨어져 누르기 어색했음 → 데스크톱에선 고정 해제하고 폼 끝에 자연스럽게 배치(모바일은 그대로 고정) */
   @media(min-width:861px){

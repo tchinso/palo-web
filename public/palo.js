@@ -4994,16 +4994,25 @@ function cmSetReviewEvent(on){
   if(wrap)wrap.style.display=cmReg.reviewEventOn?'':'none';
   cmCheckReg();
 }
-/* 아직 안 채운 필수 항목의 이름들. 버튼 활성 판정과 "눌렀을 때 안내"가 같은 목록을 쓴다 —
-   두 곳이 따로 살면 안내와 실제 조건이 어긋난다. */
+/* 아직 안 채운 필수 항목들. 버튼 활성 판정·안내 문구·빈 칸 표시·스크롤이 전부 이 목록 하나를
+   쓴다 — 여러 곳이 따로 살면 안내와 실제 조건이 어긋난다. el은 화면에서 그 칸을 찾는 id. */
 function cmRegMissing(){
   var m=[];
-  if(!cmReg.images.length)m.push('샘플 이미지');
-  if(!cmReg.title.trim())m.push('제목');
-  if(!cmReg.price)m.push('가격');
-  if(!cmReg.desc.trim())m.push('설명');
-  if(cmReg.reviewEventOn&&!cmReg.reviewEventBenefit.trim())m.push('리뷰 이벤트 혜택 내용');
+  if(!cmReg.images.length)m.push({label:'샘플 이미지',el:'cmRegImgs'});
+  if(!cmReg.title.trim())m.push({label:'제목',el:'cmRegTitle'});
+  if(!cmReg.price)m.push({label:'가격',el:'cmRegPrice'});
+  if(!cmReg.desc.trim())m.push({label:'설명',el:'cmRegDescEditor'});
+  if(cmReg.reviewEventOn&&!cmReg.reviewEventBenefit.trim())m.push({label:'리뷰 이벤트 혜택',el:'cmRegRevBenefit'});
   return m;
+}
+/* 빈 필수 칸을 눈에 보이게 — 붉은 테두리를 붙이고, 채워지면 다음 cmCheckReg 때 걷힌다 */
+var CM_REG_REQ_ELS=['cmRegImgs','cmRegTitle','cmRegPrice','cmRegDescEditor','cmRegRevBenefit'];
+function cmRegMarkMissing(list){
+  var missIds={};list.forEach(function(x){missIds[x.el]=1;});
+  CM_REG_REQ_ELS.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.classList.toggle('cm-reg-miss',!!missIds[id]);
+  });
 }
 function cmCheckReg(){
   cmSyncReg();
@@ -5011,10 +5020,16 @@ function cmCheckReg(){
      눌러도 왜 안 되는지 알려줄 방법이 없다(2026-08-15 사용자 요청). 모양은 잿빛 그대로,
      실제 차단은 cmSubmitReg 첫머리의 빈 항목 검사가 한다. */
   var btn=document.getElementById('cmRegSubmit');
-  var off=cmRegMissing().length>0;
-  btn.classList.toggle('is-off',off);
-  btn.setAttribute('aria-disabled',off?'true':'false');
+  var missing=cmRegMissing();
+  btn.classList.toggle('is-off',missing.length>0);
+  btn.setAttribute('aria-disabled',missing.length?'true':'false');
   btn.disabled=false; // 예전 코드가 남긴 disabled가 있으면 해제
+  // 이미 붉게 표시된 칸이 채워졌으면 표시를 걷는다.
+  // ⚠️ 표시를 '새로 붙이는' 건 등록을 눌렀을 때만(cmSubmitReg) — 입력하는 족족 아직
+  //    안 간 칸까지 붉어지면 혼내는 폼이 된다. 여기서는 지우기만.
+  if(document.querySelector('.cm-reg-miss'))cmRegMarkMissing(missing.filter(function(x){
+    return document.getElementById(x.el)&&document.getElementById(x.el).classList.contains('cm-reg-miss');
+  }));
 }
 function cmPreviewReg(){
   cmSyncReg();
@@ -5035,9 +5050,19 @@ function cmPreviewReg(){
 var cmRegSubmitting=false; // 재진입 잠금 — 응답을 기다리는 동안 또 누르면 커미션이 두 개 생긴다
 async function cmSubmitReg(){
   cmSyncReg();
-  // 빈 필수 항목이 있으면 무엇인지 알려준다 — 조용한 무반응은 "버튼이 고장났다"로 읽힌다
+  // 빈 필수 항목이 있으면: ①무엇인지 말하고 ②그 칸들을 붉게 표시하고 ③첫 칸으로 데려간다
+  // — 조용한 무반응은 "버튼이 고장났다"로 읽힌다
   var missing=cmRegMissing();
-  if(missing.length){toast(missing.join(' · ')+'을(를) 채워주세요','✍️');return;}
+  if(missing.length){
+    var names=missing.map(function(x){return x.label;});
+    toast(missing.length===1
+      ? names[0]+' 항목이 아직 비어 있어요'
+      : '아직 '+missing.length+'곳이 비어 있어요 — '+names.join(', '),'✍️');
+    cmRegMarkMissing(missing);
+    var first=document.getElementById(missing[0].el);
+    if(first)first.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
   if(!AUTH.user){toast('로그인 후 이용할 수 있어요','🔒');return;}
   if(cmRegSubmitting){toast('저장 중이에요, 잠시만요');return;} // 조용히 무시하면 "안 눌린다"가 된다
   cmRegSubmitting=true;
