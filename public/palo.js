@@ -8059,6 +8059,12 @@ function fitChatRoom(){
   var el=document.getElementById("chatRoom");if(!el||!el.classList.contains("open"))return;
   var vv=window.visualViewport;
   var kb=vv?Math.max(0,Math.round((window.innerHeight||0)-vv.height-(vv.offsetTop||0))):0;
+  // ⚠️ 위쪽도 보정한다(2026-08-14). iOS는 키보드가 뜨면 입력창을 보이게 하려고
+  //    화면을 아래로 밀어(vv.offsetTop>0) 고정 배치된 방의 **머리(헤더·안내 배너)가
+  //    시야 위로 잘려 나간다** — 키보드를 닫아도 민 상태가 남아 "스크롤을 올려야
+  //    보이는" 증상이 됐다(사용자 신고). top을 offsetTop만큼 내리면 방이 정확히
+  //    보이는 영역에 겹쳐져 머리가 항상 남는다.
+  el.style.top=(vv?Math.max(0,Math.round(vv.offsetTop||0)):0)+"px";
   el.style.bottom=kb+"px";
   el.classList.toggle("kb-up",kb>2); // 키보드가 떠 있으면 입력줄 하단 여백 축소
   var box=document.getElementById("chatMessages");if(box)box.scrollTop=box.scrollHeight;
@@ -8074,7 +8080,7 @@ function leaveChat(){
   document.body.classList.remove("chat-open");
   unlockBodyForChat();
   var el=document.getElementById("chatRoom");
-  if(el){el.classList.remove("open","kb-up");el.innerHTML="";el.style.height="";el.style.transform="";el.style.bottom="";}
+  if(el){el.classList.remove("open","kb-up");el.innerHTML="";el.style.height="";el.style.transform="";el.style.bottom="";el.style.top="";}
   if(chatRoomVpListener&&window.visualViewport){window.visualViewport.removeEventListener("resize",chatRoomVpListener);window.visualViewport.removeEventListener("scroll",chatRoomVpListener);chatRoomVpListener=null;}
 }
 /* ---------- 알림 (DB 저장, notifications 테이블) ---------- */
@@ -8400,6 +8406,14 @@ function guestRenderRoom(d,firstTime){
     '</div>';
   el.classList.add("open");
   lockBodyForChat();fitChatRoom();
+  // ⚠️ 키보드 추적 리스너 — 로그인 채팅방(renderChatView)은 붙이는데 여기만 빠져 있었다.
+  //    없으면 키보드가 떠도 방 크기가 안 줄어 입력창이 키보드 뒤에 숨고, iOS가 화면을
+  //    밀어 상단 배너가 시야 밖으로 나갔다(2026-08-14 사용자 신고의 진짜 원인).
+  if(window.visualViewport&&!chatRoomVpListener){
+    chatRoomVpListener=fitChatRoom;
+    window.visualViewport.addEventListener("resize",chatRoomVpListener);
+    window.visualViewport.addEventListener("scroll",chatRoomVpListener);
+  }
   (d.messages||[]).forEach(function(m){if(m.id>GUEST.lastId)GUEST.lastId=m.id;});
   var box=document.getElementById("chatMessages");if(box)box.scrollTop=box.scrollHeight;
 }

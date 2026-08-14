@@ -1690,6 +1690,13 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 🐛 비로그인 문의 배너 — 2차 수정, 진짜 원인 (2026-08-14, 재신고)
+자동 포커스 제거(1차)로는 안 고쳐졌다. **진짜 원인 두 개**:
+- **`guestRenderRoom`이 visualViewport 리스너를 안 붙였다** — 로그인 채팅방(renderChatView)은 붙이는데 손님 방만 빠짐. 키보드가 떠도 방이 안 줄어 입력창이 키보드 뒤에 숨고, iOS가 입력창을 보이려고 화면을 밀어(pan) 상단 배너가 시야 밖으로. 키보드를 닫아도 민 상태가 남는다.
+- **`fitChatRoom`이 위쪽 보정을 안 했다** — 아래(키보드)만 `bottom`으로 줄이고, iOS가 민 만큼(`vv.offsetTop`)은 무시 → 팬이 생기면 로그인 채팅방에서도 헤더가 잘렸다. `el.style.top=offsetTop`을 추가해 방이 **보이는 영역에 정확히 겹치게** 함. `leaveChat`에서 `style.top`도 초기화.
+- 검증(모바일 에뮬 + visualViewport 가짜 객체): 열자마자 배너 화면 안·리스너 부착, 키보드 300px+팬 120px 흉내 → 방 top=120/bottom=180으로 정확, 배너 174px(보임), 키보드 닫힘 복원 0/0, 방 닫으면 리스너·top 정리.
+- ⚠️ 교훈: 채팅방 화면을 새로 만들면 **visualViewport 리스너 부착을 빠뜨리지 말 것** — renderChatView·guestRenderRoom 두 곳 다 있다.
+
 ### 🐛 비로그인 문의 배너가 안 보이던 문제 (2026-08-14, 사용자 신고)
 "문의하기를 누르면 경고·코드 안내 배너가 안 보이고 스크롤을 위로 올려야 보인다."
 **원인**: `guestOpenInquiry`가 열리자마자 입력창에 `focus()` — 폰에서 키보드가 즉시 올라오고 iOS가 입력창을 보이게 화면을 밀어 상단 배너가 시야 밖으로. **자동 포커스 제거** — 안내를 먼저 읽게 두고 입력은 사용자가 직접 탭할 때 시작. ⚠️ 채팅류 화면에서 열자마자 focus()를 주면 항상 이 문제가 생긴다(키보드가 배너·헤더를 밀어냄).
