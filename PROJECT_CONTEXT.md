@@ -1690,6 +1690,15 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 배포에서 개발 주석 자동 제거 (2026-08-14, 사용자 지적)
+F12로 palo.js의 개발 주석(1,110줄 — 요청 배경·설계 이유·어뷰징 대응 설명)이 그대로 보였다. **주석을 지우지 않는다** — 이 프로젝트의 기억이다. 대신 배포만 압축본으로:
+- **`scripts/minify-public.mjs`** (빌드 첫 단계, `npm run build`가 실행): terser로 `palo.min.js`·`agegate.min.js` 생성. 주석 전부 제거, `console.log/debug/info` 제거(**error·warn은 오류 기록용 유지**), **mangle 없음**(인라인 `onclick="함수명()"`이 전역 이름으로 부르므로 이름을 바꾸면 전부 깨진다), 소스맵 없음. 554KB→426KB.
+- PaloApp이 `NODE_ENV==='production'`이면 `.min.js` 참조(스크립트+preload). `window.__paloMin` 표식으로 agegate도 같은 규칙. 개발 서버는 원본 그대로(주석과 함께 디버깅).
+- `.min.js`는 gitignore — 빌드 산출물이며 Vercel이 매번 새로 만든다.
+- **JS 압축이 못 잡는 두 곳도 정리**: ①body-html의 HTML 주석 25개 → `${""/* … */}` 로 변환(서버 HTML에 실려 나갔다; `<!--PALO_MAIN-->` 자리표시만 유지) ②layout 인라인 선요청 스크립트의 주석 10개 → 문자열 밖 JSX 주석으로 이사. **⚠️ 규칙: BODY_HTML·인라인 스크립트 문자열 안에는 주석 금지.**
+- **sw.js는 의도적으로 제외** — 바이트가 달라지면 서비스워커 전체 재설치가 돌고, 주석 3줄뿐.
+- 소스맵: Next 기본값(꺼짐) + 실서버 .map 403 확인. 검증: 로컬 프로덕션 빌드·기동 후 주석 0·console.log 0·부팅 정상, 실서버 배포 후 동일 확인.
+
 ### 🐛 커미션 등록 하단 바가 떠다니던 문제 (2026-08-14, 사용자 신고)
 "미리보기·등록 버튼이 밑에 안 붙고 스크롤을 따라 움직인다."
 - **iOS 고유 동작**: 키보드가 떠 있는 동안 `position:fixed`는 화면이 아니라 레이아웃 뷰포트 기준이라, 스크롤하면 고정 바가 내용을 따라 떠다닌다. 에뮬레이션(데스크톱 엔진)에선 재현 안 됨 — 바는 탭바 위(745=745px)에 정확히 고정.
