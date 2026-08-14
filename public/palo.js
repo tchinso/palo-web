@@ -8315,7 +8315,10 @@ function guestOpenInquiry(commissionId,title){
   // 뒤로가기 = 채팅 덮개만 닫는다 → 밑에 있던 커미션 상세가 그대로 드러난다
   enterScreen("guestRoom",function(){guestStopPoll();leaveChat();});
   guestRenderRoom({messages:[]},false);
-  var inp=document.getElementById("guestInput");if(inp)inp.focus();
+  // ⚠️ 입력창에 자동 포커스를 주지 않는다 — 폰에서 키보드가 바로 올라오면서 화면이
+  //    입력창 쪽으로 밀려, 상단의 비로그인 경고·코드 안내 배너가 시야 밖으로 나갔다
+  //    (2026-08-14 사용자 신고: "스크롤을 위로 올려야 보여"). 안내를 먼저 읽게 두고,
+  //    입력은 사용자가 직접 탭할 때 시작한다.
 }
 /* 코드로 방 열기. firstTime이면 코드 배너를 펼친 채로 시작한다 —
    여기서 코드를 놓치면 대화를 통째로 잃기 때문에 처음 한 번은 접어두지 않는다. */
