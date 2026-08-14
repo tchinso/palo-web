@@ -1690,6 +1690,12 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 채팅창 상단 고정 포기 — 단순화 (2026-08-14, 사용자 결정)
+"상단(닉네임·배너)을 무조건 고정하려는 것 때문에 문제가 생기는 듯 — 고정 안 해도 됨. 단 입력창 자동 선택은 금지(직접 탭해야 열리게)."
+- `fitChatRoom`에서 **top 보정 제거** — iOS의 화면 이동(vv.offsetTop)과 싸우던 부분이 움직임 튐·틈 비침의 공통 원인이었다. 이제 이 함수의 일은 하나: **입력줄을 키보드 위에 얹는 것**(bottom만). 키보드가 떠 있는 동안 머리가 잠시 가려지는 건 허용.
+- 전환도 bottom만(0.22s, 팬은 즉시). 자동 포커스는 손님·로그인 채팅방 모두 이미 없음(grep 확인).
+- 검증(dev): 열자마자 포커스 없음·배너 보임, resize 시 top 빈 값 유지 + bottom 220px 전환, scroll 즉시, 복원 정상.
+
 ### 채팅창 키보드 이동을 부드럽게 (2026-08-14, 사용자 요청)
 "다른 사이트처럼 입력창이 스무스하게 올라가게" — 기존엔 `bottom`에만 CSS 전환(0.24s)이 있고 `top` 보정에는 없어서 위는 툭 튀고 아래만 미끄러졌다.
 - `fitChatRoom(instant)` — **키보드 개폐(resize)는 0.22s 전환으로 부드럽게, 손가락 팬(scroll)은 즉시**. 스크롤에까지 전환을 걸면 화면이 손가락을 늦게 따라오는 고무줄이 된다. 리스너가 `e.type==="scroll"`로 구분해 전달.

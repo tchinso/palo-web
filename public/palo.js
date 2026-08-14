@@ -8057,19 +8057,16 @@ function autoGrowChatInput(ta){
 // CSS transition(bottom)으로 한 프레임 점프가 아니라 부드럽게 올라오는 효과.
 /* instant=true 면 전환 없이 즉시 이동.
    ⚠️ 키보드 개폐(resize)는 부드럽게 미끄러지고, 손가락 팬(scroll)은 즉시 따라가야 한다 —
-      스크롤에까지 전환을 걸면 화면이 손가락을 0.2초 늦게 따라오는 고무줄이 된다. */
+      스크롤에까지 전환을 걸면 화면이 손가락을 0.2초 늦게 따라오는 고무줄이 된다.
+   ⚠️ 상단(top)은 **일부러 보정하지 않는다**(2026-08-14 사용자 결정). 한때 iOS가 화면을
+      밀 때(vv.offsetTop) 헤더·배너를 붙잡으려 top도 옮겼는데, iOS의 자체 이동과 싸우느라
+      움직임이 튀고 틈이 비치는 문제만 낳았다. 키보드가 떠 있는 동안 머리가 잠시 가려지는
+      건 허용한다 — 아래(입력줄)만 키보드 위에 정확히 얹는 것이 이 함수의 일이다. */
 function fitChatRoom(instant){
   var el=document.getElementById("chatRoom");if(!el||!el.classList.contains("open"))return;
-  el.style.transition=instant?"none"
-    :"top .22s cubic-bezier(.33,0,.2,1),bottom .22s cubic-bezier(.33,0,.2,1)";
+  el.style.transition=instant?"none":"bottom .22s cubic-bezier(.33,0,.2,1)";
   var vv=window.visualViewport;
   var kb=vv?Math.max(0,Math.round((window.innerHeight||0)-vv.height-(vv.offsetTop||0))):0;
-  // ⚠️ 위쪽도 보정한다(2026-08-14). iOS는 키보드가 뜨면 입력창을 보이게 하려고
-  //    화면을 아래로 밀어(vv.offsetTop>0) 고정 배치된 방의 **머리(헤더·안내 배너)가
-  //    시야 위로 잘려 나간다** — 키보드를 닫아도 민 상태가 남아 "스크롤을 올려야
-  //    보이는" 증상이 됐다(사용자 신고). top을 offsetTop만큼 내리면 방이 정확히
-  //    보이는 영역에 겹쳐져 머리가 항상 남는다.
-  el.style.top=(vv?Math.max(0,Math.round(vv.offsetTop||0)):0)+"px";
   el.style.bottom=kb+"px";
   el.classList.toggle("kb-up",kb>2); // 키보드가 떠 있으면 입력줄 하단 여백 축소
   var box=document.getElementById("chatMessages");if(box)box.scrollTop=box.scrollHeight;
