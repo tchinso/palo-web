@@ -1358,7 +1358,7 @@ function stageTagHTML(p){
 function postThumbHTML(p){
   var imgCount=p.images?p.images.length:((p.thumb!=="none")?(Math.floor(p.likes/18)%6+1):0); // demo image-count badge
   if(p.images&&p.images.length){
-    return '<div class="nthumb"><img src="'+esc(p.images[0])+'" alt="" style="width:100%;height:100%;object-fit:cover">'+
+    return '<div class="nthumb">'+thumbImgHTML(p.images[0],'style="width:100%;height:100%;object-fit:cover"')+
       stageTagHTML(p)+
       (imgCount>1?'<span class="ncount">'+imgCount+'+</span>':'')+
     '</div>';
@@ -3516,12 +3516,14 @@ async function pfArtistCommissions(userId,nickname,avatarUrl){
   return res.data.map(function(row){return cmRowToData(row,nickname,avatarUrl);});
 }
 function pfCmListItemHTML(d){
-  var thumb=(d.images&&d.images.length)?('background-image:url(\''+cmQ(d.images[0])+'\');background-size:cover;background-position:center'):('background:'+cmGrads[d.id%cmGrads.length]);
+  var hasImg=!!(d.images&&d.images.length);
+  var thumb=hasImg?'':'background:'+cmGrads[d.id%cmGrads.length];
+  var thumbImg=hasImg?thumbImgHTML(d.images[0],'class="thumb-fill"'):'';
   var statusHTML=d.status==='open'?'<div class="pfh-cm-status open">접수중</div>':'<div class="pfh-cm-status">신청 마감</div>';
   var bookmarked=cmBookmarkIds&&cmBookmarkIds.has(d.id);
   var tags=(d.tags||[]).map(function(t){return '<span class="pfh-cm-tag">#'+esc(t)+'</span>';}).join('');
   return '<div class="pfh-cm-item" onclick="cmOpenCommissionById('+d.id+')">'+
-    '<div class="pfh-cm-thumb" style="'+thumb+'">'+statusHTML+'</div>'+
+    '<div class="pfh-cm-thumb" style="'+thumb+'">'+thumbImg+statusHTML+'</div>'+
     '<div class="pfh-cm-info">'+
       '<div class="pfh-cm-top"><div class="pfh-cm-title">'+esc(d.title)+'</div>'+
         '<div class="cm-bm pfh-cm-bm'+(bookmarked?' on':'')+'" onclick="event.stopPropagation();cmToggleBookmark('+d.id+',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12v18l-6-4-6 4z"/></svg></div></div>'+
@@ -3684,7 +3686,11 @@ function cmCardHTML(d,idx){
       '<div class="cm-c-title cm-lock-t">성인 인증이 필요해요</div>'+
       '<div class="cm-c-meta cm-lock-meta"><span>인증하면 볼 수 있어요</span></div></div>';
   }
-  var thumb=(d.images&&d.images[0])?("background-image:url('"+cmQ(d.images[0])+"');background-size:cover;background-position:center"):('background:'+cmGrads[idx%cmGrads.length]);
+  // 배경이미지 대신 <img> — 썸네일 404(옛 이미지) 때 원본으로 바꿔 끼우려면 onerror가 필요한데
+  // background-image에는 그게 없다. 이미지가 없으면 예전처럼 그라데이션 배경.
+  var hasImg=!!(d.images&&d.images[0]);
+  var thumb=hasImg?'':'background:'+cmGrads[idx%cmGrads.length];
+  var thumbImg=hasImg?thumbImgHTML(d.images[0],'class="thumb-fill"'):'';
   var status=d.status==='open'?'<div class="cm-status open">오픈중</div>':'';
   var revBadge=d.reviewEventOn?'<div class="cm-revevent-badge">🎁 리뷰 이벤트</div>':'';
   // 성인 커미션은 목록에서도 한눈에 구분되게 — 인증한 사람만 이 카드를 받아 보지만,
@@ -3692,7 +3698,7 @@ function cmCardHTML(d,idx){
   var adultBadge=d.isAdult?'<div class="cm-adult-badge" title="성인 커미션">19+</div>':'';
   var bookmarked=cmBookmarkIds&&cmBookmarkIds.has(d.id);
   return '<div class="cm-card" onclick="cmOpenDetail('+idx+')">'+
-    '<div class="cm-thumb" style="'+thumb+'">'+status+revBadge+adultBadge+
+    '<div class="cm-thumb" style="'+thumb+'">'+thumbImg+status+revBadge+adultBadge+
       '<div class="cm-bookmark'+(bookmarked?' on':'')+'" onclick="event.stopPropagation();cmToggleBookmark('+d.id+',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12v18l-6-4-6 4z"/></svg></div></div>'+
     '<div class="cm-c-artist">'+esc(d.artist)+'</div>'+
     '<div class="cm-c-title">'+esc(d.title)+'</div>'+
@@ -5055,11 +5061,12 @@ function cmMyListHTML(){
   if(cmMyList.length===0)return '<div class="cm-my-empty">아직 등록한 커미션이 없어요.<br>+ 새 커미션 버튼으로 등록해보세요!</div>';
   return cmMyList.map(function(c){
     var st=c.status==='open'?'<span class="cm-my-badge open">🟢 접수중</span>':'<span class="cm-my-badge close">⛔ 마감</span>';
-    var thumbStyle=c.images[0]?("background-image:url('"+esc(c.images[0])+"');background-size:cover;background-position:center"):'background:var(--brand-soft)';
+    var thumbStyle=c.images[0]?'':'background:var(--brand-soft)';
+    var thumbImg=c.images[0]?thumbImgHTML(c.images[0],'class="thumb-fill"'):'';
     var editBtn=c.adLocked
       ?'<span class="cm-my-edit" style="opacity:.55;cursor:default" title="광고를 집행 중인 커미션은 수정할 수 없어요">🔒 수정 불가</span>'
       :'<button class="cm-my-edit" onclick="cmOpenRegister('+c.id+')">수정</button>';
-    return '<div class="cm-my-item"><div class="cm-my-thumb" style="'+thumbStyle+'"></div>'+
+    return '<div class="cm-my-item"><div class="cm-my-thumb" style="'+thumbStyle+'">'+thumbImg+'</div>'+
       '<div class="cm-my-info"><div class="cm-my-title">'+esc(c.title)+'</div>'+
         '<div class="cm-my-price">'+Number(c.price).toLocaleString()+'원~</div>'+st+'</div>'+
       '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">'+cmBumpBtnHTML(c)+editBtn+
@@ -5561,7 +5568,7 @@ function searchHitHTML(p){
 function postCardHTML(p){
   var c=catFor(p);
   return '<div class="post-card" onclick="openPost('+p.id+')">'+
-    '<div class="post-card-img"><img src="'+esc(p.images[0])+'" alt="" loading="lazy"></div>'+
+    '<div class="post-card-img">'+thumbImgHTML(p.images[0],'')+'</div>'+
     '<div class="post-card-body">'+
       (p.isManagerPick?'<span class="pick-badge">📌 매니저 픽</span> ':'')+
       '<div class="post-card-title">'+esc(p.title)+'</div>'+
@@ -6414,27 +6421,75 @@ function loadImageFromFile(file){
 
    저장 경로는 서버가 정한다(클라이언트가 경로를 고르면 남의 파일을 덮어쓸 수 있다).
    성공하면 공개 주소를, 실패하면 null을 돌려주고 안내는 여기서 띄운다. */
+/* ===== 목록용 썸네일 =====================================================
+   목록은 167px 칸에 219KB 원본을 통째로 내려받고 있었다(3회차 점검).
+   업로드할 때 작은 webp를 하나 더 만들어 원본 키 + ".thumb.webp" 로 올린다.
+   ⚠️ DB에 기록하지 않는다 — 썸네일 주소는 원본 주소에서 **유도**한다(thumbOf).
+      옛 이미지는 썸네일이 없어 404가 나는데, 그때 thumbFail이 원본으로 바꿔 끼운다.
+   ⚠️ GIF도 첫 프레임으로 정지 썸네일을 만든다 — 목록에서 GIF 원본(수 MB~수십 MB)을
+      받는 게 가장 큰 전송량이었다. 원본 보기(뷰어·상세)는 그대로 움직인다. */
+async function makeThumbBlob(blob){
+  try{
+    var img=await loadImageFromFile(blob);
+    var w=img.naturalWidth,h=img.naturalHeight;
+    if(!w||!h)return null;
+    var maxSide=360,longSide=Math.max(w,h);
+    if(longSide>maxSide){var sc=maxSide/longSide;w=Math.round(w*sc);h=Math.round(h*sc);}
+    var c=document.createElement("canvas");c.width=w;c.height=h;
+    c.getContext("2d").drawImage(img,0,0,w,h);
+    var t=await canvasToBlob(c,"image/webp",0.72);
+    if(!t||t.type!=="image/webp")return null;   // webp를 못 만드는 브라우저면 썸네일 없이 감
+    if(t.size>=blob.size)return null;           // 원본보다 크면 의미가 없다(아주 작은 원본)
+    return t;
+  }catch(e){return null;}
+}
 async function uploadToStorage(blob,folder){
   if(!window.supabase){toast("업로드를 사용할 수 없어요");return null;}
   var sess=await window.supabase.auth.getSession();
   var token=sess.data.session?sess.data.session.access_token:null;
   if(!token){toast("로그인이 필요해요");return null;}
   var type=blob.type||"application/octet-stream";
+  // 이미지 슬롯이면 썸네일도 준비(파일 첨부·비이미지는 제외). 실패해도 원본 업로드는 계속.
+  var thumb=(folder!=="file"&&/^image\//.test(type))?await makeThumbBlob(blob):null;
   try{
     var r=await fetch("/api/storage/upload-url",{
       method:"POST",
       headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
-      body:JSON.stringify({folder:folder,contentType:type,size:blob.size})
+      body:JSON.stringify({folder:folder,contentType:type,size:blob.size,thumbSize:thumb?thumb.size:0})
     });
     var j=null;try{j=await r.json();}catch(e){}
     if(!r.ok||!j||!j.ok){toast("업로드 실패: "+((j&&j.message)||"잠시 후 다시 시도해주세요"));return null;}
     // 서명에 Content-Type이 포함돼 있으므로 여기서도 같은 값을 보내야 한다
     var put=await fetch(j.uploadUrl,{method:"PUT",body:blob,headers:{"Content-Type":type}});
     if(!put.ok){toast("업로드 실패: 파일을 저장하지 못했어요");return null;}
+    // 썸네일은 곁다리 — 실패해도 원본은 이미 올라갔으니 업로드 전체를 실패시키지 않는다
+    // (썸네일이 없으면 목록에서 404 → thumbFail이 원본으로 대체하므로 동작엔 지장 없음)
+    if(thumb&&j.thumbUploadUrl){
+      try{await fetch(j.thumbUploadUrl,{method:"PUT",body:thumb,headers:{"Content-Type":"image/webp"}});}catch(e){}
+    }
     return j.publicUrl;
   }catch(e){
     toast("업로드 실패: 네트워크를 확인해주세요");return null;
   }
+}
+/* 원본 주소 → 썸네일 주소. 우리 저장소(이미지 도메인) 주소일 때만 — 외부·데모 주소는 그대로. */
+function thumbOf(u){
+  if(!u||typeof u!=="string")return u;
+  if(u.indexOf("img.commi.kr")===-1&&u.indexOf("r2.dev")===-1)return u;
+  if(/\.thumb\.webp$/.test(u))return u;
+  return u+".thumb.webp";
+}
+// 썸네일 404(옛 이미지) → 원본으로 교체. onerror를 비워 무한 반복을 막는다.
+function thumbFail(el){
+  el.onerror=null;
+  var f=el.getAttribute("data-full");
+  if(f&&el.src!==f)el.src=f;
+}
+/* 목록 칸에 꽉 차게 들어가는 썸네일 img 태그. extra엔 class·style 등 추가 속성. */
+function thumbImgHTML(u,extra){
+  var t=thumbOf(u);
+  if(t===u)return '<img src="'+esc(u)+'" alt="" loading="lazy" '+(extra||'')+'>'; // 유도 불가 주소는 예전 그대로
+  return '<img src="'+esc(t)+'" data-full="'+esc(u)+'" onerror="thumbFail(this)" alt="" loading="lazy" '+(extra||'')+'>';
 }
 // 커미션을 지울 때 딸린 이미지 정리. 실패해도 서비스 동작엔 지장 없으므로 조용히 넘어간다.
 async function deleteFromStorage(urls){
@@ -7843,7 +7898,7 @@ function pinnedPostCardHTML(pinnedPostId){
   var thumb=p.images&&p.images.length?p.images[0]:null;
   return '<div class="pinned-post" onclick="openPost('+p.id+')">'+
     '<span class="pinned-label">📌 대표 글</span>'+
-    (thumb?'<img src="'+esc(thumb)+'" alt="" class="pinned-thumb">':'')+
+    (thumb?thumbImgHTML(thumb,'class="pinned-thumb"'):'')+
     '<div class="pinned-body"><div class="pinned-title">'+esc(p.title)+'</div>'+
     '<div class="pinned-meta"><span class="cat '+c.cls+'">'+c.label+'</span><span>추천 '+p.likes+' · 댓글 '+p.comments.length+'</span></div></div>'+
   '</div>';

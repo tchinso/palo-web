@@ -1690,6 +1690,15 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 점검 후 일괄 수정 6차 — 목록 썸네일 파이프라인 (2026-08-14)
+목록이 167px 칸에 219KB 원본을 통째로 받던 문제(3회차). **DB 변경 없이** 감:
+- **주소 유도 방식**: 썸네일 키 = 원본 키 + `.thumb.webp`. `thumbOf(u)`가 주소만 보고 유도(우리 이미지 도메인일 때만). DB 칼럼·마이그레이션·조회 변경 전부 불필요.
+- **업로드 한 곳에서 생성**: `uploadToStorage`가 이미지 슬롯이면 `makeThumbBlob`(긴 변 360px, webp q0.72)을 만들어 서명 2개(둘 다 ContentLength 강제)로 원본+썸네일 PUT. **썸네일 실패는 업로드를 실패시키지 않는다**(곁다리). 원본보다 커지면 안 만든다. **GIF도 첫 프레임 정지 썸네일** — 목록에서 수 MB GIF 원본이 가장 큰 전송량이었다. 뷰어·상세는 원본이라 그대로 움직인다.
+- **옛 이미지 폴백**: `<img src=썸네일 data-full=원본 onerror="thumbFail(this)">` — 404면 원본으로 교체(onerror 비워 무한루프 방지). **background-image 4곳(cm-card·프로필 커미션·내 커미션)을 `<img class="thumb-fill">`로 전환**한 이유 — 배경이미지엔 onerror가 없다. 그라데이션(이미지 없음)은 예전대로 배경. 배지들은 img 뒤 형제라 위에 그려짐.
+- 삭제 라우트가 원본 지울 때 `.thumb.webp`도 함께(Quiet 삭제라 없어도 무해).
+- 적용 6곳: nthumb(홈 목록)·post-card-img·pinned-thumb·cm-card·pfh-cm-item·cm-my-item.
+- **⚠️ 검증 환경 함정**: 숨겨진 탭에선 `loading="lazy"` 이미지가 로드를 아예 시작 안 해(교차 판정 없음) 폴백이 안 도는 것처럼 보였다. lazy 뺀 프로브로 폴백 발화 확인(404→원본 교체). makeThumbBlob 실측 15KB→2KB webp. 실기기 확인 권장.
+
 ### 점검 후 일괄 수정 5차 — 업로드 서명에 ContentLength (2026-08-14)
 용량 상한(40MB)이 클라이언트 신고값 검사뿐이라 거짓말하면 그만이었다. 서명에 `ContentLength: size`를 넣어 **R2가 실제 바이트 수를 강제**하게 함.
 - **클라 변경 불필요** — `uploadToStorage`가 이미 압축 후 `blob.size`를 보내고 있었고, 브라우저는 PUT의 Content-Length를 스스로 body 크기로 채운다(개발자가 못 바꾸는 보호 헤더) → 정직한 업로드는 항상 서명과 일치, 신고보다 큰 파일은 403.

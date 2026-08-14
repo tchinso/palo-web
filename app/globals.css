@@ -2882,6 +2882,13 @@ body.ed-page #toTop{display:none!important}
   .notif-banner .nb-go{padding:8px 13px;font-size:12px}
 }
 
+/* ===== 목록 썸네일 =====
+   배경이미지 대신 <img>를 쓴다 — 옛 이미지(썸네일 없음)의 404를 onerror로 받아
+   원본으로 바꿔 끼우기 위해서다. 담는 통은 relative+hidden, 이미지는 꽉 채움.
+   배지(오픈중·19+·북마크)는 img 뒤 형제라 자연히 위에 그려진다. */
+.cm-thumb,.pfh-cm-thumb,.cm-my-thumb{position:relative;overflow:hidden}
+.thumb-fill{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+
 /* ===== 아주 좁은 화면(320px대) 헤더 =====
    아이콘 40px×4 + 간격 4px×3 = 172px가 안 줄어들어 문서가 14px 가로로 넘쳤다
    (6회차 점검 실측: iPhone SE 1세대·폴드 커버 화면). 36px×4 + 2px×3 = 150px로 들어온다. */

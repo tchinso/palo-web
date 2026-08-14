@@ -50,6 +50,13 @@ export async function POST(request) {
   }
   if (!(size > 0) || size > MAX_BYTES) return bad("40MB 이하 파일만 올릴 수 있어요.");
 
+  // 썸네일(선택) — 목록에서 원본 대신 쓸 작은 webp. 원본 키 뒤에 ".thumb.webp"를 붙여
+  // **주소만 보고 썸네일 주소를 유도**할 수 있게 한다(DB에 따로 기록하지 않는 이유).
+  // 2MB면 360px webp로 차고 넘친다 — 그보다 크면 썸네일이 아니다.
+  const thumbSize = Number(body?.thumbSize || 0);
+  const wantThumb = thumbSize > 0 && !isFileSlot;
+  if (wantThumb && thumbSize > 2 * 1024 * 1024) return bad("썸네일이 너무 커요.");
+
   // 로그인 확인 — 익명 업로드를 막는다
   const authHeader = request.headers.get("authorization") || "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
@@ -89,7 +96,21 @@ export async function POST(request) {
       }),
       { expiresIn: URL_TTL_SEC }
     );
-    return Response.json({ ok: true, uploadUrl: signed, publicUrl: publicUrlFor(objectKey), key: objectKey });
+    // 썸네일용 서명 — 원본과 같은 규칙(ContentLength 강제)
+    let thumbUploadUrl = null;
+    if (wantThumb) {
+      thumbUploadUrl = await getSignedUrl(
+        r2Client(),
+        new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: objectKey + ".thumb.webp",
+          ContentType: "image/webp",
+          ContentLength: thumbSize,
+        }),
+        { expiresIn: URL_TTL_SEC }
+      );
+    }
+    return Response.json({ ok: true, uploadUrl: signed, publicUrl: publicUrlFor(objectKey), key: objectKey, thumbUploadUrl: thumbUploadUrl });
   } catch (e) {
     return bad("업로드 준비에 실패했어요. 잠시 후 다시 시도해주세요.", 502);
   }
