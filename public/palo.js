@@ -1147,7 +1147,8 @@ function loadAgeGate(){
   if(_ageGateP)return _ageGateP;
   _ageGateP=new Promise(function(resolve,reject){
     var s=document.createElement("script");
-    s.src="/agegate.js"+(_APP_V?("?v="+_APP_V):"");
+    // 배포에서는 압축본 — PaloApp이 심어 준 __paloMin 표식을 따른다(주석 노출 방지)
+    s.src=(window.__paloMin?"/agegate.min.js":"/agegate.js")+(_APP_V?("?v="+_APP_V):"");
     s.onload=function(){resolve();};
     s.onerror=function(){_ageGateP=null;reject(new Error("agegate"));}; // 실패하면 다음에 다시 시도
     document.head.appendChild(s);

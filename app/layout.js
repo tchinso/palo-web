@@ -70,20 +70,28 @@ export default function RootLayout({ children }) {
           supabase-js를 기다리지 않으려고 REST를 직접 호출한다.
           실패하면 그냥 null을 남기고, palo.js가 평소 경로로 다시 부르므로 안전하다. */}
       <head>
+        {/* ⚠️ 아래 인라인 스크립트 문자열 안에는 주석을 쓰지 말 것 — 그대로 모든 페이지의
+            HTML 소스에 실려 나간다(2026-08-14 사용자 지적으로 기존 주석 10개를 여기로 이사).
+            코드 설명:
+            · __paloHasBackend — palo.js가 하이드레이션보다 먼저 실행돼 그 시점엔 window.supabase가
+              없으므로, "백엔드가 아예 없는 로컬 데모"와 "아직 안 온 것"을 구분하는 표식.
+            · 경로 검사 — 선요청은 목록을 쓰는 화면(홈·게시판·글)에서만.
+            · 토큰 빌려 쓰기 — 로그인한 사람을 anon 권한으로 읽으면 본인에게만 보이는 행이 빠진다.
+              저장된 세션 토큰을 그대로 써서 supabase-js와 같은 요청을 만든다. 토큰이 없거나
+              곧 만료면 선요청을 접는다(틀린 데이터를 보여주지 않으려고).
+            · base64- 접두사 — 최신 supabase-js는 세션을 base64로 저장한다. TextDecoder를 쓰는
+              이유는 닉네임 등 한글이 깨지지 않게 하기 위함.
+            · 7개를 전부 띄우는 이유 — 하나라도 빠지면 palo.js가 깨어난 뒤에야 그것만 새로 부르고,
+              Promise.all은 제일 늦은 것을 기다리므로 그만큼 통째로 밀린다. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{
   var U=${JSON.stringify(process.env.NEXT_PUBLIC_SUPABASE_URL || "")};
   var K=${JSON.stringify(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "")};
-  // palo.js가 하이드레이션보다 먼저 실행되므로, 그 시점엔 window.supabase가 아직 없다.
-  // "백엔드가 아예 없는 환경(로컬 데모)"과 "아직 안 온 것"을 구분하는 표식.
   window.__paloHasBackend=!!(U&&K);
   var p=location.pathname;
-  if(!(p==="/"||p.indexOf("/board/")===0||p.indexOf("/post/")===0))return; // 목록을 쓰는 화면에서만
+  if(!(p==="/"||p.indexOf("/board/")===0||p.indexOf("/post/")===0))return;
   if(!U||!K)return;
-  // 로그인한 사람은 anon 권한으로 읽으면 본인에게만 보이는 행이 빠진다.
-  // 그래서 저장된 세션의 토큰을 그대로 빌려 쓴다 — supabase-js가 보내는 것과 같은 요청이 된다.
-  // 토큰이 없거나 곧 만료면 선요청을 접고 평소 경로에 맡긴다(틀린 데이터를 보여주지 않으려고).
   var tok=null,found=false;
   for(var i=0;i<localStorage.length;i++){
     var k=localStorage.key(i);
@@ -91,10 +99,10 @@ export default function RootLayout({ children }) {
     found=true;
     try{
       var v=localStorage.getItem(k)||"";
-      if(v.indexOf("base64-")===0){                 // 최신 supabase-js는 base64로 저장한다
+      if(v.indexOf("base64-")===0){
         var b=atob(v.slice(7)),u8=new Uint8Array(b.length);
         for(var j=0;j<b.length;j++)u8[j]=b.charCodeAt(j);
-        v=new TextDecoder().decode(u8);             // 닉네임 등 한글이 깨지지 않게
+        v=new TextDecoder().decode(u8);
       }
       var s=JSON.parse(v);
       if(s&&s.access_token&&s.expires_at&&s.expires_at*1000>Date.now()+30000)tok=s.access_token;
@@ -109,8 +117,6 @@ export default function RootLayout({ children }) {
       .then(function(d){return d?{data:d,error:null}:null;})
       .catch(function(){return null;});
   }
-  // 1차로 함께 나가는 7개를 전부 여기서 띄운다. 하나라도 빠지면 palo.js가 깨어난 뒤에야
-  // 그것만 새로 부르게 되고, Promise.all은 제일 늦은 것을 기다리므로 그만큼 통째로 밀린다.
   var now=new Date().toISOString();
   window.__paloPre={
     posts:q("posts?select=*&order=created_at.desc"),

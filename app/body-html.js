@@ -17,7 +17,7 @@ export const FEED_SKELETON = `<div class="list"><div class="skel-row"><div class
 //    그래서 연령 확인 모달(#adultModal)은 여기 두지 않는다 — 소스에 그 문구가 박혀 있으면
 //    광고 심사 봇이 화면이 아니라 소스를 읽고 사이트 전체를 성인 업종으로 분류한다
 //    (2026-08-10 틱톡 광고 거부). palo.js의 ensureAdultGate()가 필요한 순간에만 만들어 붙인다.
-//    ⚠️ 이 파일 안에서는 HTML 주석(<!-- -->)도 소스에 나가므로, 설명은 이렇게 밖에 적을 것.
+//    ⚠️ 이 파일 안에서는 HTML 주석()도 소스에 나가므로, 설명은 이렇게 밖에 적을 것.
 export const BODY_HTML = `
 
 <header>
@@ -78,7 +78,7 @@ export const BODY_HTML = `
 
 <footer><div class="wrap">commi · 그림 그리는 사람들의 커뮤니티 · 잘 그린 그림보다 그리는 이야기가 먼저인 곳<div class="foot-biz">상호 디자인마켓 · 대표 전승우 · 사업자등록번호 685-14-02733 · 통신판매업 신고 2025-강원원주-00895<br>주소 강원특별자치도 원주시 무실동 2025 (제일풍경채원주무실) 103동 3201호<br>전화 010-5412-6042 · 문의 yssj1202@gmail.com</div><div class="foot-disclaimer">디자인마켓은 통신판매중개자이며, 통신판매의 당사자가 아닙니다. 커미션 등 이용자 간 거래 및 상품·상품정보·거래에 관한 의무와 책임은 계약 당사자 각자에게 있습니다.</div><div class="foot-links"><a href="/terms">이용약관</a> · <a href="/privacy">개인정보 처리방침</a></div></div></footer>
 
-<!-- drawer -->
+${""/* drawer */}
 <div class="scrim" id="scrim"></div>
 <nav class="drawer" id="drawer" aria-label="메뉴">
   <div class="dw-top">
@@ -95,11 +95,11 @@ export const BODY_HTML = `
   </div>
 </nav>
 
-<!-- board sheet (게시판 탭) -->
+${""/* board sheet (게시판 탭) */}
 <div class="sheet-scrim" id="sheetScrim"></div>
 <input type="file" id="chatImgFile" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" class="hidden" onchange="onChatImageFile(event)">
-<!-- 원본 이미지 뷰어. 여러 장을 넘겨볼 수 있다(휠·스와이프·화살표키·좌우 버튼).
-     바깥을 누르면 닫히므로, 안쪽 버튼들은 ivMove()에서 이벤트 전파를 멈춘다. -->
+${""/* 원본 이미지 뷰어. 여러 장을 넘겨볼 수 있다(휠·스와이프·화살표키·좌우 버튼).
+     바깥을 누르면 닫히므로, 안쪽 버튼들은 ivMove()에서 이벤트 전파를 멈춘다. */}
 <div class="img-viewer" id="imgViewer" onclick="ivBackdrop(event)">
   <button class="iv-close" aria-label="닫기">×</button>
   <button type="button" class="iv-nav prev" id="ivPrev" aria-label="이전 이미지" onclick="ivMove(event,-1)" hidden>‹</button>
@@ -119,7 +119,7 @@ export const BODY_HTML = `
   <nav class="board-nav" id="boardNavS" style="border:none;box-shadow:none"></nav>
 </div>
 
-<!-- bottom tabs -->
+${""/* bottom tabs */}
 <nav class="tabbar" aria-label="빠른 이동">
   <div class="tabbar-inner">
     <span class="tab-ind" id="tabInd" aria-hidden="true"></span>
@@ -131,10 +131,10 @@ export const BODY_HTML = `
   </div>
 </nav>
 
-<!-- 1:1 채팅방 (전체화면 오버레이, body 최상위라 fixed가 iOS에서도 정상 동작) -->
+${""/* 1:1 채팅방 (전체화면 오버레이, body 최상위라 fixed가 iOS에서도 정상 동작) */}
 <div id="chatRoom" class="chatroom" aria-label="채팅방"></div>
 
-<!-- write editor (full screen, cafe-style) -->
+${""/* write editor (full screen, cafe-style) */}
 <div class="editor" id="writeModal" aria-label="글쓰기">
   <div class="ed-top">
     <div class="wrap ed-top-in">
@@ -146,7 +146,7 @@ export const BODY_HTML = `
 
   <div class="ed-scroll">
     <div class="wrap ed-body">
-      <!-- 게시판 + 말머리 -->
+      ${""/* 게시판 + 말머리 */}
       <div class="ed-metarow">
         <button class="ed-boardpick" id="edBoardPick" onclick="toggleBoardMenu(event)">
           <span id="edBoardLabel">게시판 선택</span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
@@ -158,7 +158,7 @@ export const BODY_HTML = `
       <div class="ed-lock-notice" id="edLockNotice" style="display:none"></div>
       <div class="ed-accept-notice" id="edAcceptNotice" style="display:none"></div>
 
-      <!-- 쓰다 만 글을 되살렸을 때만 보이는 안내 줄 -->
+      ${""/* 쓰다 만 글을 되살렸을 때만 보이는 안내 줄 */}
       <div class="ed-draftbar" id="edDraftBar" style="display:none">
         <span id="edDraftBarMsg">쓰던 글이 있어요</span>
         <span class="ed-draftbar-btns">
@@ -167,7 +167,7 @@ export const BODY_HTML = `
         </span>
       </div>
 
-      <!-- 제목 -->
+      ${""/* 제목 */}
       <input type="text" id="wTitle" class="ed-title-input" placeholder="제목을 입력해 주세요">
       <input type="text" id="edReviewNickInput" class="ed-title-input" placeholder="커미션 제작자 닉네임으로 구직 글 검색" oninput="searchCommissionPosts()" style="display:none;margin-top:8px;font-size:14px">
       <div class="ed-commission-list" id="edCommissionList" style="display:none"></div>
@@ -180,12 +180,12 @@ export const BODY_HTML = `
         </span>
       </div>
 
-      <!-- 서식 툴바 (제목 아래·본문 위, 스크롤해도 상단 고정) -->
+      ${""/* 서식 툴바 (제목 아래·본문 위, 스크롤해도 상단 고정) */}
 
-      <!-- 본문 (contenteditable) -->
-      <!-- 글자 도구: 본문 바로 위 (디시식) -->
+      ${""/* 본문 (contenteditable) */}
+      ${""/* 글자 도구: 본문 바로 위 (디시식) */}
       <div class="ed-fmt" id="edFmtPanel">
-      <!-- 기본 줄. 글꼴·크기는 창을 띄우지 않고 이 줄을 오른쪽으로 밀어내며 목록을 편다 -->
+      ${""/* 기본 줄. 글꼴·크기는 창을 띄우지 않고 이 줄을 오른쪽으로 밀어내며 목록을 편다 */}
       <div class="ed-fmt-row" id="edFmtMain">
         <button type="button" title="굵게" onmousedown="fmt(event,'bold')"><span class="ei" style="font-weight:900">B</span></button>
         <button type="button" title="기울임" onmousedown="fmt(event,'italic')"><span class="ei" style="font-style:italic;font-family:serif">I</span></button>
@@ -200,7 +200,7 @@ export const BODY_HTML = `
         <button type="button" class="ed-fmt-more" onmousedown="edSaveForMenu(event)" onclick="edFmtView('font')">글꼴 <i>›</i></button>
         <button type="button" class="ed-fmt-more" onmousedown="edSaveForMenu(event)" onclick="edFmtView('size')">크기 <i>›</i></button>
       </div>
-      <!-- 글꼴 목록: 같은 자리에서 오른쪽으로 이어지는 가로 목록 -->
+      ${""/* 글꼴 목록: 같은 자리에서 오른쪽으로 이어지는 가로 목록 */}
       <div class="ed-fmt-row ed-fmt-sub" id="edFmtFont" hidden>
         <button type="button" class="ed-fmt-back" onmousedown="event.preventDefault()" onclick="edFmtView('main')" aria-label="뒤로">‹</button>
         <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetFont(&quot;'Nanum Gothic', sans-serif&quot;)" style="font-family:'Nanum Gothic',sans-serif">나눔고딕</button>
@@ -211,7 +211,7 @@ export const BODY_HTML = `
         <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetFont(&quot;'Do Hyeon', sans-serif&quot;)" style="font-family:'Do Hyeon',sans-serif">도현</button>
         <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetFont(&quot;'Black Han Sans', sans-serif&quot;)" style="font-family:'Black Han Sans',sans-serif">검은고딕</button>
       </div>
-      <!-- 크기 목록 -->
+      ${""/* 크기 목록 */}
       <div class="ed-fmt-row ed-fmt-sub" id="edFmtSize" hidden>
         <button type="button" class="ed-fmt-back" onmousedown="event.preventDefault()" onclick="edFmtView('main')" aria-label="뒤로">‹</button>
         <button type="button" onmousedown="edSaveForMenu(event)" onclick="edSetSize('13')" style="font-size:12px">아주 작게</button>
@@ -226,7 +226,7 @@ export const BODY_HTML = `
       <div id="wContent" class="ed-content" contenteditable="true"
         ondragover="onEditorDragOver(event)" ondragleave="onEditorDragLeave(event)" ondrop="onEditorDrop(event)"
         data-ph="이야기를 자유롭게 적어 주세요. 커서를 원하는 위치에 두고 위 🖼 버튼으로 그림을 그 자리에 넣을 수 있어요. 이미지 파일을 끌어다 놓아도 돼요."></div>
-      <!-- 넣기 도구: 본문 바로 아래 (디시식) -->
+      ${""/* 넣기 도구: 본문 바로 아래 (디시식) */}
       <div class="ed-dock-row" id="edDockRow">
       <button type="button" title="사진" onmousedown="pickImage(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 3 3-2 4 4"/></svg><span class="ed-dock-lbl">사진</span></button>
       <button type="button" title="이모티콘" onmousedown="event.preventDefault()" onclick="edPickEmoticon()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span class="ed-dock-lbl">이모티콘</span></button>
@@ -237,15 +237,15 @@ export const BODY_HTML = `
       <input type="file" id="edFile" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="hidden" onchange="onImage(event)">
       <div id="edImages" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"></div>
 
-      <!-- 투표는 위 도구바 📊 버튼으로 본문 원하는 위치에 삽입(여러 개 가능) -->
+      ${""/* 투표는 위 도구바 📊 버튼으로 본문 원하는 위치에 삽입(여러 개 가능) */}
 
-      <!-- 옵션 -->
+      ${""/* 옵션 */}
       <div class="ed-options">
         <label class="ed-opt"><input type="checkbox" id="edCrit"><span>크리틱(피드백) 받고 싶어요</span></label>
         <label class="ed-opt"><input type="checkbox" id="edNotify" checked><span>댓글 알림 받기</span></label>
       </div>
       <p class="ed-guide"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg> 인신공격·도용·AI 무단 도배는 삭제될 수 있어요. 서로의 그림을 존중해 주세요.</p>
-      <!-- v2 전용: 폼 끝에서 제출(디시식). v1에서는 CSS로 숨긴다 -->
+      ${""/* v2 전용: 폼 끝에서 제출(디시식). v1에서는 CSS로 숨긴다 */}
       <div class="ed-foot">
         <button type="button" class="ed-foot-cancel" onclick="closeWrite()">취소</button>
         <button type="button" class="ed-foot-submit js-ed-submit" id="edSubmitBtn" onclick="submitPost()">등록</button>
@@ -253,9 +253,9 @@ export const BODY_HTML = `
     </div>
   </div>
 
-  <!-- 하단 고정 도구 도크.
+  ${""/* 하단 고정 도구 도크.
        ⚠️ position:fixed 만으로는 모바일에서 키보드가 올라올 때 가려진다 →
-          palo.js(edDockFollow)가 visualViewport를 따라 위치를 계속 맞춘다. -->
+          palo.js(edDockFollow)가 visualViewport를 따라 위치를 계속 맞춘다. */}
   <input type="file" id="edAttachFile" class="hidden" onchange="onAttachFile(event)">
 
 </div>
@@ -300,16 +300,16 @@ export const BODY_HTML = `
   </div>
 </div>
 
-<!-- 사진을 고른 뒤 "이만큼 넣을게요" 확인하는 창.
-     고르자마자 올리지 않고 여기서 확인을 받아야 올라간다(잘못 고른 걸 되돌릴 수 있게). -->
+${""/* 사진을 고른 뒤 "이만큼 넣을게요" 확인하는 창.
+     고르자마자 올리지 않고 여기서 확인을 받아야 올라간다(잘못 고른 걸 되돌릴 수 있게). */}
 <div class="rules-scrim" id="imgPickModal" onclick="if(event.target===this)closeImgPick()">
   <div class="imgpick">
     <div class="imgpick-head">
       <b id="imgPickTitle">사진 넣기</b>
       <button class="imgpick-close" onclick="closeImgPick()" aria-label="닫기">✕</button>
     </div>
-    <!-- 설명 문구는 일부러 없다(사용자 요청) — 고른 순서대로 들어가는 건 설명할 게 아니라 당연해야 한다.
-         순서는 썸네일의 번호가 이미 보여 준다. -->
+    ${""/* 설명 문구는 일부러 없다(사용자 요청) — 고른 순서대로 들어가는 건 설명할 게 아니라 당연해야 한다.
+         순서는 썸네일의 번호가 이미 보여 준다. */}
     <div class="imgpick-grid" id="imgPickGrid"></div>
     <p class="imgpick-warn" id="imgPickWarn" style="display:none"></p>
     <div class="imgpick-foot">
@@ -462,14 +462,14 @@ export const BODY_HTML = `
 </div>
 <div class="rules-scrim" id="loginModal" onclick="if(event.target===this)closeLoginModal()">
   <div class="rules login-modal">
-    <!-- 상단 바: 왼쪽 닫기 + 가운데 제목. 제목은 setLoginMode가 모드에 맞게 바꾼다 -->
+    ${""/* 상단 바: 왼쪽 닫기 + 가운데 제목. 제목은 setLoginMode가 모드에 맞게 바꾼다 */}
     <div class="lg-top">
       <button type="button" class="lg-close" aria-label="닫기" onclick="closeLoginModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       <span class="lg-top-title" id="loginTitle">로그인</span>
     </div>
 
     <div class="lg-brand">
-      <!-- 홈 화면에 추가했을 때 보이는 앱 아이콘과 같은 이미지(사용자 요청) -->
+      ${""/* 홈 화면에 추가했을 때 보이는 앱 아이콘과 같은 이미지(사용자 요청) */}
       <span class="lg-logo"><img src="/logo-inapp.png" alt="commi" width="66" height="66"></span>
       <div class="lg-name">commi</div>
       <p class="login-desc" id="loginDesc">그림 그리는 사람들의 커뮤니티</p>
@@ -484,7 +484,7 @@ export const BODY_HTML = `
       <div id="gsiButton" class="gsi-wrap"></div>
       <button type="button" class="lg-social login-naver-btn" onclick="loginWithNaver()"><span class="lg-social-ic nv"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.273 12.845 7.376 0H0v24h7.726V11.156L16.624 24H24V0h-7.727z"/></svg></span>네이버로 계속하기</button>
       <button type="button" class="lg-social login-x-btn" onclick="loginWithTwitter()"><span class="lg-social-ic xx"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span>트위터로 계속하기</button>
-      <!-- 첫 화면에서 스크롤 없이 보이도록 소셜 버튼 바로 아래에 둔다(사용자 요청 — 예전엔 맨 아래라 내려야 보였다) -->
+      ${""/* 첫 화면에서 스크롤 없이 보이도록 소셜 버튼 바로 아래에 둔다(사용자 요청 — 예전엔 맨 아래라 내려야 보였다) */}
       <button class="login-signup-btn" id="lgToSignup" onclick="setLoginMode('signup')">이메일 없이 시작하기</button>
       <div class="login-or"><span>또는</span></div>
     </div>

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/minify-public.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "check:public-html": "node scripts/check-public-html.mjs"
@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "eslint": "^9",
-    "eslint-config-next": "16.2.12"
+    "eslint-config-next": "16.2.12",
+    "terser": "^5.50.0"
   }
 }
