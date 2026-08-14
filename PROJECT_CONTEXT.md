@@ -1690,6 +1690,13 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 🐛 커미션 등록 — 확대·버튼 씹힘 (2026-08-14, 사용자 신고)
+**① 설명란 탭 시 화면 확대**: `.cm-reg-editor`(커미션 설명 서식 편집기)가 14.5px — 16px 통일 때 `.ed-content`만 잡고 이 클래스를 빠뜨렸다. 16px로. (등록 화면 전수 재검: 남은 16px 미만은 숨긴 파일 입력·체크박스뿐 = 확대 유발 안 함)
+**② 등록 버튼 씹힘 — 원인 두 겹**:
+- **두 번 톡톡 확대 지연**: 핀치줌 허용으로 double-tap zoom이 살아나, 브라우저가 탭마다 두 번째 탭을 기다린다(씹힘·지연). `touch-action:manipulation`이 일부 버튼에만 있던 것을 **상호작용 요소 전역**(button·a·input·textarea·select·label·[onclick]·contenteditable·[role=button])으로 확대 — 팬·핀치는 유지, 두 번 톡톡만 꺼짐.
+- **제출 무반응+재진입**: `cmSubmitReg`에 진행 표시·잠금이 없어 응답 1~2초간 아무 반응이 없었고(씹힌 느낌), 그 사이 또 누르면 **커미션 중복 등록**. `cmRegSubmitting` 잠금 + "등록 중…" + 실패 시 복구(`_fail`), 전체 try/catch.
+- 검증(dev): 연타 흉내 → supabase 호출 1회·버튼 "등록 중…"·실패 후 복구, touch-action 전역 적용 확인.
+
 ### 네이버 로그인 개방 (2026-08-14, 검수 통과)
 네이버 개발자센터 재검수 통과(소명서 PDF 제출) → `NAVER_LOGIN_ENABLED=true` 한 줄로 개방(설계대로). 개방 전 확인: 서버 라우트 정상(실서버 `/api/auth/naver/start`가 nid.naver.com으로 302, client_id 환경변수 살아 있음), 방침 위탁표에 네이버(주) 기재 완료, `isIdAccount()`가 `user_metadata.provider="naver"`를 소셜로 분류(복구메일 차단), 가입 트리거(프로필·밴 홀드)는 admin.createUser에도 동작. 검증(dev): 로그인 모달에 구글/네이버/X 세 버튼 나란히 표시, `loginWithNaver()` 연결.
 

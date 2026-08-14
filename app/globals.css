@@ -2366,7 +2366,9 @@
   .cm-tb-sw:hover{transform:scale(1.12)}
   .cm-tb-hl{border-radius:7px!important}
   .cm-tb-none{background:var(--surface)!important;color:var(--muted)!important;font-size:12px!important}
-  .cm-reg-editor{width:100%;min-height:140px;border:1.5px solid var(--line);border-radius:0 0 12px 12px;padding:14px;font-size:14.5px;line-height:1.7;color:var(--ink);background:var(--surface);outline:none;word-break:break-word}
+  /* ⚠️ 16px 미만 금지 — iOS가 포커스 시 화면을 자동 확대한다(2026-08-14 실제 신고.
+     지난 16px 통일 때 .ed-content만 잡고 이 편집기를 빠뜨렸다). */
+  .cm-reg-editor{width:100%;min-height:140px;border:1.5px solid var(--line);border-radius:0 0 12px 12px;padding:14px;font-size:16px;line-height:1.7;color:var(--ink);background:var(--surface);outline:none;word-break:break-word}
   .cm-reg-editor:focus{border-color:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
   .cm-reg-editor img{max-width:100%;border-radius:8px;display:block;margin:8px 0}
   /* ⚠️ 전역 리셋(`*{padding:0}`)이 ul·ol의 기본 안쪽 여백을 지운다. 그대로 두면 점(•)이
@@ -2899,6 +2901,15 @@ body.ed-page #toTop{display:none!important}
   .notif-banner .nb-tx span{display:none}
   .notif-banner .nb-go{padding:8px 13px;font-size:12px}
 }
+
+/* ===== 두 번 톡톡 확대(double-tap zoom) 전역 차단 =====
+   핀치줌을 허용하면서(WCAG) '두 번 톡톡' 확대도 같이 살아났는데, 그러면 브라우저가
+   모든 탭마다 "두 번째 탭이 올까?"를 기다려 버튼 탭이 씹히거나(지연·무시),
+   입력란을 연타하면 화면이 확대된다(2026-08-14 커미션 등록에서 실제 신고).
+   manipulation = 팬·핀치는 그대로, 두 번 톡톡만 끔 — 확대는 핀치로 여전히 가능하다.
+   ⚠️ 일부 버튼에만 개별로 걸려 있던 것을 상호작용 요소 전체로 넓힌다. */
+button,a,input,textarea,select,label,[onclick],[contenteditable="true"],[role="button"]{
+  touch-action:manipulation}
 
 /* ===== 목록 썸네일 =====
    배경이미지 대신 <img>를 쓴다 — 옛 이미지(썸네일 없음)의 404를 onerror로 받아

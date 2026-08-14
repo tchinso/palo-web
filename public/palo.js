@@ -5016,9 +5016,18 @@ function cmPreviewReg(){
   document.getElementById('main').innerHTML=cmDetailHTML(cmPreviewObj,0);
   window.scrollTo({top:0,behavior:'smooth'});
 }
+var cmRegSubmitting=false; // 재진입 잠금 — 응답을 기다리는 동안 또 누르면 커미션이 두 개 생긴다
 async function cmSubmitReg(){
   cmSyncReg();
   if(!AUTH.user){toast('로그인 후 이용할 수 있어요','🔒');return;}
+  if(cmRegSubmitting)return;
+  cmRegSubmitting=true;
+  // 누르자마자 버튼으로 반응을 보여준다 — 서버 응답까지 1~2초간 아무 일도 없으면
+  // "씹혔다"고 느껴 다시 누르게 된다(2026-08-14 사용자 신고의 한 축)
+  var _btn=document.getElementById('cmRegSubmit');
+  var _label=_btn?_btn.textContent:'';
+  if(_btn){_btn.disabled=true;_btn.textContent=cmReg.editingId?'수정 중…':'등록 중…';}
+  function _fail(){cmRegSubmitting=false;if(_btn){_btn.disabled=false;_btn.textContent=_label;}}
   var row={
     title:cmReg.title.trim(),
     price:cmReg.price,
@@ -5036,23 +5045,26 @@ async function cmSubmitReg(){
     is_adult:!!cmReg.isAdult
   };
   var commissionId;
-  if(cmReg.editingId){
-    var upd=await window.supabase.from('commissions').update(row).eq('id',cmReg.editingId).select().single();
-    if(upd.error){toast('수정 실패: '+upd.error.message);return;}
-    commissionId=cmReg.editingId;
-    var delImgs=await window.supabase.from('commission_images').delete().eq('commission_id',commissionId);
-    if(delImgs.error)console.error(delImgs.error);
-  }else{
-    row.author_id=AUTH.user.id;
-    var saved=await window.supabase.from('commissions').insert(row).select().single();
-    if(saved.error){toast('등록 실패: '+saved.error.message);return;}
-    commissionId=saved.data.id;
-  }
-  if(cmReg.images.length){
-    var imgRows=cmReg.images.map(function(url,i){return{commission_id:commissionId,url:url,sort:i};});
-    var savedImgs=await window.supabase.from('commission_images').insert(imgRows);
-    if(savedImgs.error)console.error(savedImgs.error);
-  }
+  try{
+    if(cmReg.editingId){
+      var upd=await window.supabase.from('commissions').update(row).eq('id',cmReg.editingId).select().single();
+      if(upd.error){toast('수정 실패: '+upd.error.message);_fail();return;}
+      commissionId=cmReg.editingId;
+      var delImgs=await window.supabase.from('commission_images').delete().eq('commission_id',commissionId);
+      if(delImgs.error)console.error(delImgs.error);
+    }else{
+      row.author_id=AUTH.user.id;
+      var saved=await window.supabase.from('commissions').insert(row).select().single();
+      if(saved.error){toast('등록 실패: '+saved.error.message);_fail();return;}
+      commissionId=saved.data.id;
+    }
+    if(cmReg.images.length){
+      var imgRows=cmReg.images.map(function(url,i){return{commission_id:commissionId,url:url,sort:i};});
+      var savedImgs=await window.supabase.from('commission_images').insert(imgRows);
+      if(savedImgs.error)console.error(savedImgs.error);
+    }
+  }catch(e){toast('저장 중 오류가 났어요. 다시 시도해주세요');_fail();return;}
+  cmRegSubmitting=false; // 성공 — 화면이 곧 내 커미션 목록으로 바뀌므로 버튼은 복구할 필요 없음
   toast(cmReg.editingId?'커미션이 수정되었어요!':'커미션이 등록되었어요!',cmReg.editingId?'✏️':'🎨');
   cmDataLoaded=false;
   cmOpenMy();
