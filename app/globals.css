@@ -1411,6 +1411,20 @@
   .img-viewer img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}
   .iv-close{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:16px;width:38px;height:38px;
     border-radius:50%;border:none;background:rgba(255,255,255,.16);color:#fff;font-size:24px;line-height:1;cursor:pointer}
+  /* 여러 장일 때만 나오는 좌우 버튼·장수 표시.
+     ⚠️ [hidden]을 따로 적어야 한다 — display:flex가 브라우저 기본 [hidden]{display:none}을 이긴다. */
+  .iv-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;display:flex;
+    align-items:center;justify-content:center;border-radius:50%;border:none;
+    background:rgba(255,255,255,.16);color:#fff;font-size:30px;line-height:1;cursor:pointer;
+    padding:0 0 4px;transition:background .14s}
+  .iv-nav:hover{background:rgba(255,255,255,.3)}
+  .iv-nav.prev{left:10px}
+  .iv-nav.next{right:10px}
+  .iv-nav[hidden]{display:none}
+  .iv-count{position:absolute;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,.5);color:#fff;font-size:12.5px;font-weight:700;padding:5px 12px;border-radius:999px}
+  .iv-count[hidden]{display:none}
+  @media(max-width:400px){ .iv-nav{width:38px;height:38px;font-size:25px} .iv-nav.prev{left:4px} .iv-nav.next{right:4px} }
 
   /* 액션 시트(더보기 메뉴) — 게시판 이동 시트와 같은 모양을 쓰되 항목만 다르게 */
   .action-sheet{padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}

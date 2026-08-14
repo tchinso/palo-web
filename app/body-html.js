@@ -96,9 +96,14 @@ export const BODY_HTML = `
 <!-- board sheet (게시판 탭) -->
 <div class="sheet-scrim" id="sheetScrim"></div>
 <input type="file" id="chatImgFile" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" class="hidden" onchange="onChatImageFile(event)">
-<div class="img-viewer" id="imgViewer" onclick="closeImageViewer()">
+<!-- 원본 이미지 뷰어. 여러 장을 넘겨볼 수 있다(휠·스와이프·화살표키·좌우 버튼).
+     바깥을 누르면 닫히므로, 안쪽 버튼들은 ivMove()에서 이벤트 전파를 멈춘다. -->
+<div class="img-viewer" id="imgViewer" onclick="ivBackdrop(event)">
   <button class="iv-close" aria-label="닫기">×</button>
+  <button type="button" class="iv-nav prev" id="ivPrev" aria-label="이전 이미지" onclick="ivMove(event,-1)" hidden>‹</button>
   <img id="imgViewerImg" alt="">
+  <button type="button" class="iv-nav next" id="ivNext" aria-label="다음 이미지" onclick="ivMove(event,1)" hidden>›</button>
+  <div class="iv-count" id="ivCount" hidden></div>
 </div>
 <div class="sheet-scrim" id="actionScrim" onclick="closeActionSheet()"></div>
 <div class="sheet action-sheet" id="actionSheet" aria-label="더보기">

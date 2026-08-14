@@ -3950,8 +3950,8 @@ function cmSliderHTML(imgs,idx){
   // ⚠️ loading="lazy"를 쓰지 않는다. 가로 스크롤 컨테이너 안에서는 옆으로 밀어 화면에 들어와도
   //    끝내 로드되지 않는 경우가 있어(실측), 밀 때마다 빈 칸이 나올 위험이 있다.
   //    어차피 아래 샘플 그리드가 같은 이미지를 전부 즉시 불러오므로 실제 전송량은 그대로다.
-  var items=imgs.map(function(u){
-    return '<div class="cm-sl-item" onpointerdown="cmSlDown(event)" onclick="cmSlTap(event,\''+esc(cmQ(u))+'\')">'+
+  var items=imgs.map(function(u,i){
+    return '<div class="cm-sl-item" onpointerdown="cmSlDown(event)" onclick="cmSlTap(event,\''+esc(cmQ(u))+'\','+i+')">'+
       '<img src="'+esc(u)+'" alt="" draggable="false" decoding="async">'+
     '</div>';
   }).join('');
@@ -3987,10 +3987,20 @@ function cmSliderMove(dir){
    가로로 10px 넘게 움직였으면 넘기려던 손짓으로 본다. */
 var _cmSlDownX=null;
 function cmSlDown(e){_cmSlDownX=e.clientX;}
-function cmSlTap(e,url){
+function cmSlTap(e,url,i){
   var moved=(_cmSlDownX!==null&&Math.abs(e.clientX-_cmSlDownX)>10);
   _cmSlDownX=null;
-  if(!moved)openImageViewer(url);
+  if(!moved)openImageViewer(url,cmDetailImages(),i);
+}
+/* 지금 보고 있는 커미션의 이미지 목록 — 원본 뷰어에서 다음 장으로 넘기는 데 쓴다.
+   ⚠️ 배열을 인라인 onclick 문자열에 박아 넣지 않는다(따옴표 이스케이프가 두 겹이 되어 깨지기 쉽다).
+      함수 호출로 두면 누를 때 그때의 목록을 읽는다. */
+function cmDetailImages(){
+  try{
+    if(cmDetailCtx&&cmDetailCtx.from==='register'&&cmPreviewObj)return (cmPreviewObj.images||[]).slice();
+    var d=cmData[cmDetailCtx?cmDetailCtx.idx:-1];
+    return (d&&d.images)?d.images.slice():[];
+  }catch(e){return [];}
 }
 
 function cmDetailHTML(d,idx){
@@ -4007,7 +4017,7 @@ function cmDetailHTML(d,idx){
   var sliderHTML=cmSliderHTML(hasImages?d.images:null,idx);
   var samples='';
   if(hasImages){
-    samples=d.images.map(function(u){return '<div class="cm-s tap" onclick="openImageViewer(\''+esc(cmQ(u))+'\')" style="background-image:url(\''+esc(cmQ(u))+'\');background-size:cover;background-position:center"></div>';}).join('');
+    samples=d.images.map(function(u,k){return '<div class="cm-s tap" onclick="openImageViewer(\''+esc(cmQ(u))+'\',cmDetailImages(),'+k+')" style="background-image:url(\''+esc(cmQ(u))+'\');background-size:cover;background-position:center"></div>';}).join('');
   }else if(d.images){
     samples='<div class="cm-s" style="background:var(--brand-soft)"></div>';
   }else{
@@ -8112,6 +8122,15 @@ async function openChatList(origin){
     if(m.sender_id!==AUTH.user.id&&!m.is_read)unreadByConv[m.conversation_id]=(unreadByConv[m.conversation_id]||0)+1;
   });
 
+  /* 말 한마디 없는 방은 목록에서 숨긴다.
+     "채팅하기"를 누르는 순간 conversations 행이 먼저 만들어지는 구조라, 그냥 눌러만 보고 나와도
+     빈 방이 목록에 남았다(2026-08-14 사용자 신고). 방을 지우지 않고 **표시만** 거르므로,
+     예전에 만들어진 빈 방도 그대로 사라지고(소급 적용), 나중에 실제로 말을 걸면
+     openOrCreateConversation이 같은 행을 다시 찾아 쓰므로 대화가 이어진다. */
+  var kept=[],keptPartners=[];
+  convs.forEach(function(c,i){ if(lastMsgByConv[c.id]){kept.push(c);keptPartners.push(partnerIds[i]);} });
+  convs=kept;partnerIds=keptPartners;
+
   chatListCache={convs:convs,partnerIds:partnerIds,nickById:nickById,avaById:avaById,lastMsgByConv:lastMsgByConv,unreadByConv:unreadByConv}; // 다음 재방문 시 즉시 표시용
   if(mySeq!==navSeq)return; // 로딩이 끝났지만 그새 다른 탭으로 이동함 → 채팅으로 화면을 덮어쓰지 않음
   renderChatList(convs,partnerIds,nickById,avaById,lastMsgByConv,unreadByConv);
@@ -8204,19 +8223,87 @@ async function chatImageSupported(){
   return _chatImgSupported;
 }
 /* 사진 원본 보기 — 말풍선 속 이미지는 작게 나오므로 눌러서 크게 볼 수 있게 한다 */
-function openImageViewer(url){
-  var v=document.getElementById("imgViewer"),im=document.getElementById("imgViewerImg");
-  if(!v||!im||!url)return;
-  im.src=url;
+/* ===== 원본 이미지 뷰어 =====================================================
+   예전엔 주소 한 장만 받아서 띄우고 끝이었다 — 커미션 상세에서 사진을 키우면
+   거기서 다음 장으로 넘어갈 방법이 없었다(2026-08-14 사용자 신고).
+   이제 목록과 위치를 함께 받아 휠·스와이프·화살표키·좌우 버튼으로 넘긴다.
+   목록을 안 주면 예전처럼 한 장짜리로 동작한다(채팅 사진 등). */
+var IV={list:[],i:0,wheelAt:0,swipedAt:0};
+function openImageViewer(url,list,i){
+  var v=document.getElementById("imgViewer");
+  if(!v||!url)return;
+  if(Array.isArray(list)&&list.length){
+    IV.list=list.slice();
+    IV.i=(typeof i==="number"&&i>=0&&i<list.length)?i:Math.max(0,list.indexOf(url));
+  }else{
+    IV.list=[url];IV.i=0;
+  }
   v.classList.add("open");
   document.body.style.overflow="hidden";
+  ivShow();
+}
+function ivShow(){
+  var im=document.getElementById("imgViewerImg"),c=document.getElementById("ivCount"),
+      p=document.getElementById("ivPrev"),nx=document.getElementById("ivNext");
+  var n=IV.list.length,solo=(n<2);
+  if(im)im.src=IV.list[IV.i]||"";
+  if(c){c.textContent=solo?"":((IV.i+1)+" / "+n);c.hidden=solo;}
+  if(p)p.hidden=solo;
+  if(nx)nx.hidden=solo;
+}
+function ivMove(e,dir){
+  if(e){e.stopPropagation();e.preventDefault();} // 바깥 클릭(=닫기)으로 번지지 않게
+  var n=IV.list.length;if(n<2)return;
+  IV.i=(IV.i+dir+n)%n;   // 양 끝에서 순환 — 커미션 슬라이더(cmSliderMove)와 같은 규칙
+  ivShow();
+}
+// 뒤 배경(또는 사진)을 눌렀을 때. 방금 스와이프로 넘긴 직후면 닫지 않는다
+// (손가락을 떼는 순간 click도 같이 오기 때문에, 넘기자마자 창이 닫혀 버린다)
+function ivBackdrop(){
+  if(Date.now()-IV.swipedAt<400)return;
+  closeImageViewer();
 }
 function closeImageViewer(){
   var v=document.getElementById("imgViewer"),im=document.getElementById("imgViewerImg");
   if(v)v.classList.remove("open");
   if(im)im.src="";               // 큰 이미지를 메모리에 물고 있지 않게
+  IV.list=[];IV.i=0;
   document.body.style.overflow="";
 }
+(function(){
+  var v=document.getElementById("imgViewer");if(!v)return;
+  // 휠·트랙패드. 한 번 굴려도 이벤트가 여러 번 오므로 220ms 안의 연속 입력은 한 번으로 친다.
+  // passive:false — preventDefault로 뒤 화면이 같이 스크롤되는 것을 막는다.
+  v.addEventListener("wheel",function(e){
+    if(!v.classList.contains("open"))return;
+    e.preventDefault();
+    if(IV.list.length<2)return;
+    var now=Date.now();if(now-IV.wheelAt<220)return;
+    var d=(Math.abs(e.deltaY)>=Math.abs(e.deltaX))?e.deltaY:e.deltaX; // 세로·가로 어느 쪽으로 굴려도 넘어간다
+    if(Math.abs(d)<4)return;
+    IV.wheelAt=now;ivMove(null,d>0?1:-1);
+  },{passive:false});
+  // 손가락 좌우 스와이프
+  var sx=0,sy=0,on=false;
+  v.addEventListener("touchstart",function(e){
+    if(e.touches.length!==1){on=false;return;}
+    on=true;sx=e.touches[0].clientX;sy=e.touches[0].clientY;
+  },{passive:true});
+  v.addEventListener("touchend",function(e){
+    if(!on)return;on=false;
+    if(IV.list.length<2)return;
+    var t=e.changedTouches&&e.changedTouches[0];if(!t)return;
+    var dx=t.clientX-sx,dy=t.clientY-sy;
+    if(Math.abs(dx)<40||Math.abs(dx)<Math.abs(dy))return; // 세로로 움직였으면 넘기려던 게 아니다
+    IV.swipedAt=Date.now();ivMove(null,dx<0?1:-1);
+  },{passive:true});
+  document.addEventListener("keydown",function(e){
+    if(!v.classList.contains("open"))return;
+    if(e.key==="ArrowRight")ivMove(null,1);
+    else if(e.key==="ArrowLeft")ivMove(null,-1);
+    else if(e.key==="Escape")closeImageViewer();
+  });
+})();
 function pickChatImage(){
   if(!currentConversationId||!AUTH.user){toast("채팅방을 먼저 열어주세요");return;}
   document.getElementById("chatImgFile").click();
