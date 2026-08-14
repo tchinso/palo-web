@@ -1683,6 +1683,13 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **검증(dev, 실제 DB)**: 문의 전송→코드 발급(`2CQT-N9PM-2D6J`)→메시지 2건 왕복→`localStorage` 삭제 후 **코드만으로 복구**→틀린 코드는 `no_room`→소문자+대시 입력도 통함→**손님이 `conversations`·`messages`를 직접 조회하면 0행**(RLS가 조용히 거름)→**직접 INSERT는 막힘**→작가 목록 렌더(손님방 `📩 손님 XXXX` + 안읽음 배지, 일반방은 그대로).
 
+### 비로그인 문의 다듬기 3건 (2026-08-14, 사용자 요청·신고)
+**① 문의 창 없애고 바로 채팅** — `guestOpenInquiry`가 모달 대신 **바로 채팅 화면(초안 모드)** 을 연다. 방은 아직 없고(`GUEST.draftCommissionId`만 기억) **첫 메시지를 보내는 순간** `guest_start_commission_chat`으로 만든다 → 열어만 보고 나가면 빈 방이 안 생긴다. 경고는 모달 대신 대화창 상단 배너(`.g-draftwarn`)로. 코드 배너는 방이 생긴 뒤에 펼쳐진다. ⚠️ `guestOpenRoom`은 스택 위가 이미 `guestRoom`이면 `enterScreen`을 또 쌓지 않는다(초안→정식 전환 시 뒤로가기 두 번 문제). 뒤로가기는 `leaveChat()`으로 덮개만 닫아 밑의 커미션 상세가 드러난다.
+
+**② 로그인하면 일반 채팅으로 전환** — SQL `docs/sql/guest-chat-claim.sql`의 `guest_claim_chat(code)`(security definer, `authenticated` 전용): 손님방의 `user2_id`를 내 계정으로 채우고 `guest_code`/`guest_name`을 비운다. **같은 작가와 기존 일반 방이 있으면 그쪽으로 메시지를 옮기고 손님방을 지운다** — 안 합치면 `conversations_unique_pair`에 걸린다. ⚠️ 순서: 메시지 먼저 옮기고 방 삭제(반대면 cascade로 메시지 소실). 손님 메시지의 `sender_id`도 내 계정으로 채운다. 작가 본인이 자기 문의방을 가져가려 하면 `own_room` 거절(`user1_id=user2_id`가 되어 CHECK 위반). 클라 `guestClaimAll()`은 `applySession` 로그인 분기에서 저장된 코드를 전부 시도하고, 성공/`no_room`은 목록에서 지우고 오류는 남겨 다음 로그인에 재시도. 성공 시 `chatListCache=null` + 토스트.
+
+**③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
+
 ### 🐛 링크로 들어오면 홈이 깜빡 보였다 바뀌던 문제 (2026-08-14, 사용자 신고)
 커미션 링크를 붙여넣어 열면 잠시 홈 목록이 보였다가 커미션 상세로 바뀌었다. **원인이 두 개였다.**
 

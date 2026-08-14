@@ -891,6 +891,7 @@ async function applySession(session){
     loadMyEmoticons(); // 담아둔 이모티콘 팩
     maybeShowConsent(); // 신규 가입자면 약관·개인정보 동의 창 표시
     maybeRegisterReferral(); // 초대 링크를 타고 왔다면 이번 로그인에서 초대 관계를 확정
+    guestClaimAll(); // 비로그인으로 보낸 문의가 있으면 이 계정의 일반 채팅으로 넘겨받기
   }else{
     ME.nick="나";
     globalChatNotifUserId=null;
@@ -7551,6 +7552,7 @@ function notifClick(i){
   if(n.dbId)window.supabase.from("notifications").update({is_read:true}).eq("id",n.dbId).then(function(){});
   if(n.type==="review_alert")openReviewAnalysis(n.reviewUser);
   else if(n.chatUser)openChat(n.chatUser);
+  else if(n.conversationId)openConversationById(n.conversationId); // 손님 문의처럼 상대 계정이 없는 방
   else if(n.post)openPost(n.post);
   else if(n.commission)cmOpenCommissionById(n.commission);
   else if(n.cmTarget==="reviews")cmOpenReviews();
@@ -7940,7 +7942,10 @@ function leaveChat(){
 /* ---------- 알림 (DB 저장, notifications 테이블) ---------- */
 var globalNotifChannel=null;
 function dbRowToNotif(row){
-  return {dbId:row.id,type:row.type,icon:row.icon||"🔔",txt:row.content,time:timeAgo(row.created_at),chatUser:row.link_chat_user,post:row.link_post_id?100000+row.link_post_id:null,commission:row.link_commission_id||null,reviewUser:row.link_reviewed_user_id||null,read:row.is_read};
+  // ⚠️ conversationId를 빠뜨리면 안 된다 — 손님(비로그인) 문의 알림에는 link_chat_user가 없어서
+  //    (계정이 없으므로) notifClick이 갈 곳을 못 찾고 맨 아래 openRules()로 떨어진다.
+  //    실제로 "손님 문의 알림을 누르면 이용규칙 창이 뜨는" 증상이 났다(2026-08-14 사용자 신고).
+  return {dbId:row.id,type:row.type,icon:row.icon||"🔔",txt:row.content,time:timeAgo(row.created_at),chatUser:row.link_chat_user,conversationId:row.link_conversation_id||null,post:row.link_post_id?100000+row.link_post_id:null,commission:row.link_commission_id||null,reviewUser:row.link_reviewed_user_id||null,read:row.is_read};
 }
 async function loadNotificationsFromDB(){
   var res=await window.supabase.from("notifications").select("*").eq("user_id",AUTH.user.id).order("created_at",{ascending:false}).limit(50);
@@ -8100,6 +8105,18 @@ function chatMessagesHtml(messages){
 }
 var chatListCache=null; // 마지막으로 그린 채팅 목록 데이터 — 재방문 시 즉시 표시용(뒤에서 최신으로 교체)
 var _chatListBack=null; // 채팅 목록에서 '뒤로' 갈 곳(들어온 곳 기억): 홈 탭이면 goHome, 프로필 메뉴면 openProfile
+/* 방 번호로 채팅 열기 — 알림에서 쓴다. 방을 읽어 상대를 알아낸 뒤,
+   일반 방이면 openChat(상대), 손님 문의방이면 openGuestRoomAsOwner로 간다. */
+async function openConversationById(conversationId){
+  if(!AUTH.user||!conversationId)return;
+  var res=await window.supabase.from("conversations").select("*").eq("id",conversationId).maybeSingle();
+  if(res.error||!res.data){toast("대화방을 찾을 수 없어요(삭제되었을 수 있어요)");return;}
+  var c=res.data;
+  if(c.guest_code){openGuestRoomAsOwner(c.id,c.guest_name||"손님");return;}
+  var other=(c.user1_id===AUTH.user.id)?c.user2_id:c.user1_id;
+  if(other)openChat(other);
+}
+
 /* 작가가 비로그인 문의방을 여는 경로.
    손님은 계정이 없어서 openChat(상대id)를 쓸 수 없다 — 방 번호로 직접 연다.
    작가 자신은 user1_id라 RLS를 그대로 통과하므로 표를 평소처럼 조회하면 된다. */
@@ -8141,28 +8158,6 @@ function guestFmtCode(c){ // 화면에 보일 때만 4자씩 끊는다(저장·�
   c=String(c||"");
   return c.length===12?(c.slice(0,4)+"-"+c.slice(4,8)+"-"+c.slice(8)):c;
 }
-function guestCloseAsk(){var m=document.getElementById("guestAskModal");if(m)m.remove();}
-function guestOpenInquiry(commissionId,title){
-  guestCloseAsk();
-  var m=document.createElement("div");
-  m.className="rules-scrim open";m.id="guestAskModal";
-  m.onclick=function(e){if(e.target===m)guestCloseAsk();};
-  m.innerHTML='<div class="rules g-ask">'+
-    '<h3>💬 문의하기</h3>'+
-    '<p class="g-sub">'+esc(title||"커미션")+'</p>'+
-    '<div class="g-warn"><b>로그인하지 않고 보내요</b>'+
-      '<ul><li>이 브라우저의 기록이 지워지면 대화를 찾을 수 없어요</li>'+
-      '<li>답장이 와도 알림을 받을 수 없어요</li></ul>'+
-      '보내면 <b>채팅방 코드</b>를 드려요. 그 코드로 언제든 다시 들어올 수 있어요.</div>'+
-    '<textarea id="guestAskText" rows="4" placeholder="문의 내용을 적어주세요."></textarea>'+
-    '<div class="g-row">'+
-      '<button type="button" class="g-btn ghost" onclick="guestCloseAsk()">취소</button>'+
-      '<button type="button" class="g-btn ghost" onclick="guestCloseAsk();openLoginModal()">로그인하고 문의</button>'+
-      '<button type="button" class="g-btn" id="guestAskGo" onclick="guestSubmitInquiry('+commissionId+')">보내기</button>'+
-    '</div></div>';
-  document.body.appendChild(m);
-  var t=document.getElementById("guestAskText");if(t)t.focus();
-}
 var GUEST_ERRS={
   empty_message:"문의 내용을 적어주세요",
   too_long:"내용이 너무 길어요(2000자까지)",
@@ -8170,20 +8165,19 @@ var GUEST_ERRS={
   adult_login_required:"성인 커미션은 로그인 후 본인확인을 해야 문의할 수 있어요",
   no_room:"그 코드로 된 문의를 찾을 수 없어요. 코드를 다시 확인해주세요"
 };
-async function guestSubmitInquiry(commissionId){
-  var t=document.getElementById("guestAskText"),btn=document.getElementById("guestAskGo");
-  var v=((t&&t.value)||"").trim();
-  if(!v){toast("문의 내용을 적어주세요");return;}
-  if(btn){btn.disabled=true;btn.textContent="보내는 중…";}
-  var res=await window.supabase.rpc("guest_start_commission_chat",{p_commission_id:commissionId,p_message:v});
-  if(btn){btn.disabled=false;btn.textContent="보내기";}
-  // 도배 제한(rl_msg)에 걸리면 여기로 온다 — 서버 문구를 그대로 보여준다
-  if(res.error){toast("보내지 못했어요: "+res.error.message);return;}
-  var d=res.data||{};
-  if(!d.ok){toast(GUEST_ERRS[d.error]||"보내지 못했어요");return;}
-  guestCloseAsk();
-  guestRemember({code:d.code,title:d.commission_title||"",commissionId:commissionId,at:Date.now()});
-  guestOpenRoom(d.code,true);
+/* "문의하기"(비로그인) — 별도 창 없이 바로 채팅 화면을 연다(2026-08-14 사용자 요청).
+   방은 아직 없다(첫 메시지를 보내는 순간 만든다 — 열어만 보고 나가면 빈 방이 안 생긴다).
+   경고는 창 대신 대화창 상단 배너로 보여준다. */
+function guestOpenInquiry(commissionId,title){
+  GUEST.code=null;GUEST.convId=null;GUEST.lastId=0;
+  GUEST.draftCommissionId=commissionId;GUEST.draftTitle=title||"커미션";
+  // 작가 이름은 화면에 이미 있다 — 상세 컨텍스트에서 가져온다(못 찾으면 "작가")
+  try{var d=cmData[cmDetailCtx.idx];GUEST.artist=(d&&d.artist)||"작가";}catch(e){GUEST.artist="작가";}
+  userLeftHome=true;
+  // 뒤로가기 = 채팅 덮개만 닫는다 → 밑에 있던 커미션 상세가 그대로 드러난다
+  enterScreen("guestRoom",function(){guestStopPoll();leaveChat();});
+  guestRenderRoom({messages:[]},false);
+  var inp=document.getElementById("guestInput");if(inp)inp.focus();
 }
 /* 코드로 방 열기. firstTime이면 코드 배너를 펼친 채로 시작한다 —
    여기서 코드를 놓치면 대화를 통째로 잃기 때문에 처음 한 번은 접어두지 않는다. */
@@ -8196,7 +8190,10 @@ async function guestOpenRoom(code,firstTime){
   GUEST.lastId=0;
   guestRemember({code:code,title:(guestSaved().find(function(x){return x.code===code;})||{}).title||"",at:Date.now()});
   userLeftHome=true;
-  enterScreen("guestRoom",function(){guestStopPoll();goHome();});
+  // 문의 초안(guestOpenInquiry)에서 넘어온 경우엔 이미 guestRoom 화면 위다 —
+  // 또 쌓으면 뒤로가기를 두 번 눌러야 나가진다.
+  var top=screenStack.length&&screenStack[screenStack.length-1];
+  if(!(top&&top.key==="guestRoom"))enterScreen("guestRoom",function(){guestStopPoll();leaveChat();});
   guestRenderRoom(d,firstTime);
   guestStartPoll();
   window.supabase.rpc("guest_mark_read",{p_code:code}).then(function(){});
@@ -8245,12 +8242,16 @@ function guestCopyCode(){
 function guestRenderRoom(d,firstTime){
   var el=document.getElementById("chatRoom");
   if(!el)return;
+  // 코드가 아직 없으면(=방을 만들기 전, 문의 초안) 코드 상자 대신 경고 배너를 보여준다
+  var band=GUEST.code
+    ? guestCodeBoxHTML(!!firstTime)
+    : '<div class="g-draftwarn">🔓 <b>로그인하지 않고 문의해요.</b> 첫 메시지를 보내면 <b>채팅방 코드</b>를 드려요 — 브라우저 기록이 지워져도 그 코드로 다시 들어올 수 있어요. 답장 알림은 받을 수 없어요. <span class="g-link" onclick="openLoginModal()">로그인하고 문의하기</span></div>';
   el.innerHTML=
     '<div class="cr-top">'+
       '<button class="cr-back" onclick="guestStopPoll();screenBack()" aria-label="뒤로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>'+
       '<div class="cr-title">'+esc(GUEST.artist)+'</div>'+
     '</div>'+
-    guestCodeBoxHTML(!!firstTime)+
+    band+
     '<div id="chatMessages" class="cr-msgs">'+guestMessagesHtml(d.messages)+'</div>'+
     '<div class="cr-inputrow">'+
       '<textarea id="guestInput" rows="1" placeholder="메시지를 입력하세요." oninput="autoGrowChatInput(this)" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();guestSend();}"></textarea>'+
@@ -8263,7 +8264,23 @@ function guestRenderRoom(d,firstTime){
 }
 async function guestSend(){
   var inp=document.getElementById("guestInput");if(!inp)return;
-  var v=inp.value.trim();if(!v||!GUEST.code)return;
+  var v=inp.value.trim();if(!v)return;
+  // 첫 메시지 = 이 순간 방을 만든다(문의 초안 상태). 코드가 생기면 배너를 펼쳐 보여준다.
+  if(!GUEST.code){
+    if(!GUEST.draftCommissionId)return;
+    inp.disabled=true;
+    var st=await window.supabase.rpc("guest_start_commission_chat",
+      {p_commission_id:GUEST.draftCommissionId,p_message:v});
+    inp.disabled=false;
+    if(st.error){toast("보내지 못했어요: "+st.error.message);return;}
+    var sd=st.data||{};
+    if(!sd.ok){toast(GUEST_ERRS[sd.error]||"보내지 못했어요");return;}
+    guestRemember({code:sd.code,title:sd.commission_title||GUEST.draftTitle||"",commissionId:GUEST.draftCommissionId,at:Date.now()});
+    GUEST.draftCommissionId=null;
+    // 방이 생겼으니 정식 화면으로 전환(코드 배너 펼침) + 주기 조회 시작
+    await guestOpenRoom(sd.code,true);
+    return;
+  }
   inp.disabled=true;
   var res=await window.supabase.rpc("guest_send_message",{p_code:GUEST.code,p_content:v});
   inp.disabled=false;
@@ -8293,6 +8310,30 @@ function guestStartPoll(){
   GUEST.timer=setInterval(function(){if(document.visibilityState==="visible")guestPoll();},5000);
 }
 function guestStopPoll(){if(GUEST.timer){clearInterval(GUEST.timer);GUEST.timer=null;}}
+/* 로그인하면 이 브라우저에서 보낸 손님 문의를 전부 내 계정의 일반 채팅으로 바꾼다.
+   서버 RPC(guest_claim_chat)가 방의 손님 자리를 내 계정으로 채우고, 같은 작가와의
+   기존 대화가 있으면 거기로 합친다. 성공하든 이미 처리됐든(no_room) 목록에서 지운다 —
+   남겨두면 로그인할 때마다 다시 시도한다. (RPC가 아직 없으면 조용히 건너뛴다) */
+async function guestClaimAll(){
+  var list=guestSaved();
+  if(!list.length||!window.supabase)return;
+  var kept=[],claimed=0;
+  for(var i=0;i<list.length;i++){
+    try{
+      var r=await window.supabase.rpc("guest_claim_chat",{p_code:list[i].code});
+      if(r.error){kept.push(list[i]);continue;}   // 함수 미설치·일시 오류 → 다음 로그인에 재시도
+      var d=r.data||{};
+      if(d.ok)claimed++;
+      else if(d.error==="own_room")kept.push(list[i]); // 작가 본인 계정 — 넘겨받을 수 없는 방
+      // no_room = 이미 넘겨받았거나 삭제됨 → 목록에서만 지운다
+    }catch(e){kept.push(list[i]);}
+  }
+  try{localStorage.setItem(GUEST_KEY,JSON.stringify(kept));}catch(e){}
+  if(claimed){
+    chatListCache=null; // 다음에 채팅 탭을 열 때 새로 불러와 넘겨받은 방이 보이게
+    toast("비로그인 문의 "+claimed+"건을 내 채팅으로 가져왔어요","💬");
+  }
+}
 /* 코드로 다시 들어오기 */
 function guestPromptCode(){
   var v=prompt("채팅방 코드를 입력해주세요 (예: ABCD-EFGH-JKLM)");
