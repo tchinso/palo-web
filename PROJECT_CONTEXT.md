@@ -1654,6 +1654,32 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 - **관찰 범위를 `attributes:['class']`까지 넓혔으므로 rAF로 프레임당 1회로 묶었다** — 안 그러면 class가 자주 바뀌는 자리에서 getComputedStyle이 연달아 돈다.
 - **손대지 않은 것**: `themeColor`/`theme_color`가 `#e07aa6`(분홍)로 배경(`#fbf7f8`)과 다르다. 이건 브라우저 주소창·PWA 상태바 색이라 **화면마다 다르지는 않다**(브랜드색 의도로 보임). 바꾸려면 두 곳(`app/layout.js`, `app/manifest.js`)을 함께.
 
+### 🐛 커미션 상세 링크가 홈으로 가던 문제 (2026-08-14, 사용자 신고)
+"커미션 상세에 들어가 링크를 복사해 붙여넣으면 그 페이지가 아니라 홈이 열린다."
+
+**딥링크(`/commission/<id>`) 자체는 멀쩡했다.** 라우트(`app/commission/[id]/page.js`)·`getCommissionIdFromPath()`·`cmOpenCommissionById()` 모두 정상이고, 로그아웃 상태에서 id 1·5·6을 직접 열어 전부 성공했다. **문제는 복사되는 주소가 이미 `/`로 바뀌어 있었다는 것.**
+
+**원인**: `applySession()`의 `loadMyNotes().then(function(){renderList();})`.
+- `renderList()`는 `#main`을 홈 목록으로 덮어쓰고 **주소까지 `history.pushState(…,"/")`로 바꾼다.**
+- 이 줄은 `if(AUTH.user)` 안이라 **로그인한 사람에게만** 실행된다 → 로그아웃으로 아무리 재현해도 안 나와서 한참 못 찾았다.
+- 부팅 때 뮤트·메모 조회가 끝나는 시점과 딥링크 화면이 그려지는 시점이 경쟁한다. 뮤트 조회가 늦게 오면 커미션 상세를 홈이 덮어쓴다.
+
+**고친 방법**: `onHomeListNow()` 도우미 신설(`renderList` 바로 위).
+```js
+function onHomeListNow(){
+  if(screenStack.length)return false;                      // 커미션·채팅 등 겹친 화면
+  if(curTab!=="home")return false;                         // 내 정보 탭 등
+  if(document.querySelector("#main .detail"))return false;  // 글 상세
+  return true;
+}
+```
+**배경 작업이 끝난 뒤 목록을 다시 그리는 곳**에만 씌운다 — `applySession`의 뮤트·메모 로드, `toggleMute`, `toggleBlock`. ⚠️ 사용자가 직접 "목록으로"를 누른 호출(`.d-back`, 당겨서 닫기)에는 씌우지 않는다. 일부러 홈으로 가는 것이므로.
+- 덤으로 **`toggleMute`/`toggleBlock`도 같은 버그였다** — 프로필 히어로 버튼으로 뮤트·차단하면 보던 프로필이 홈으로 튕겼다.
+- 다른 화면에서 뮤트해도 반영을 놓치지 않는다: 홈으로 돌아올 때 어차피 새로 그린다(popstate·`goHome`).
+- **`_cmSetDetailUrl(id,title)`에 제목 인자 추가** — `openPost`는 `document.title`을 바꾸는데 커미션만 빠져 있어서, 앱 안에서 들어가면 탭·방문기록에 홈 제목이 남았다. 링크로 바로 들어온 경우는 서버가 이미 넣어 준다.
+
+**검증**: 커미션 상세에서 `onHomeListNow()`=false·`renderList` 건너뜀·주소 `/commission/1` 유지, 홈에서 =true·정상 렌더, 글 상세/커미션 목록 =false, 앱 내 이동 시 제목이 커미션 제목으로 바뀜.
+
 ### 검색 [4단계] 무한 스크롤 (2026-08-13)
 검색 결과만 페이저 대신 스크롤로 이어 붙인다(`SEARCH_STEP=20`). **게시판 목록은 페이저 그대로** — 그쪽은 "몇 페이지에 있었지"로 되찾는 일이 잦다.
 - **초기화는 호출부가 아니라 `renderList`에서 판정한다.** `_searchSigNow()`(query·tab·board·sort·tag·board·viewMode)가 바뀌면 `searchShown`을 되돌린다. ⚠️ doSearch·setSearchTab·setSearchBoard·setSort·말머리마다 초기화하면 **한 곳만 빠뜨려도 새 검색이 남의 스크롤 위치를 물려받는다.**

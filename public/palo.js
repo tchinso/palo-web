@@ -265,7 +265,9 @@ function toggleMute(uid){
     _unmuted.delete(uid);   // 상태가 바뀌었으니 '이번만 펼침'은 초기화
     toast(on?"뮤트했어요 🔕":"뮤트를 풀었어요");
     if(typeof renderUserNoteBox==="function")renderUserNoteBox(uid);
-    renderList();
+    // 홈 목록일 때만 다시 그린다 — 프로필·커미션 상세에서 뮤트하면 그 화면이 홈으로 튕긴다.
+    // (다른 화면에서 걸어도 홈으로 돌아갈 때 어차피 새로 그려지므로 반영은 안 놓친다)
+    if(onHomeListNow())renderList();
   });
 }
 /* 차단. 뮤트와 달리 **서버가 막는다** — 상대는 내 글에 댓글을 달거나 채팅을 걸 수 없다.
@@ -285,7 +287,7 @@ async function toggleBlock(uid,nick){
   if(!(await saveMyNote(uid,{blocked:on})))return;
   toast(on?"차단했어요":"차단을 풀었어요");
   renderUserNoteBox(uid);
-  renderList();
+  if(onHomeListNow())renderList(); // 뮤트와 같은 이유 — 보던 화면을 홈으로 덮어쓰지 않는다
 }
 
 /* 프로필의 뮤트·메모 상자. 매번 통째로 다시 그린다(상태가 몇 개 안 돼 그게 더 단순하다). */
@@ -708,10 +710,14 @@ function getBoardFromPath(){ // /board/{id} — 유효한 게시판 id만 반환
   for(var g of BOARDS)for(var b of g.items)if(b.id===id)return id;
   return null;
 }
-function _cmSetDetailUrl(id){ // 커미션 상세 주소를 브라우저 URL에 반영(공유·SEO). 히스토리 항목은 enterScreen이 이미 쌓았으니 현재 항목의 경로만 교체.
+function _cmSetDetailUrl(id,title){ // 커미션 상세 주소를 브라우저 URL에 반영(공유·SEO). 히스토리 항목은 enterScreen이 이미 쌓았으니 현재 항목의 경로만 교체.
   if(id==null)return;
   var path="/commission/"+id;
   if(location.pathname!==path){try{history.replaceState({},"",path);}catch(e){}}
+  // 제목도 같이 바꾼다 — 글 상세(openPost)는 하는데 여기만 빠져 있어서, 앱 안에서 들어오면
+  // 탭·방문기록·즐겨찾기에 홈 제목("commi · 그림 그리는…")이 그대로 남았다.
+  // (링크로 바로 들어온 경우엔 서버가 이미 올바른 제목을 넣어 주므로 값이 같아 바뀌지 않는다)
+  if(title)document.title=title+" · commi";
 }
 function cmShare(id){
   if(id==null){toast("이 커미션은 아직 공유할 수 없어요");return;}
@@ -861,7 +867,10 @@ async function applySession(session){
     // 이미 알림 권한을 켠 유저면 로그인 시 이 계정으로 구독을 확실히 저장(기기별 1회)
     if(typeof subscribeToPush==="function"&&notifPermState()==="granted")subscribeToPush();
     loadMyFollows(); // 내 팔로우 목록 로드
-    loadMyNotes().then(function(){renderList();}); // 뮤트·메모(오면 목록을 다시 그려 반영)
+    // 뮤트·메모가 도착하면 목록에 반영한다. ⚠️ 단, 홈 목록을 보고 있을 때만 —
+    // 이건 부팅 때 로그인한 사람에게만 실행되는데, 딥링크(/commission/6 등)로 들어온 순간에
+    // 그냥 renderList()를 부르면 그 화면을 홈으로 덮어쓰고 주소도 '/'로 바꿔 버린다.
+    loadMyNotes().then(function(){if(onHomeListNow())renderList();});
     loadMyPostBookmarks(); // 저장한 글
     loadMyEmoticons(); // 담아둔 이모티콘 팩
     maybeShowConsent(); // 신규 가입자면 약관·개인정보 동의 창 표시
@@ -1790,6 +1799,23 @@ async function flushAdImpressions(){
 if(typeof document!=="undefined"){
   // 페이지를 떠나거나 탭이 숨겨질 때 남은 노출을 최대한 전송(완벽 보장은 아님)
   document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")flushAdImpressions();});
+}
+/* 지금 화면에 '홈 목록'이 떠 있는가.
+   ⚠️ 배경에서 끝난 작업(뮤트·메모 로드, 차단 저장 등) 뒤에 목록을 새로 그릴 때는 반드시 이걸 먼저 본다.
+      renderList()는 #main을 홈 목록으로 통째로 덮어쓰고 **주소까지 '/'로 바꾼다**(아래 pushState).
+      그래서 커미션 상세·글 상세·채팅을 보고 있을 때 부르면 보던 화면이 홈으로 튕기고,
+      그 상태에서 주소창을 복사하면 홈 주소가 복사된다.
+      (2026-08-14 사용자 신고: "커미션 상세 링크를 복사해 붙여넣으면 홈으로 간다" —
+       원인은 로그인한 사람만 실행되는 applySession의 loadMyNotes().then(renderList)였다.
+       로그아웃 상태에서는 재현되지 않아 한참 못 찾았다.)
+   사용자가 직접 "목록으로"를 누른 경우처럼 **일부러 홈으로 가는** 호출에는 쓰지 않는다. */
+function onHomeListNow(){
+  try{
+    if(typeof screenStack!=="undefined"&&screenStack.length)return false; // 커미션·채팅 등 겹쳐 띄운 화면
+    if(typeof curTab!=="undefined"&&curTab!=="home")return false;         // 내 정보 탭 등
+    if(document.querySelector("#main .detail"))return false;              // 글 상세
+    return true;
+  }catch(e){return false;}
 }
 function renderList(){
   leaveChat();
@@ -3903,7 +3929,7 @@ async function cmOpenCommissionById(commissionId){
   closeDrawer();closeSheet();syncTabs("commission");
   cmDetailCtx={from:'list',idx:idx};
   document.getElementById("main").innerHTML=cmDetailHTML(cmData[idx],idx);
-  _cmSetDetailUrl(cmData[idx].id);
+  _cmSetDetailUrl(cmData[idx].id,cmData[idx].title);
   window.scrollTo({top:0,behavior:'smooth'});
   cmLoadWorksamples(cmData[idx].id);
 }
@@ -4080,7 +4106,7 @@ function cmOpenDetail(idx){
   cmDetailCtx={from:'list',idx:idx};
   var d=cmData[idx];
   document.getElementById("main").innerHTML=cmDetailHTML(d,idx);
-  _cmSetDetailUrl(d.id);
+  _cmSetDetailUrl(d.id,d.title);
   window.scrollTo({top:0,behavior:"smooth"});
   cmLoadWorksamples(d.id);
   // 조회수 +1 (추천 점수의 '인기' 요소에 쓰임) — 서버에서 증가, 조작 방지 위해 딱 이 동작만 하는 RPC
