@@ -8067,6 +8067,21 @@ function autoGrowChatInput(ta){
 }
 // 채팅방 오버레이: top은 고정(헤더 안 움직임)하고 bottom만 키보드 높이만큼 올려 아래에서만 줄어들게 함.
 // CSS transition(bottom)으로 한 프레임 점프가 아니라 부드럽게 올라오는 효과.
+/* ===== 키보드 감지(전역) ====================================================
+   iOS는 키보드가 떠 있는 동안 position:fixed 를 화면에 못 박지 못한다 — fixed의 기준이
+   '보이는 영역'이 아니라 레이아웃 뷰포트라서, 스크롤하면 고정 바가 내용을 따라 떠다닌다
+   (2026-08-14 커미션 등록의 미리보기·등록 바로 실제 신고). 싸우지 않는다:
+   키보드가 떠 있는 동안 body.kb-open 을 붙이고, CSS가 하단 고정 바들을 숨긴다.
+   ⚠️ 문턱 80px — iOS 사파리는 주소창을 접었다 펼 때도 뷰포트 높이가 ~50px 출렁여서,
+      그걸 키보드로 오인하면 스크롤할 때마다 탭바가 깜빡인다. */
+if(window.visualViewport){
+  window.visualViewport.addEventListener("resize",function(){
+    var vv=window.visualViewport;
+    var kb=Math.max(0,Math.round((window.innerHeight||0)-vv.height-(vv.offsetTop||0)));
+    document.body.classList.toggle("kb-open",kb>80);
+  });
+}
+
 /* instant=true 면 전환 없이 즉시 이동.
    ⚠️ 키보드 개폐(resize)는 부드럽게 미끄러지고, 손가락 팬(scroll)은 즉시 따라가야 한다 —
       스크롤에까지 전환을 걸면 화면이 손가락을 0.2초 늦게 따라오는 고무줄이 된다.

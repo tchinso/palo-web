@@ -1690,6 +1690,13 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 🐛 커미션 등록 하단 바가 떠다니던 문제 (2026-08-14, 사용자 신고)
+"미리보기·등록 버튼이 밑에 안 붙고 스크롤을 따라 움직인다."
+- **iOS 고유 동작**: 키보드가 떠 있는 동안 `position:fixed`는 화면이 아니라 레이아웃 뷰포트 기준이라, 스크롤하면 고정 바가 내용을 따라 떠다닌다. 에뮬레이션(데스크톱 엔진)에선 재현 안 됨 — 바는 탭바 위(745=745px)에 정확히 고정.
+- **해법(채팅 때 정한 노선 — iOS와 싸우지 않기)**: 전역 `visualViewport` resize 감지로 `body.kb-open` 토글 → CSS가 키보드 동안 하단 고정 바들(`.cm-reg-bottom`·`.cm-apply-bar`·`.cm-wr-submit`·`.cm-fab-wrap`·`.tabbar`)을 숨김. 입력 중엔 필요 없는 것들이고, 키보드를 닫으면 제자리 복귀.
+- **⚠️ 문턱 80px** — iOS 주소창 개폐도 뷰포트를 ~50px 출렁이게 하므로, 낮게 잡으면 스크롤마다 탭바가 깜빡인다.
+- 검증(dev): 키보드 300px 흉내→kb-open·바/탭바 숨김, 50px 출렁→오인 안 함, 닫힘→복귀 위치 정확(745).
+
 ### 🐛 커미션 등록 — 확대·버튼 씹힘 (2026-08-14, 사용자 신고)
 **① 설명란 탭 시 화면 확대**: `.cm-reg-editor`(커미션 설명 서식 편집기)가 14.5px — 16px 통일 때 `.ed-content`만 잡고 이 클래스를 빠뜨렸다. 16px로. (등록 화면 전수 재검: 남은 16px 미만은 숨긴 파일 입력·체크박스뿐 = 확대 유발 안 함)
 **② 등록 버튼 씹힘 — 원인 두 겹**:

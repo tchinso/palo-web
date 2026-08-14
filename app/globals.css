@@ -2902,6 +2902,13 @@ body.ed-page #toTop{display:none!important}
   .notif-banner .nb-go{padding:8px 13px;font-size:12px}
 }
 
+/* ===== 키보드가 떠 있는 동안 하단 고정 바 숨김 =====
+   iOS는 키보드 중엔 fixed가 스크롤을 따라 움직여 바가 화면 중간을 떠다닌다
+   (2026-08-14 커미션 등록에서 신고). 입력 중엔 하단 바가 필요 없다 —
+   키보드를 닫으면 다시 나타나며 제자리에 붙는다. body.kb-open은 palo.js가 관리. */
+body.kb-open .cm-reg-bottom,body.kb-open .cm-apply-bar,body.kb-open .cm-wr-submit,
+body.kb-open .cm-fab-wrap,body.kb-open .tabbar{display:none}
+
 /* ===== 두 번 톡톡 확대(double-tap zoom) 전역 차단 =====
    핀치줌을 허용하면서(WCAG) '두 번 톡톡' 확대도 같이 살아났는데, 그러면 브라우저가
    모든 탭마다 "두 번째 탭이 올까?"를 기다려 버튼 탭이 씹히거나(지연·무시),
