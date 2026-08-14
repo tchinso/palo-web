@@ -1690,6 +1690,12 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 점검 후 일괄 수정 5차 — 업로드 서명에 ContentLength (2026-08-14)
+용량 상한(40MB)이 클라이언트 신고값 검사뿐이라 거짓말하면 그만이었다. 서명에 `ContentLength: size`를 넣어 **R2가 실제 바이트 수를 강제**하게 함.
+- **클라 변경 불필요** — `uploadToStorage`가 이미 압축 후 `blob.size`를 보내고 있었고, 브라우저는 PUT의 Content-Length를 스스로 body 크기로 채운다(개발자가 못 바꾸는 보호 헤더) → 정직한 업로드는 항상 서명과 일치, 신고보다 큰 파일은 403.
+- ⚠️ Cache-Control은 여전히 서명에 안 넣는다(클라이언트가 빠뜨리면 403) — 캐시는 Cloudflare Cache Rule 담당.
+- 검증: 로컬에 R2 키가 없어 실업로드 불가. 배포 후 무인증 401·초과 신고 400 확인. **실제 업로드 1회는 사용자 확인 필요** — 실패 시 커밋 ad0a033 revert.
+
 ### 점검 후 일괄 수정 4차 — 법적 문서 정합성 6건 + 시행 절차 (2026-08-14)
 7회차 점검에서 나온 문서-실제 불일치 수정. **개정 자체에도 절차 요건이 있어** 시행일을 미래로:
 - **개인정보 처리방침 (시행 2026-08-21, §2의 공지 요건에 따라 7일 후)**: ①본인확인 수탁자 KG이니시스→**엔에이치엔케이씨피(주)(NHN KCP)**, 연락처는 이메일을 확인할 수 없어 `www.kcp.co.kr (고객센터)`로(지어내지 않음) ②위탁표의 `연계정보(CI)`→`중복가입확인정보(DI)` — §4가 "CI를 받지 않는다"고 명시하는데 표가 CI라 자기모순이었음 ③**Cloudflare, Inc. 행 추가**(업로드 이미지·첨부, 미국, privacyquestions@cloudflare.com — Cloudflare 공식 프라이버시 연락처) + 국외이전 각주에 포함 ④"계정당 1회"→**1년마다 재확인** ⑤저장 정보 "두 가지뿐"→**세 가지**(시도 기록: 시각·결과·IP 앞3자리·인증 거래번호, 1년 보관, 탈퇴 시 가명처리) — schema-hygiene.sql의 실제 동작과 일치 ⑥초대 가입 IP 앞3자리 저장 + Vercel Analytics 명시(위탁표 Vercel 목적에도 추가).
