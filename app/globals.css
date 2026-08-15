@@ -38,6 +38,18 @@
         clip 을 모르는 예전 브라우저를 위해 hidden 을 먼저 두고 clip 으로 덮어쓴다. */
   body{overflow-x:hidden;overflow-x:clip;max-width:100%}
   body{background:var(--bg);color:var(--ink);font-family:'Pretendard','Pretendard Variable',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','맑은 고딕','Noto Sans KR',system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;letter-spacing:-.01em}
+  /* 🚨 iOS 자동 확대 방지 안전망 — **16px 미만 글자의 입력칸에 포커스하면 iOS가 화면을 확대한다.**
+     핀치 줌을 허용하려고 뷰포트의 확대 제한을 푼 순간(2026-08-14) 이 동작이 살아났고,
+     그때 등록 폼만 고쳐서 검색창 등 나머지가 하나씩 신고되는 중이었다(2026-08-15).
+     font-size 규칙이 **아예 없는** 입력칸은 브라우저 기본값(~13px)이라 역시 확대를 유발한다
+     — 그런 것들을 여기서 한 번에 받친다.
+     ⚠️ :where()로 우선순위를 0으로 만든다 — 각 화면의 명시된 크기(제목 22px, 등록 폼 16px 등)는
+        그대로 이기고, **크기를 정하지 않은 곳만** 이 값이 적용된다. 명시된 크기가 16px 미만인
+        곳은 이 안전망이 못 잡으므로 개별로 고쳐야 한다(.cm-search input·.cm-wr-text 참고).
+     ⚠️ pointer:coarse 조건 — 터치 기기에서만. PC 디자인은 안 바뀐다. */
+  @media(pointer:coarse){
+    :where(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=color],[type=button],[type=submit]),textarea,[contenteditable="true"]){font-size:16px}
+  }
   body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
     background:radial-gradient(circle at 12% 8%,rgba(224,122,166,.05),transparent 42%),radial-gradient(circle at 88% 20%,rgba(151,132,214,.045),transparent 44%),radial-gradient(circle at 70% 90%,rgba(124,195,224,.04),transparent 46%)}
   .serif{font-weight:800;letter-spacing:-.02em}
@@ -2109,6 +2121,11 @@
   .cm-search span{color:var(--muted);font-size:var(--cm-search-fs)}
   .cm-search input{border:none;outline:none;background:none;flex:1;min-width:0;
     font-size:var(--cm-search-fs);color:var(--ink);font-family:inherit}
+  /* ⚠️ 터치 기기에서는 16px — iOS가 16px 미만 입력칸에 포커스하면 화면을 자동 확대한다.
+     핀치 줌을 허용하며 뷰포트의 확대 제한을 푼 뒤로(2026-08-14) 이 규칙이 살아났는데,
+     그때 등록 폼(.cm-reg-input)만 16px로 고치고 이 검색창을 빠뜨렸다(2026-08-15 신고).
+     pointer:coarse 조건이라 PC 디자인(13.5px)은 그대로다. */
+  @media(pointer:coarse){.cm-search input{font-size:16px}}
   .cm-search input::placeholder{color:var(--muted)}
   .cm-tabs{display:flex;gap:var(--cm-tab-gap);overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
   .cm-tabs::-webkit-scrollbar{display:none}
@@ -2453,6 +2470,7 @@
   .cm-wr-type.sel{background:var(--brand);color:#fff;border-color:var(--brand)}
   /* 내용 입력 */
   .cm-wr-text{width:100%;min-height:110px;border:1.5px solid var(--line);border-radius:14px;padding:14px;font-size:14.5px;line-height:1.6;resize:none;font-family:inherit;color:var(--ink)}
+  @media(pointer:coarse){.cm-wr-text{font-size:16px}} /* iOS 자동 확대 방지 — .cm-search input과 같은 이유 */
   .cm-wr-text::placeholder{color:var(--muted-2)}
   .cm-wr-hint{font-size:12.5px;color:var(--muted);margin-top:8px}
   /* 제출 버튼 */
