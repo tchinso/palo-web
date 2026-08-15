@@ -1985,6 +1985,15 @@ function onHomeListNow(){
 
 **검증**: 커미션 상세에서 `onHomeListNow()`=false·`renderList` 건너뜀·주소 `/commission/1` 유지, 홈에서 =true·정상 렌더, 글 상세/커미션 목록 =false, 앱 내 이동 시 제목이 커미션 제목으로 바뀜.
 
+### ⚡ 커미션 탭 첫 로딩 가속 — 캐시 + 프리페치 + eager (2026-08-15)
+커미션 탭 첫 진입이 느리다는 요청. 홈 피드에는 캐시가 있었는데 커미션에는 없어서, 탭을 누른 뒤에야 왕복 4~5번(커미션+프로필+집계들)을 기다렸고 이미지도 그 뒤에 lazy로 시작됐다. 3겹으로 개선:
+
+1. **목록 캐시**(`palo_cm_cache`, `saveCmCache`/`cmPrimeFromCache`) — 피드 캐시와 같은 패턴(24h, 실패 무시, 프라임 후 refreshCommissions가 뒤에서 교체). **⚠️ 성인 커미션은 캐시에 절대 안 넣는다**(`isAdult`/`locked` 행 제외) — 인증자/미인증자 구분은 서버 판단인데 캐시는 그 판단 없이 재생되므로, 인증 상태에서 저장된 캐시가 로그아웃 화면에서 되살아나면 안 본다고 한 것을 보여주게 된다. `descHtml`도 뺀다(용량 — 상세는 `esc(desc)` 폴백). 프라임은 `openCommissionList`에서 **셸을 그리기 전에** 호출(늦으면 스켈레톤이 한 번 비친다).
+2. **홈에서 유휴 프리페치**(`cmIdlePrefetch`) — 부팅 2.5초 뒤 requestIdleCallback으로 `refreshCommissions()` + 첫 8장 썸네일 HTTP 캐시 예열(`cmWarmThumbs`, `new Image()`). 탭을 누르면 이미 메모리에 있어 즉시 그려진다. **⚠️ `navigator.connection.saveData`면 안 한다.** 이미 커미션 탭이거나 `cmLoadedAt>0`이면 건너뛴다(이중 로드 방지 — `cmRefreshing` 가드와 탭 검사 덕에 사용자가 프리페치 도중 탭을 눌러도 안전).
+3. **첫 6칸 eager** — `thumbImgHTML(u,extra,eager)` 3번째 인자 추가: `loading="eager" fetchpriority="high"`. **⚠️ eager 판정은 `i`(cmData 안 위치)가 아니라 `pos`(정렬 후 표시 순서)로** — cmGridHTML이 `idxs.map((i,pos)=>cmCardHTML(cmData[i],i,pos))`로 넘긴다. 프로필의 커미션 목록(pfCmListItemHTML)은 lazy 유지.
+
+**실측**: 홈 부팅 4.5초 후 cmData 7건 채워짐+캐시 저장(성인 행 0·descHtml 없음 확인), 콜드 스타트 프라임 → 스켈레톤 없이 카드 즉시, 앞 6장 `eager/high`.
+
 ### 🐛 하단 바 분리(2차) — 밀림 복구와 탭바 높이의 두 구멍 (2026-08-15, 사용자 재신고)
 "문의하기·신청하기 바가 하단에서 분리되어 움직이는 케이스가 줄었지만 아직 있다" → 같은 계열의 구멍 2개를 더 찾음.
 

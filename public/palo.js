@@ -3425,6 +3425,64 @@ async function cmLoadCommissions(){
   await cmLoadRecScores();
   await cmAppendAdultStubs();
   cmDataLoaded=true;
+  setTimeout(saveCmCache,0); // 다음 방문용 — 지금 화면에는 필요 없으니 미룬다(피드 캐시와 같은 이유)
+}
+/* ===== 커미션 목록 캐시 =====================================================
+   커미션 탭을 처음 열 때 네트워크 왕복(커미션+프로필+집계 4~5번)을 기다리는 동안
+   "불러오는 중..."만 보였다 → 지난 방문 목록을 캐시로 즉시 그리고, 뒤에서 최신으로 교체한다
+   (홈 피드의 saveFeedCache/primeFromCache와 같은 패턴).
+   ⚠️ **성인 커미션은 캐시에 넣지 않는다.** 인증자에게는 진짜 행이, 미인증자에게는 가림막이
+      서버 판단으로 내려오는데, 캐시는 그 판단 없이 재생되므로 — 인증 상태로 저장된 캐시가
+      로그아웃/미인증 화면에서 되살아나면 안 본다고 한 것을 보여주게 된다. 성인 행은 항상
+      서버에서 새로 받는다(잠깐 늦게 나타나는 것은 감수).
+   ⚠️ descHtml은 뺀다(용량) — 상세는 esc(desc) 폴백으로 그려지고 곧 새 데이터로 바뀐다. */
+var CM_CACHE_KEY="palo_cm_cache";
+function saveCmCache(){
+  try{
+    var slim=cmData.filter(function(d){return !d.isAdult&&!d.locked;}).map(function(d){
+      var c={};for(var k in d){if(k!=="descHtml")c[k]=d[k];}return c;
+    });
+    localStorage.setItem(CM_CACHE_KEY,JSON.stringify({t:Date.now(),list:slim,bump:CM_BUMP_READY}));
+  }catch(e){/* 용량 초과 등은 무시 — 캐시는 있으면 좋고 없어도 그만 */}
+}
+function cmPrimeFromCache(){
+  if(cmDataLoaded||cmData.length)return;       // 진짜 데이터가 있으면 캐시가 덮어쓰지 않는다
+  try{
+    var raw=localStorage.getItem(CM_CACHE_KEY);if(!raw)return;
+    var o=JSON.parse(raw);
+    if(!o||!Array.isArray(o.list)||!o.list.length)return;
+    if(Date.now()-(o.t||0)>24*3600*1000)return; // 24시간 지난 캐시는 버림
+    cmData=o.list;
+    CM_BUMP_READY=!!o.bump;
+    cmTopTags=cmComputeTopTags();
+    cmDataLoaded=true;                          // cmGridHTML이 '불러오는 중...' 대신 카드를 그리게
+  }catch(e){}
+}
+/* 홈을 보는 동안 커미션 데이터를 미리 불러 둔다 — 탭을 눌렀을 때 이미 메모리에 있어 즉시 그려진다.
+   ⚠️ 홈 로딩과 경쟁하지 않게 몇 초 쉰 뒤 유휴 시간에 돈다. 데이터 절약 모드면 안 한다. */
+function cmIdlePrefetch(){
+  try{if(navigator.connection&&navigator.connection.saveData)return;}catch(e){}
+  var go=function(){
+    if(curTab==="commission"||cmLoadedAt>0)return; // 이미 열었거나 열려 있으면 그쪽이 알아서 한다
+    refreshCommissions().then(function(){cmWarmThumbs(8);});
+  };
+  setTimeout(function(){
+    if(window.requestIdleCallback)requestIdleCallback(go,{timeout:3000});
+    else go();
+  },2500);
+}
+/* 첫 화면에 나올 썸네일을 브라우저 캐시에 미리 받아 둔다(그리는 것 아님 — HTTP 캐시 예열).
+   ⚠️ 지금 화면의 정렬 기준으로 앞 n장만. 전부 받으면 예열이 아니라 낭비다. */
+function cmWarmThumbs(n){
+  try{
+    if(navigator.connection&&navigator.connection.saveData)return;
+    var idxs=cmSortedFilteredIdx().slice(0,n||8);
+    idxs.forEach(function(i){
+      var d=cmData[i];
+      if(!d||d.locked||!d.images||!d.images.length)return;
+      var im=new Image();im.decoding="async";im.src=thumbChain(d.images[0])[0];
+    });
+  }catch(e){}
 }
 /* 미인증자에게 보여줄 '가려진 카드'.
    ⚠️ 서버가 내용을 안 준다(제목·설명·이미지·작가 전부). 그러니 여기서 흐리게 그리는 건
@@ -3732,6 +3790,7 @@ async function cmToggleBookmark(commissionId,el){
 async function openCommissionList(){
   curTab="commission";navSeq++;
   userLeftHome=true;
+  cmPrimeFromCache(); // 첫 진입이면 지난 방문 목록을 즉시 — 셸을 그리기 전에 채워야 스켈레톤이 안 보인다
   if(!navigatingBack)resetScreens();
   enterScreen("cmList",goHome);
   _setTabUrl("commission"); // 상세(/commission/id)에서 목록으로 와도 /commission 으로 정리된다
@@ -3752,7 +3811,7 @@ async function openCommissionList(){
 var CM_IC_VIEW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>';
 var CM_IC_REVIEW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5a8.4 8.4 0 0 1-.9-3.8 8.4 8.4 0 0 1 8.4-9 8.4 8.4 0 0 1 8.6 8.3z"/></svg>';
 var CM_IC_BOOKMARK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>';
-function cmCardHTML(d,idx){
+function cmCardHTML(d,idx,pos){
   /* 가림막 카드 — 미인증자에게만 나온다.
      ⚠️ 진짜 이미지를 깔고 CSS로 흐리게 하는 게 아니다. 애초에 이미지 주소를 받아 오지
         않았고(서버가 안 준다), 여기서 그리는 건 무늬뿐이다. 그래야 개발자도구를 열어도
@@ -3769,7 +3828,8 @@ function cmCardHTML(d,idx){
   // background-image에는 그게 없다. 이미지가 없으면 예전처럼 그라데이션 배경.
   var hasImg=!!(d.images&&d.images[0]);
   var thumb=hasImg?'':'background:'+cmGrads[idx%cmGrads.length];
-  var thumbImg=hasImg?thumbImgHTML(d.images[0],'class="thumb-fill"'):'';
+  // 첫 두 줄(4~6칸)은 첫 화면에 바로 보이므로 lazy 를 끄고 즉시 받는다
+  var thumbImg=hasImg?thumbImgHTML(d.images[0],'class="thumb-fill"',pos!=null&&pos<6):'';
   var status=d.status==='open'?'<div class="cm-status open">오픈중</div>':'';
   var revBadge=d.reviewEventOn?'<div class="cm-revevent-badge">🎁 리뷰 이벤트</div>':'';
   // 성인 커미션은 목록에서도 한눈에 구분되게 — 인증한 사람만 이 카드를 받아 보지만,
@@ -3838,7 +3898,8 @@ function cmGridHTML(){
   if(cmData.length===0)return '<div class="cm-my-empty">아직 등록된 커미션이 없어요.</div>';
   var idxs=cmSortedFilteredIdx();
   if(idxs.length===0)return '<div class="cm-my-empty">'+(cmState.query?'검색 결과가 없어요.<br>다른 제목이나 태그로 찾아보세요.':(cmState.activeTag?'이 태그의 접수중 커미션이 없어요.':'접수중인 커미션이 없어요.'))+'</div>';
-  return idxs.map(function(i){return cmCardHTML(cmData[i],i);}).join('');
+  // pos = 화면에 놓이는 순서(정렬 결과). i는 cmData 안 위치라 표시 순서와 다르다 — eager 판정은 pos로.
+  return idxs.map(function(i,pos){return cmCardHTML(cmData[i],i,pos);}).join('');
 }
 function cmSetSort(key){
   cmState.sort=key;
@@ -6734,12 +6795,16 @@ function thumbFail(el){
   if(!alts.length)el.onerror=null;
   el.src=next;
 }
-/* 목록 칸에 꽉 차게 들어가는 썸네일 img 태그. extra엔 class·style 등 추가 속성. */
-function thumbImgHTML(u,extra){
+/* 목록 칸에 꽉 차게 들어가는 썸네일 img 태그. extra엔 class·style 등 추가 속성.
+   eager=true 면 lazy 를 끄고 우선순위를 올린다 — **첫 화면에 바로 보이는 칸에만** 쓸 것.
+   (lazy는 스크롤 아래 이미지를 아끼는 장치인데, 첫 화면 카드에까지 걸면 브라우저가
+   교차 판정을 마칠 때까지 다운로드 시작이 밀려 체감 로딩이 늦어진다) */
+function thumbImgHTML(u,extra,eager){
   var chain=thumbChain(u);
-  if(chain.length<2)return '<img src="'+esc(u)+'" alt="" loading="lazy" '+(extra||'')+'>'; // 유도 불가 주소
+  var ld=eager?'loading="eager" fetchpriority="high"':'loading="lazy"';
+  if(chain.length<2)return '<img src="'+esc(u)+'" alt="" '+ld+' '+(extra||'')+'>'; // 유도 불가 주소
   return '<img src="'+esc(chain[0])+'" data-alts="'+esc(chain.slice(1).join(" "))+
-    '" onerror="thumbFail(this)" alt="" loading="lazy" '+(extra||'')+'>';
+    '" onerror="thumbFail(this)" alt="" '+ld+' '+(extra||'')+'>';
 }
 // 커미션을 지울 때 딸린 이미지 정리. 실패해도 서비스 동작엔 지장 없으므로 조용히 넘어간다.
 async function deleteFromStorage(urls){
@@ -10863,7 +10928,7 @@ function _bootBackend(){
   track("view");
   // 딥링크 화면을 먼저 연다 — 그래야 홈이 잠깐 비쳤다 바뀌지 않는다.
   // (routeDeepLinkEarly가 열었으면 userLeftHome=true라, 뒤이은 loadRealPosts는 홈을 그리지 않는다)
-  initAuth().then(function(){routeDeepLinkEarly();loadRealPosts();handleNotifSettingsDeeplink();handleLoginError();});
+  initAuth().then(function(){routeDeepLinkEarly();loadRealPosts();handleNotifSettingsDeeplink();handleLoginError();cmIdlePrefetch();});
 }
 if(window.supabase)_bootBackend();
 else window.addEventListener("palo-supabase-ready",_bootBackend,{once:true});
