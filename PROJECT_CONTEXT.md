@@ -2098,6 +2098,18 @@ function onHomeListNow(){
 - 리뷰 이벤트 배너는 3색 얼룩(분홍·보라·주황)을 걷어내고 `.pf-group` 유리 + `.notice`식 브랜드→포도 반투명 틴트로 교체. **틴트는 반투명이어야 한다** — 불투명하게 깔면 backdrop-filter가 할 일이 없어져 그냥 색판이 된다.
 - **실측**: 출석 카드의 배경·backdrop·그림자·모서리·테두리가 기존 `.pf-group` 카드와 **전 항목 일치**. 주 버튼도 `.write-btn`과 배경·그림자·모서리 일치. 배너 대비 제목 5.51(좌상)/4.99(우하), 안내문 5.47.
 
+### 틱톡 로그인 (2026-08-15 구현, 심사 대기)
+`app/api/auth/tiktok/start·callback` — 네이버 라우트를 본뜬 서버 OAuth(틱톡도 Supabase 내장 목록에 없음). 로그인 모달에 「틱톡으로 계속하기」 버튼(`TIKTOK_LOGIN_ENABLED=false`, **심사 승인 후 true로 바꿔 배포** — 네이버와 같은 패턴).
+
+- **⚠️ 틱톡은 이메일을 주지 않는다.** 네이버는 이메일로 기존 계정과 자동 연결됐지만, 틱톡은 고유번호(union_id 우선, 없으면 open_id)로 **내부용 가짜 이메일**(`tiktok_<번호>@users.commi.kr`)을 만들어 계정을 찾는다 → 틱톡 사용자는 항상 별도 계정(구글과 자동 연결 불가, 틱톡의 한계).
+- **⚠️ 가짜 이메일 생성 규칙(소문자화·영숫자만·48자)을 바꾸면 기존 틱톡 사용자 전원이 다음 로그인에서 새 계정이 된다.** 바꾸지 말 것.
+- **⚠️ `isIdAccount()`에 `provider==="tiktok"` 제외를 아이디 계정 판별보다 먼저 추가** — 가짜 이메일이 `@users.commi.kr` 폴백에 걸려 복구용 이메일 메뉴가 노출되고, 이메일이 바뀌면 다음 틱톡 로그인이 계정을 못 찾아 새 계정이 생기는 사고(네이버 주석과 같은 계열).
+- `handleLoginError`의 실패 문구를 서비스 중립으로 수정(네이버·틱톡이 같은 `login_error` 파라미터 공유).
+- 틱톡 API: authorize `www.tiktok.com/v2/auth/authorize/`(파라미터 이름이 `client_key`), token `open.tiktokapis.com/v2/oauth/token/`(**POST 폼** — 네이버처럼 GET 쿼리 아님), user info `v2/user/info/?fields=…`.
+- 콘솔 설정: 도메인 검증 TXT(`tiktok-developers-site-verification=…`) Cloudflare에 추가됨, Redirect URI `https://commi.kr/api/auth/tiktok/callback`, scope `user.info.basic`, 플랫폼 Web만. Client Secret은 Vercel `TIKTOK_CLIENT_SECRET`(사용자만 앎), `TIKTOK_CLIENT_KEY`도 Vercel에.
+- **실측**: 키 없는 로컬에서 start 500(친절 문구)·callback state 위조 시 `/?login_error=state` 302, 버튼 스위치 on/off 동작. **실제 OAuth 왕복은 배포+키 설정 후 관리자 계정으로만 테스트 가능**(심사 전).
+- 남은 절차: ①Vercel에 키 2개 설정(사용자) ②배포 후 관리자 계정으로 테스트 ③심사 제출(설명문 초안 완료) ④승인 후 `TIKTOK_LOGIN_ENABLED=true` 배포.
+
 ### 프로필 커스텀 주소(핸들) — commi.kr/<원하는이름> (2026-08-15)
 `docs/sql/profile-handle.sql` + `app/[handle]/page.js` + palo.js. 내 정보 → 설정 → 「프로필 주소」에서 설정.
 

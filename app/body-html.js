@@ -494,6 +494,7 @@ ${""/* 사진을 고른 뒤 "이만큼 넣을게요" 확인하는 창.
       <div id="gsiButton" class="gsi-wrap"></div>
       <button type="button" class="lg-social login-naver-btn" onclick="loginWithNaver()"><span class="lg-social-ic nv"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.273 12.845 7.376 0H0v24h7.726V11.156L16.624 24H24V0h-7.727z"/></svg></span>네이버로 계속하기</button>
       <button type="button" class="lg-social login-x-btn" onclick="loginWithTwitter()"><span class="lg-social-ic xx"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span>트위터로 계속하기</button>
+      <button type="button" class="lg-social login-tiktok-btn" onclick="loginWithTikTok()"><span class="lg-social-ic tk"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.9 2.9 0 1 1-2.31-2.84v-3.5a6.37 6.37 0 1 0 5.76 6.34V8.69a8.2 8.2 0 0 0 4.77 1.52V6.75a4.85 4.85 0 0 1-1-.06z"/></svg></span>틱톡으로 계속하기</button>
       ${""/* 첫 화면에서 스크롤 없이 보이도록 소셜 버튼 바로 아래에 둔다(사용자 요청 — 예전엔 맨 아래라 내려야 보였다) */}
       <button class="login-signup-btn" id="lgToSignup" onclick="setLoginMode('signup')">이메일 없이 시작하기</button>
       <div class="login-or"><span>또는</span></div>

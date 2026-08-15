@@ -1026,6 +1026,14 @@ function loginWithNaver(){
   var hint=document.getElementById("loginHint");if(hint)hint.textContent="네이버로 이동 중…";
   location.href="/api/auth/naver/start";
 }
+// 틱톡 로그인 노출 스위치 — 틱톡 앱 심사가 승인되면 true로 바꿔 배포(네이버 때와 같은 패턴).
+// 심사 전에는 앱 관리자 본인만 로그인되므로 일반 사용자에게 숨긴다.
+// ⚠️ 틱톡은 이메일을 주지 않아 항상 별도 계정이 된다(구글 계정과 자동 연결 불가) — callback 주석 참고.
+var TIKTOK_LOGIN_ENABLED=false;
+function loginWithTikTok(){
+  var hint=document.getElementById("loginHint");if(hint)hint.textContent="틱톡으로 이동 중…";
+  location.href="/api/auth/tiktok/start";
+}
 function _loginRedirectFallback(){
   window.supabase.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin}});
 }
@@ -1043,6 +1051,8 @@ async function openLoginModal(){
   if(nvBtn)nvBtn.style.display=NAVER_LOGIN_ENABLED?"flex":"none";
   var twBtn=document.querySelector(".login-x-btn");
   if(twBtn)twBtn.style.display=TWITTER_LOGIN_ENABLED?"flex":"none";
+  var tkBtn=document.querySelector(".login-tiktok-btn");
+  if(tkBtn)tkBtn.style.display=TIKTOK_LOGIN_ENABLED?"flex":"none";
   // 항상 '로그인' 모드로 열고 입력값은 비움(제목·안내문구·버튼 문구는 setLoginMode가 맞춰줌)
   ["lgEmail","lgPw","lgPw2","lgNick"].forEach(function(id){var el=document.getElementById(id);if(el)el.value="";});
   setLoginMode("login");
@@ -1194,6 +1204,10 @@ async function emailLogin(){
 function isIdAccount(){
   var u=AUTH.user;if(!u)return false;
   var md=u.user_metadata||{};
+  if(md.provider==="tiktok")return false;               // ⚠️ 네이버보다 먼저 — 틱톡은 이메일이 없어
+  // 가짜 이메일(tiktok_…@users.commi.kr)을 쓰므로 아래 도메인 폴백에 걸린다. 여기서 복구용
+  // 이메일을 등록해 계정 이메일이 바뀌면, 다음 틱톡 로그인이 가짜 이메일로 계정을 못 찾아
+  // **새 계정이 생기는 사고**가 난다(네이버 주석과 같은 이유).
   if(md.signup_type==="id"||md.login_id)return true;   // 가입 라우트(/api/auth/signup)가 남기는 표식
   if(md.provider==="naver")return false;                // 네이버 (위 주석 참고)
   if(/@users\.commi\.kr$/i.test(u.email||""))return true; // 표식 없는 예전 아이디 계정 폴백
@@ -11084,7 +11098,8 @@ function handleLoginError(){
   var code=params.get("login_error");
   if(code){
     try{history.replaceState({},"","/");}catch(_){}
-    var msg={state:"보안 확인에 실패했어요. 다시 시도해 주세요.",no_email:"네이버 이메일 제공에 동의해야 로그인할 수 있어요.",config:"네이버 로그인이 아직 준비 중이에요. 잠시 후 다시 시도해 주세요.",token:"네이버 인증에 실패했어요. 다시 시도해 주세요.",profile:"네이버 정보를 불러오지 못했어요.",link:"로그인 처리에 실패했어요. 다시 시도해 주세요."}[code]||"네이버 로그인에 실패했어요.";
+    // ⚠️ 네이버·틱톡 콜백이 같은 login_error 파라미터를 쓴다 — 서비스 이름을 못 박지 않는다
+    var msg={state:"보안 확인에 실패했어요. 다시 시도해 주세요.",no_email:"이메일 제공에 동의해야 로그인할 수 있어요.",config:"이 로그인은 아직 준비 중이에요. 잠시 후 다시 시도해 주세요.",token:"인증에 실패했어요. 다시 시도해 주세요.",profile:"프로필 정보를 불러오지 못했어요.",link:"로그인 처리에 실패했어요. 다시 시도해 주세요."}[code]||"로그인에 실패했어요.";
     toast(msg);
     return;
   }
