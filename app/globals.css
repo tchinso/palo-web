@@ -2176,8 +2176,11 @@
   /* 목록 카드 위 배지 — 여기는 뒤가 그림이라 backdrop-filter가 실제로 먹는다(진짜 유리).
      ⚠️ 다만 밝은 그림 위에서 흰 글자가 안 읽히므로, 완전 투명이 아니라 브랜드색을
         충분히 깔고(.82) 그 위에 블러를 얹는다. */
-  .cm-revevent-badge{position:absolute;top:10px;left:10px;font-size:11px;font-weight:800;padding:5px 9px;border-radius:999px;
-    background:rgba(224,122,166,.82);color:#fff;border:1px solid rgba(255,255,255,.5);
+  /* 이모지 하나만 담는 동그란 칩(2026-08-15) — 글자가 있던 알약 모양의 padding을 그대로 두면
+     🎁 혼자 눌린 타원이 된다. 고정 지름 + grid 정중앙 배치. */
+  .cm-revevent-badge{position:absolute;top:10px;left:10px;width:28px;height:28px;
+    display:grid;place-items:center;font-size:14px;line-height:1;border-radius:50%;
+    background:rgba(224,122,166,.82);border:1px solid rgba(255,255,255,.5);
     -webkit-backdrop-filter:blur(8px) saturate(150%);backdrop-filter:blur(8px) saturate(150%);
     box-shadow:0 3px 10px -3px rgba(90,40,70,.4)}
   /* ── 가려진 성인 커미션 카드(미인증자) ──

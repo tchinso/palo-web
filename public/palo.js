@@ -3846,7 +3846,9 @@ function cmCardHTML(d,idx,pos){
   // 첫 두 줄(4~6칸)은 첫 화면에 바로 보이므로 lazy 를 끄고 즉시 받는다
   var thumbImg=hasImg?thumbImgHTML(d.images[0],'class="thumb-fill"',pos!=null&&pos<6):'';
   var status=d.status==='open'?'<div class="cm-status open">오픈중</div>':'';
-  var revBadge=d.reviewEventOn?'<div class="cm-revevent-badge">🎁 리뷰 이벤트</div>':'';
+  // 목록 카드에는 🎁 하나만(2026-08-15 사용자 요청 — 글자까지 있으면 썸네일을 가린다).
+  // 무슨 뜻인지는 상세에서 배너로 설명되므로 여기선 표시만 한다. title은 마우스 올린 사람용.
+  var revBadge=d.reviewEventOn?'<div class="cm-revevent-badge" title="리뷰 이벤트 진행 중">🎁</div>':'';
   // 성인 커미션은 목록에서도 한눈에 구분되게 — 인증한 사람만 이 카드를 받아 보지만,
   // 그 사람에게도 "이건 19+"라는 표시는 있어야 한다.
   var adultBadge=d.isAdult?'<div class="cm-adult-badge" title="성인 커미션">19+</div>':'';
