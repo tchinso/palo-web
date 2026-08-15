@@ -9133,7 +9133,9 @@ function atStreak(){
 }
 
 /* ---- 내 정보 위쪽의 작은 출석 카드 ---- */
-function atCardHTML(){return '<div class="at-card" id="atCard"></div>';}
+/* ⚠️ .pf-group 을 반드시 함께 단다 — 내 정보 화면의 카드는 전부 이 클래스로 유리 마감이
+   걸려 있어서(파일 끝 '글래스모피즘 마감' 층), 빼면 혼자 불투명한 흰 상자로 떠 보인다. */
+function atCardHTML(){return '<div class="pf-group at-card" id="atCard"></div>';}
 async function atFillCard(){
   if(!document.getElementById("atCard"))return;
   if(AT.days===null){
@@ -9153,9 +9155,10 @@ function atCardInnerHTML(){
       '<span>'+W[d.getDay()]+'</span><i>'+d.getDate()+'</i></div>';
     d.setDate(d.getDate()+1);
   }
-  return '<div class="at-head"><div class="at-title">출석체크</div>'+
-      (st>0?'<div class="at-streak">🔥 '+st+'일 연속</div>':'')+'</div>'+
-    '<div class="at-sub">하루 한 번 · 활동 20P + 광고 20P</div>'+
+  // 제목 줄은 다른 카드(pfSection)와 같은 구조를 쓴다 — 여기만 다르게 만들면 바로 티가 난다
+  return '<div class="pf-group-head"><div class="pf-group-title">출석체크'+
+      (st>0?' <span class="at-streak">🔥 '+st+'일 연속</span>':'')+'</div>'+
+      '<div class="pf-group-desc">하루 한 번 출석하고 활동 20P · 광고 20P를 받아요</div></div>'+
     '<div class="at-strip">'+strip+'</div>'+
     '<button type="button" class="at-btn'+(done?" done":"")+'"'+(done?" disabled":' onclick="atCheckIn()"')+'>'+
       (done?"오늘 출석 완료":"오늘 출석하기")+'</button>'+
@@ -9258,12 +9261,13 @@ function renderAttendance(){
   var h='<div class="profile">'+
     '<button class="d-back" onclick="screenBack()">← 내 정보로</button>'+
     '<div class="pf-sec">출석체크</div>'+
-    '<div class="at-stats">'+
-      '<div class="at-st"><b>'+st+'</b><span>연속 출석</span></div>'+
-      '<div class="at-st"><b>'+monthCount+'</b><span>'+m+'월 출석</span></div>'+
-      '<div class="at-st"><b>'+(AT.total||0)+'</b><span>누적 출석</span></div>'+
+    // 통계 3칸은 내 정보의 .pf-stats 를 그대로 쓴다(따로 만들면 유리 마감을 못 물려받는다)
+    '<div class="pf-stats">'+
+      '<div class="pf-st"><b>'+st+'</b><span>연속 출석</span></div>'+
+      '<div class="pf-st"><b>'+monthCount+'</b><span>'+m+'월 출석</span></div>'+
+      '<div class="pf-st"><b>'+(AT.total||0)+'</b><span>누적 출석</span></div>'+
     '</div>'+
-    '<div class="at-cal" id="at-cal">'+
+    '<div class="pf-group at-cal" id="at-cal">'+
       '<div class="at-nav">'+
         '<button type="button" aria-label="이전 달" onclick="atShiftMonth(-1)">'+
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>'+
@@ -9271,8 +9275,9 @@ function renderAttendance(){
         '<button type="button" aria-label="다음 달"'+(ym>=thisMonth?" disabled":"")+' onclick="atShiftMonth(1)">'+
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>'+
       '</div>'+
-      '<div class="at-grid at-wk">'+head+'</div>'+
-      '<div class="at-grid">'+cells+'</div>'+
+      // pf-group 안쪽 내용은 흰 판(.pf-list 계열) 위에 얹는 것이 이 화면의 규칙이다
+      '<div class="at-sheet"><div class="at-grid at-wk">'+head+'</div>'+
+        '<div class="at-grid">'+cells+'</div></div>'+
       '<div class="at-legend"><span class="at-dot"></span>출석한 날</div>'+
     '</div>'+
     '<button type="button" class="at-btn big'+(done?" done":"")+'"'+(done?" disabled":' onclick="atCheckIn()"')+'>'+

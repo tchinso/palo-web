@@ -1658,50 +1658,62 @@
   .pf-progress .pp-fill{height:100%;background:linear-gradient(90deg,var(--brand),var(--grape));border-radius:4px;transition:width .4s}
 
   /* ===== 출석체크 =====
-     ⚠️ .at-card 는 내용이 비동기로 채워진다. 비어 있는 동안 테두리만 뜬 빈 상자가
-        보이지 않도록 :empty 일 때는 아예 감춘다(.profile 이 flex+gap 이라 빈 칸도 자리를 먹는다). */
-  .at-card{background:var(--surface);border:1.5px solid var(--line-2);border-radius:var(--r);padding:14px 16px 12px}
+     ⚠️ 카드 표면(배경·테두리·그림자·모서리)은 **여기서 정하지 않는다.** 마크업에서
+        `.pf-group`을 함께 달아 내 정보 화면의 유리 마감(파일 끝 '글래스모피즘 마감' 층)을
+        그대로 물려받는다. 여기에 background/border를 적으면 그 층과 싸워서, 다른 카드는
+        유리인데 이것만 불투명한 흰 상자로 떠 보인다. 통계 3칸도 같은 이유로 .pf-st 를 쓴다.
+     ⚠️ .at-card 는 내용이 비동기로 채워진다. 비어 있는 동안 빈 상자가 보이지 않도록
+        :empty 일 때는 감춘다(.profile 이 flex+gap 이라 빈 칸도 자리를 먹는다). */
   .at-card:empty{display:none}
-  .at-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
-  .at-title{font-size:14px;font-weight:900;color:var(--ink)}
-  .at-streak{font-size:11.5px;font-weight:800;color:var(--brand-2);background:var(--brand-soft);border-radius:999px;padding:4px 9px;white-space:nowrap}
-  .at-sub{font-size:11.5px;font-weight:700;color:var(--muted);margin-top:3px}
-  .at-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:11px 0 12px}
-  .at-d{display:flex;flex-direction:column;align-items:center;gap:4px}
+  /* 제목 옆 연속일 배지 — .pf-tile-t i(개수 배지)와 같은 계열 */
+  .at-streak{display:inline-block;vertical-align:middle;margin-left:5px;font-size:11px;font-weight:800;
+    color:var(--brand-2);background:var(--brand-soft);border-radius:7px;padding:2px 7px;white-space:nowrap}
+  .at-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:2px 0 12px}
+  .at-d{display:flex;flex-direction:column;align-items:center;gap:5px}
   .at-d span{font-size:10px;font-weight:800;color:var(--muted)}
-  .at-d i{display:flex;align-items:center;justify-content:center;width:100%;max-width:34px;aspect-ratio:1/1;border-radius:50%;background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:800;font-style:normal}
-  .at-d.on i{background:var(--brand);color:#fff}
+  /* ⚠️ 안 한 날의 배경은 --surface-2(불투명 분홍끼 회색)를 쓰면 유리 위에서 탁하게 뜬다.
+     .pf-tile-ic 가 유리 층에서 rgba(255,255,255,.8)로 덮이는 것과 같은 이유. */
+  .at-d i{display:flex;align-items:center;justify-content:center;width:100%;max-width:34px;aspect-ratio:1/1;
+    border-radius:50%;background:rgba(255,255,255,.72);color:var(--muted);font-size:12px;font-weight:800;font-style:normal}
+  /* 활성 표시는 사이트의 상징색(브랜드→포도 120deg) — 로고·워드마크·.write-btn 과 같은 값.
+     ⚠️ .chip.on 은 참고하지 말 것. 같은 그라디언트가 적혀 있지만 뒤에서 두 번 덮여
+        지금은 알약형(테두리+옅은 그림자)이다 — 파일 앞쪽 값만 보고 베끼면 죽은 디자인을 되살리게 된다. */
+  .at-d.on i{background:linear-gradient(120deg,var(--brand),var(--grape));color:#fff;box-shadow:0 3px 10px rgba(255,93,162,.3)}
   .at-d.now i{box-shadow:0 0 0 2px var(--brand-2)}
-  .at-btn{width:100%;border:0;border-radius:13px;background:var(--brand);color:#fff;font-family:inherit;font-size:13.5px;font-weight:900;padding:12px;cursor:pointer;transition:.14s}
-  .at-btn:hover:not(:disabled){background:var(--brand-2)}
-  .at-btn.done,.at-btn:disabled{background:var(--surface-2);color:var(--muted);cursor:default}
-  .at-btn.big{padding:15px;font-size:14.5px;border-radius:15px}
-  .at-more{display:flex;align-items:center;justify-content:center;gap:2px;width:100%;background:none;border:0;font-family:inherit;font-size:12px;font-weight:800;color:var(--muted);padding:9px 0 2px;cursor:pointer}
+  .at-d.on.now i{box-shadow:0 0 0 2px var(--brand-2),0 3px 10px rgba(255,93,162,.3)}
+  /* 주 버튼 — .write-btn(글쓰기)과 같은 마감 */
+  .at-btn{width:100%;border:none;border-radius:15px;background:linear-gradient(120deg,var(--brand),var(--grape));
+    color:#fff;font-family:inherit;font-size:13.5px;font-weight:800;padding:13px;cursor:pointer;transition:.16s;
+    box-shadow:0 4px 14px rgba(255,93,162,.35)}
+  .at-btn:active:not(:disabled){transform:scale(.985)}
+  .at-btn.done,.at-btn:disabled{background:rgba(255,255,255,.62);color:var(--muted);cursor:default;box-shadow:0 1px 2px rgba(31,22,28,.06)}
+  .at-btn.big{padding:15px;font-size:14.5px}
+  .at-more{display:flex;align-items:center;justify-content:center;gap:2px;width:100%;background:none;border:0;
+    font-family:inherit;font-size:12px;font-weight:800;color:var(--muted);padding:10px 0 0;cursor:pointer}
   .at-more svg{width:14px;height:14px}
   .at-more:hover{color:var(--brand-2)}
-  .at-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-  .at-st{background:var(--surface);border:1.5px solid var(--line-2);border-radius:18px;padding:15px 8px;text-align:center}
-  .at-st b{display:block;font-size:19px;font-weight:900;color:var(--ink)}
-  .at-st span{font-size:11px;color:var(--muted);font-weight:700;margin-top:3px;display:block}
-  .at-cal{background:var(--surface);border:1.5px solid var(--line-2);border-radius:var(--r);padding:14px 14px 12px}
-  .at-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .at-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:0 2px}
   .at-nav button{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:none;border:0;border-radius:50%;color:var(--ink-2);cursor:pointer}
-  .at-nav button:hover:not(:disabled){background:var(--surface-2)}
+  .at-nav button:hover:not(:disabled){background:rgba(255,255,255,.7)}
   .at-nav button:disabled{color:var(--muted-2);cursor:default}
   .at-nav button svg{width:20px;height:20px}
-  .at-ym{font-size:15px;font-weight:900;color:var(--ink)}
+  .at-ym{font-size:14.5px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+  /* 달력 격자는 .pf-list 와 같은 '유리 위의 흰 판' — pf-group 안쪽은 이 마감이 규칙이다 */
+  .at-sheet{background-color:rgba(255,255,255,.62);border:1px solid rgba(255,255,255,.75);border-radius:18px;
+    padding:12px 10px;box-shadow:0 1px 2px rgba(31,22,28,.06),0 4px 14px rgba(31,22,28,.09)}
   .at-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
   .at-wk{margin-bottom:4px}
   .at-w{text-align:center;font-size:11px;font-weight:800;color:var(--muted);padding:2px 0}
   .at-w.sun{color:#c2546a}
   .at-w.sat{color:#5570b8}
-  .at-c{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;border-radius:50%;font-size:12.5px;font-weight:800;color:var(--ink-2)}
+  .at-c{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;border-radius:50%;font-size:12.5px;font-weight:700;color:var(--ink-2)}
   .at-c.gap{visibility:hidden}
   .at-c.fut{color:var(--muted-2)}
-  .at-c.on{background:var(--brand);color:#fff;font-weight:900}
+  .at-c.on{background:linear-gradient(120deg,var(--brand),var(--grape));color:#fff;font-weight:800;box-shadow:0 3px 10px rgba(255,93,162,.3)}
   .at-c.now{box-shadow:inset 0 0 0 2px var(--brand-2)}
+  .at-c.on.now{box-shadow:inset 0 0 0 2px var(--brand-2),0 3px 10px rgba(255,93,162,.3)}
   .at-legend{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--muted);margin-top:11px}
-  .at-dot{width:11px;height:11px;border-radius:50%;background:var(--brand);display:inline-block}
+  .at-dot{width:11px;height:11px;border-radius:50%;background:linear-gradient(120deg,var(--brand),var(--grape));display:inline-block}
   .at-note{font-size:11.5px;line-height:1.65;color:var(--muted)}
   .at-note b{font-weight:800;color:var(--ink-2)}
   .pf-tabs{display:flex;gap:6px;flex-wrap:wrap}
@@ -2152,50 +2164,31 @@
   /* 제목 옆 태그. 예전엔 --brand(#e07aa6) 글자 / --brand-soft(#f7e6ef) 배경이라 대비가
      2.6:1밖에 안 돼 12px 글자가 흐릿했다 — 배너 제목과 같은 진한 톤으로 맞춘다. */
   .cm-revevent-tag{display:inline-block;vertical-align:middle;font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px;
-    background:linear-gradient(135deg,rgba(247,230,239,.9),rgba(238,232,250,.9));color:#a83a68;
-    border:1px solid rgba(255,255,255,.8);box-shadow:0 2px 8px -3px rgba(150,80,125,.4);
+    background:linear-gradient(120deg,var(--brand-soft),#f3e8ff);color:#a83a68;
     margin-left:6px;letter-spacing:0}
-  /* 리뷰 이벤트 배너 — 글래스모피즘.
-     ⚠️ 이 페이지 배경(--bg)은 단색이라 backdrop-filter만 걸면 **아무 효과도 안 보인다**
-        (블러는 뒤에 있는 것을 흐리는 건데 뒤가 민무늬라 흐릴 게 없다).
-        그래서 색 얼룩을 ::before로 직접 깔고, 그 위를 ::after 유리판이 덮는 2겹 구조로 만든다.
-     ⚠️ 쌓임 순서: 요소 자기 배경 → 음수 z-index 자식 → 본문 내용. 그래서 얼룩은 z-index:-2,
-        유리판은 -1 이어야 글자가 항상 맨 위로 온다. 부모 배경에 흰색을 주면 얼룩 **아래**로
-        깔려 아무 소용이 없다 — 그래서 부모는 배경 없이 테두리만 갖는다.
-     ⚠️ isolation:isolate 로 쌓임 맥락을 가둔다. 없으면 음수 z-index가 조상까지 뚫고 올라가
-        상세페이지의 다른 요소 뒤로 숨는다. */
-  .cm-revevent{position:relative;isolation:isolate;overflow:hidden;border-radius:20px;padding:17px 18px;margin:16px 0;
-    border:1px solid rgba(255,255,255,.72);
-    box-shadow:0 12px 30px -14px rgba(150,80,125,.42),inset 0 1px 0 rgba(255,255,255,.9)}
-  /* ⚠️ 여기에 filter:blur()를 쓰면 안 된다. **필터가 걸린 자식은 부모의 둥근 모서리로
-     잘리지 않아**(사각 박스로만 잘림) 모서리에 색 자투리가 삐져나온다 — overflow:hidden을
-     줘도 소용없다. 그래서 블러 대신 **모서리에 앵커를 둔 큰 radial-gradient**로 부드러움을
-     만들고, inset:0 + border-radius:inherit 로 각 층이 스스로 둥글게 잘리게 한다.
-     덤으로 큰 영역 블러가 사라져 모바일에서 훨씬 가볍다. */
-  .cm-revevent::before{content:"";position:absolute;inset:0;z-index:-2;border-radius:inherit;
+  /* 리뷰 이벤트 배너 — 이 사이트의 유리 마감(.pf-group, 2026-08-08 '시안 A')을 그대로 쓴다.
+     ⚠️ 유리를 새로 발명하지 말 것. 흰색 사선 그라디언트 + blur(20px) saturate(2.1)
+        brightness(1.05) + 안쪽 흰 하이라이트 + 2단 그림자가 이 사이트의 유리 공식이다.
+        예전엔 여기만 3색 얼룩(분홍·보라·주황)을 깔아 혼자 다른 화면처럼 보였다.
+     ⚠️ 아래 색 틴트는 **반투명이어야 한다.** 불투명하게 깔면 그 뒤가 안 비쳐
+        backdrop-filter가 하는 일이 없어지고 그냥 색판이 된다.
+     '이벤트'라는 강조는 .notice(공지 배너)가 쓰는 브랜드→포도 틴트로 낸다. */
+  .cm-revevent{border:1px solid rgba(255,255,255,.8);border-radius:24px;padding:16px 17px;margin:16px 0;
     background:
-      radial-gradient(125% 135% at 0% 0%,rgba(224,122,166,.8),rgba(224,122,166,0) 60%),
-      radial-gradient(115% 125% at 100% 0%,rgba(151,132,214,.58),rgba(151,132,214,0) 58%),
-      radial-gradient(125% 130% at 85% 100%,rgba(224,160,116,.45),rgba(224,160,116,0) 58%)}
-  /* ⚠️ 유리의 흰색 농도는 취향이 아니라 **글자 대비**가 정한다. .74→.52 로 얇게 뒀을 때
-     오른쪽 아래(주황 얼룩 위)의 작은 안내문이 4.18:1 로 기준(4.5:1) 미달이었다.
-     .78→.60 + 얼룩 농도를 낮춰 제목 5.08:1 / 안내문 5.52:1 로 맞췄다. 값을 다시 만질 땐
-     **오른쪽 아래 모서리**를 기준으로 계산할 것 — 거기가 가장 불리하다. */
-  .cm-revevent::after{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;
-    background:linear-gradient(145deg,rgba(255,255,255,.78),rgba(255,255,255,.6));
-    -webkit-backdrop-filter:blur(8px) saturate(150%);backdrop-filter:blur(8px) saturate(150%)}
-  /* 유리판 위 글자라 색이 흐려지기 쉽다 — --brand-2(#d1608f)는 3.5:1로 기준 미달이라
-     같은 계열의 더 진한 톤을 쓴다(약 5:1). */
+      linear-gradient(125deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.1) 36%,rgba(255,255,255,.02) 58%),
+      linear-gradient(120deg,rgba(224,122,166,.16),rgba(151,132,214,.14));
+    -webkit-backdrop-filter:blur(20px) saturate(2.1) brightness(1.05);backdrop-filter:blur(20px) saturate(2.1) brightness(1.05);
+    box-shadow:inset 0 1.5px 0 rgba(255,255,255,1),inset 0 0 0 1px rgba(255,255,255,.25),0 2px 6px rgba(31,22,28,.07),0 16px 40px rgba(31,22,28,.15)}
+  /* --brand-2(#d1608f)는 이 배경 위에서 3.5:1로 기준 미달이라 같은 계열의 더 진한 톤을 쓴다. */
   .cm-revevent-h{font-size:14.5px;font-weight:900;color:#a83a68;margin-bottom:8px;letter-spacing:-.2px}
   .cm-revevent-benefit{font-size:14px;line-height:1.65;color:var(--ink);white-space:normal;font-weight:600}
-  .cm-revevent-cta{margin-top:14px;width:100%;font-family:inherit;
-    background:linear-gradient(120deg,var(--brand),var(--brand-2));color:#fff;
-    border:1px solid rgba(255,255,255,.45);border-radius:14px;padding:12.5px;
-    font-size:14px;font-weight:800;cursor:pointer;
-    box-shadow:0 8px 18px -8px rgba(209,96,143,.75),inset 0 1px 0 rgba(255,255,255,.35);
-    transition:transform .14s,box-shadow .14s,filter .14s}
-  .cm-revevent-cta:hover{filter:brightness(1.04);transform:translateY(-1px);box-shadow:0 11px 22px -9px rgba(209,96,143,.8),inset 0 1px 0 rgba(255,255,255,.35)}
-  .cm-revevent-cta:active{transform:translateY(0)}
+  /* 주 버튼은 사이트 공통 마감(.write-btn)과 같은 값을 쓴다 — 여기만 다른 그라디언트·그림자를
+     쓰면 버튼 하나가 다른 사이트에서 온 것처럼 보인다. */
+  .cm-revevent-cta{margin-top:14px;width:100%;font-family:inherit;border:none;border-radius:15px;padding:13px;
+    background:linear-gradient(120deg,var(--brand),var(--grape));color:#fff;
+    font-size:14px;font-weight:800;cursor:pointer;transition:.16s;
+    box-shadow:0 4px 14px rgba(255,93,162,.35)}
+  .cm-revevent-cta:active{transform:scale(.985)}
   /* --muted 는 --bg(민무늬) 기준으로 맞춘 색이라 색 얼룩이 비치는 유리 위에서는 모자란다 */
   .cm-revevent-note{margin-top:11px;font-size:11.5px;line-height:1.5;color:var(--ink-2)}
   .cm-adminscore{border:1.5px solid #cdd8e6;background:#f4f7fb;border-radius:14px;padding:14px 15px;margin:14px 0}
