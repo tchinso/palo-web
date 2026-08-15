@@ -3458,18 +3458,33 @@ function cmPrimeFromCache(){
     cmDataLoaded=true;                          // cmGridHTML이 '불러오는 중...' 대신 카드를 그리게
   }catch(e){}
 }
-/* 홈을 보는 동안 커미션 데이터를 미리 불러 둔다 — 탭을 눌렀을 때 이미 메모리에 있어 즉시 그려진다.
-   ⚠️ 홈 로딩과 경쟁하지 않게 몇 초 쉰 뒤 유휴 시간에 돈다. 데이터 절약 모드면 안 한다. */
+/* 홈을 보는 동안 다른 탭의 데이터를 미리 불러 둔다 — 탭을 눌렀을 때 이미 메모리에 있어
+   즉시 그려진다. 커미션(+첫 썸네일 예열) → 채팅 목록 → 출석 → 이모티콘 마켓 순.
+   ⚠️ 홈 로딩과 경쟁하지 않게 몇 초 쉰 뒤 유휴 시간에, 서로도 시차를 두고 하나씩 돈다.
+   ⚠️ 데이터 절약 모드면 전부 안 한다. 각 단계는 "이미 불러왔으면 건너뜀" 가드가 있어
+      사용자가 그 탭을 먼저 열어도 이중 로드가 없다(각자의 refreshing 가드가 동시성도 막는다). */
 function cmIdlePrefetch(){
   try{if(navigator.connection&&navigator.connection.saveData)return;}catch(e){}
-  var go=function(){
-    if(curTab==="commission"||cmLoadedAt>0)return; // 이미 열었거나 열려 있으면 그쪽이 알아서 한다
+  var idle=function(fn){return function(){if(window.requestIdleCallback)requestIdleCallback(fn,{timeout:3000});else fn();};};
+  setTimeout(idle(function(){ // 커미션 — 가장 많이 오가는 탭이라 첫 순서
+    if(curTab==="commission"||cmLoadedAt>0)return;
     refreshCommissions().then(function(){cmWarmThumbs(8);});
-  };
-  setTimeout(function(){
-    if(window.requestIdleCallback)requestIdleCallback(go,{timeout:3000});
-    else go();
-  },2500);
+  }),2500);
+  setTimeout(idle(function(){ // 채팅 목록(로그인시) — 목록만, 메시지 본문은 방에 들어갈 때
+    if(!AUTH.user||chatListCache||curTab==="chat")return;
+    loadChatListData();
+  }),4500);
+  setTimeout(idle(function(){ // 출석 최근 60일 — 내 정보 상단 카드가 즉시 채워지게
+    if(!AUTH.user||AT.days!==null)return;
+    var t=atTodayDate(),from=new Date(t.getTime()-59*86400000);
+    atLoad(atYmd(from),atYmd(t));
+  }),6000);
+  setTimeout(idle(function(){ // 이모티콘 마켓 — 데이터만(skipRender), 화면은 안 건드림
+    if(EMO_MARKET.length)return;
+    var top=screenStack[screenStack.length-1];
+    if(top&&top.key==="emoMarket")return; // 이미 그 화면이면 자기가 알아서 한다
+    reloadEmoticonMarket(true);
+  }),7500);
 }
 /* 첫 화면에 나올 썸네일을 브라우저 캐시에 미리 받아 둔다(그리는 것 아님 — HTTP 캐시 예열).
    ⚠️ 지금 화면의 정렬 기준으로 앞 n장만. 전부 받으면 예열이 아니라 낭비다. */
@@ -7091,10 +7106,12 @@ var EMO_QUERY="";
 async function openEmoticonMarket(){
   if(!window.supabase)return;
   enterScreen("emoMarket",openProfile); // 뒤로가기가 프로필로 복귀
-  document.getElementById("main").innerHTML='<div class="profile"><div class="pf-sec">🙂 이모티콘</div><div class="pf-empty">불러오는 중…</div></div>';
+  // 이미 불러온 목록(재방문·유휴 프리페치)이 있으면 즉시 그리고 뒤에서 최신으로 교체
+  if(EMO_MARKET.length)renderEmoticonMarket();
+  else document.getElementById("main").innerHTML='<div class="profile"><div class="pf-sec">🙂 이모티콘</div><div class="pf-empty">불러오는 중…</div></div>';
   await reloadEmoticonMarket();
 }
-async function reloadEmoticonMarket(){
+async function reloadEmoticonMarket(skipRender){
   // 인기순은 점수를 계산해 둔 뷰(emoticon_pack_rank)에서 가져온다.
   // 점수 = 최근 사용 40% + 최근 담김 30% + 누적 사용 20% + 누적 담김 10% (+ 신규 보정)
   var hot=(EMO_SORT==="hot");
@@ -7132,9 +7149,14 @@ async function reloadEmoticonMarket(){
       saved:p.saved_count||0,used:p.use_count||0,recentUses:p.recent_uses||0,
       items:byPack[p.id]||[],count:(byPack[p.id]||[]).length,mine:!!mineSet[p.id]};
   });
-  renderEmoticonMarket();
+  if(!skipRender)renderEmoticonMarket(); // skipRender: 유휴 프리페치 — 데이터만 채우고 화면은 안 건드림
 }
 function renderEmoticonMarket(){
+  /* ⚠️ 지금 이모티콘 화면을 보고 있을 때만 그린다. reloadEmoticonMarket이 네트워크를 기다리는
+     동안 사용자가 다른 화면으로 갔는데도 끝나자마자 #main을 덮어쓰던 버그가 있었다(2026-08-15
+     되짚기 점검에서 발견 — 커미션·채팅의 navSeq 가드와 같은 계열의 구멍). */
+  var _top=screenStack[screenStack.length-1];
+  if(!_top||_top.key!=="emoMarket")return;
   var isAdmin=!!(AUTH.profile&&AUTH.profile.is_admin);
   var h='<div class="profile">'+
     '<button class="d-back" onclick="screenBack()">← 내 정보로</button>'+
@@ -8886,11 +8908,24 @@ async function openChatList(origin){
     document.getElementById("main").innerHTML='<div class="profile"><p style="padding:40px 0;text-align:center;color:var(--muted)">불러오는 중...</p></div>';
   }
 
+  var data=await loadChatListData();
+  if(mySeq!==navSeq)return; // 로딩이 끝났지만 그새 다른 탭으로 이동함 → 채팅으로 화면을 덮어쓰지 않음
+  if(!data){toast("채팅 목록을 불러오지 못했어요"+(_chatListLoadErr?": "+_chatListLoadErr:""));return;}
+  renderChatList(data.convs,data.partnerIds,data.nickById,data.avaById,data.lastMsgByConv,data.unreadByConv);
+}
+/* 채팅 목록 데이터만 불러와 chatListCache 에 채운다(화면은 안 그림) — openChatList 와
+   유휴 프리페치가 공유한다.
+   ⚠️ 채팅 목록은 커미션과 달리 **localStorage 에 저장하지 않는다** — 마지막 메시지 미리보기가
+      담기는 사적 데이터라, 로그아웃 후에도 기기에 남으면 안 된다(메모리 캐시는 applySession 이
+      계정 전환·로그아웃 때 비운다). 대신 부팅 유휴 시간에 미리 불러 두는 것으로 속도를 낸다. */
+var _chatListLoadErr=null;
+async function loadChatListData(){
+  if(!AUTH.user||!window.supabase)return null;
+  _chatListLoadErr=null;
   var convRes=await window.supabase.from("conversations").select("*")
     .or("user1_id.eq."+AUTH.user.id+",user2_id.eq."+AUTH.user.id)
     .order("last_message_at",{ascending:false});
-  if(mySeq!==navSeq)return; // 로딩 중 사용자가 다른 탭으로 이동함 → 더 진행하지 않음(현재 화면 유지)
-  if(convRes.error){toast("채팅 목록을 불러오지 못했어요: "+convRes.error.message);return;}
+  if(convRes.error){_chatListLoadErr=convRes.error.message;return null;}
   var convs=convRes.data||[];
   var partnerIds=convs.map(function(c){return c.user1_id===AUTH.user.id?c.user2_id:c.user1_id;});
   var convIds=convs.map(function(c){return c.id;});
@@ -8919,8 +8954,7 @@ async function openChatList(origin){
   convs=kept;partnerIds=keptPartners;
 
   chatListCache={convs:convs,partnerIds:partnerIds,nickById:nickById,avaById:avaById,lastMsgByConv:lastMsgByConv,unreadByConv:unreadByConv}; // 다음 재방문 시 즉시 표시용
-  if(mySeq!==navSeq)return; // 로딩이 끝났지만 그새 다른 탭으로 이동함 → 채팅으로 화면을 덮어쓰지 않음
-  renderChatList(convs,partnerIds,nickById,avaById,lastMsgByConv,unreadByConv);
+  return chatListCache;
 }
 function chatListDate(iso){
   if(!iso)return"";
@@ -9566,13 +9600,19 @@ async function openLeaderboard(period){
         히스토리가 쌓이면 뒤로가기를 여러 번 눌러야 빠져나온다. */
   if(location.pathname!=="/ranking"){try{history.pushState({},"","/ranking");}catch(e){}}
   document.title="포인트 랭킹 · commi";
-  document.getElementById("main").innerHTML='<div class="profile"><p style="padding:40px 0;text-align:center;color:var(--muted)">불러오는 중...</p></div>';
+  // 같은 세션에서 본 적 있으면 즉시 그리고 뒤에서 최신으로 교체(커미션 목록과 같은 패턴)
+  if(LB_CACHE[period])renderLeaderboard(LB_CACHE[period],period);
+  else document.getElementById("main").innerHTML='<div class="profile"><p style="padding:40px 0;text-align:center;color:var(--muted)">불러오는 중...</p></div>';
   if(!window.supabase){toast("사용할 수 없어요");return;}
   var days=period==="month"?30:7;
   var res=await window.supabase.rpc("get_score_leaderboard",{p_days:days,p_limit:10});
-  if(res.error){toast("불러오기 실패: "+res.error.message);return;}
-  renderLeaderboard(res.data||[],period);
+  if(res.error){if(!LB_CACHE[period])toast("불러오기 실패: "+res.error.message);return;}
+  LB_CACHE[period]=res.data||[];
+  // ⚠️ 기다리는 사이 다른 화면으로 갔으면 덮어쓰지 않는다(주소로 판정 — 랭킹은 화면 스택을 안 쓴다)
+  if(location.pathname!=="/ranking")return;
+  renderLeaderboard(LB_CACHE[period],period);
 }
+var LB_CACHE={}; // 기간별 랭킹(주간/월간) — 세션 메모리 캐시
 function renderLeaderboard(rows,period){
   var h='<div class="profile">'+
     '<button class="d-back" onclick="renderList()">← 목록으로</button>'+
