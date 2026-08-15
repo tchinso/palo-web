@@ -3299,6 +3299,8 @@ var cmState={activeTag:null,wrType:null,wrCommissionId:null,query:'',sort:'home'
 try{cmState.showAdult=localStorage.getItem('cmShowAdult')==='1';}catch(e){}
 var cmReg={images:[],tags:[],status:'open',editingId:null};
 var cmDetailCtx={from:'list',idx:0};
+// 지금 상세로 열려 있는 커미션 id(없으면 null=미리보기). 헤더의 공유·더보기 버튼이 쓴다.
+var cmDetailCurrentId=null;
 var cmPreviewObj=null;
 function cmQ(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
 /* ===== 커미션 끌올(다시 위로 올리기) =====
@@ -4182,13 +4184,14 @@ function cmDetailHTML(d,idx){
     ?('<div class="cm-verify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>만족율 '+Math.round(goodCnt/realReviews.length*100)+'%</div>')
     :'';
   var channel=d.channel||(artist==='나'?'내 커미션':(artist+' 커미션'));
+  /* ⚠️ 여기서 '지금 보고 있는 커미션'을 기록한다 — 헤더의 공유·더보기 버튼이 이 값을 쓴다.
+     상세를 그리는 경로가 넷(목록 클릭·링크 진입·미리보기·미리보기 복귀)이라, 각 호출부에
+     흩어 두면 한 곳만 빠뜨려도 조용히 어긋난다. 모두가 반드시 지나는 이 자리에 둔다.
+     등록 미리보기는 id가 없어 null → 헤더 버튼도 숨는다(_cmDetailNow). */
+  cmDetailCurrentId=(d&&d.id!=null)?d.id:null;
+  /* 예전엔 여기에 [←] ... [공유][⋯] 만 든 59px짜리 바가 있었다. 거의 빈 줄이라
+     앱 헤더로 올리고 제거했다(2026-08-15 사용자 요청) — 헤더의 ☰가 상세에선 ←가 된다. */
   return '<div class="cm-root">'+
-    '<div class="cm-d-top"><div class="cm-left"><svg onclick="screenBack()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></div>'+
-      '<div class="cm-right">'+
-        
-        '<svg onclick="cmShare('+(d.id!=null?d.id:'null')+')" style="cursor:pointer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M4 15v5h16v-5"/></svg>'+
-        '<svg onclick="cmOpenMoreMenu('+(d.id!=null?d.id:'null')+')" style="cursor:pointer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>'+
-      '</div></div>'+
     sliderHTML+
     '<div class="cm-d-body">'+
       satisfactionHTML+
@@ -5345,7 +5348,10 @@ async function cmDeleteCommission(id){
   if(Array.isArray(cmMyList))cmMyList=cmMyList.filter(function(c){return c.id!==id;});
   if(cmWsCache)delete cmWsCache[id];
   toast("커미션을 삭제했어요","🗑");
-  if(document.querySelector('#main .cm-d-top')){          // 커미션 상세를 보고 있었으면 → 목록으로 되돌아감
+  // ⚠️ 예전엔 상단바(.cm-d-top)의 존재로 상세 화면인지 판단했는데, 그 바를 헤더로 합치면서
+  //    사라졌다(2026-08-15). 이제 화면 스택으로 판단한다 — 사라질 수 있는 마크업 대신 상태를 본다.
+  if(document.body.classList.contains('cm-detail')||
+     (typeof screenStack!=="undefined"&&screenStack.length&&screenStack[screenStack.length-1].key==="cmDetail")){
     screenBack();
   }else if(document.getElementById('cmMyList')){          // 내 커미션 목록이면 그 자리에서 갱신
     document.getElementById('cmMyList').innerHTML=cmMyListHTML();
@@ -5519,8 +5525,18 @@ function _cmPageNow(){
       그 사이 화면을 옮기면 표시가 옛 상태로 남는다(2026-08-13 실측: 스택은 cmList인데
       cm-page가 안 붙음). 판정은 screenStack을 읽는 것뿐이라 바로 하는 편이 안전하다.
    ⚠️ 관찰은 childList만. class까지 보면 우리가 붙이는 cm-page가 다시 관찰을 부른다. */
+/* 지금 화면이 '커미션 상세'인가 — 헤더의 공유·더보기·뒤로 아이콘을 이때만 보여준다.
+   ⚠️ id가 없는 경우(등록 미리보기)는 제외한다 — 공유할 대상이 없는데 버튼만 뜨면 눌러도 헛일이다. */
+function _cmDetailNow(){
+  try{
+    if(typeof screenStack==="undefined"||!screenStack.length)return false;
+    var top=screenStack[screenStack.length-1];
+    return !!(top&&top.key==="cmDetail"&&cmDetailCurrentId!=null);
+  }catch(e){return false;}
+}
 function _cmScheduleSync(){
   document.body.classList.toggle('cm-page',_cmPageNow());
+  document.body.classList.toggle('cm-detail',_cmDetailNow());
   cmSyncTabbarHeight();
 }
 new MutationObserver(_cmScheduleSync)
@@ -7727,7 +7743,11 @@ function openDrawer(){
   if(sc)sc.addEventListener('scroll',dwSyncFade,{passive:true}); // passive: 스크롤을 막지 않아 더 부드럽다
 })();
 function closeDrawer(){drawer.classList.remove('open');scrim.classList.remove('open');document.body.style.overflow=''}
-document.getElementById('menuBtn').addEventListener('click',openDrawer);
+// 커미션 상세에서는 같은 버튼이 ← 로 바뀌므로(위 CSS) 동작도 뒤로가기여야 한다
+document.getElementById('menuBtn').addEventListener('click',function(){
+  if(document.body.classList.contains('cm-detail'))screenBack();
+  else openDrawer();
+});
 document.getElementById('drawerClose').addEventListener('click',closeDrawer);
 scrim.addEventListener('click',closeDrawer);
 

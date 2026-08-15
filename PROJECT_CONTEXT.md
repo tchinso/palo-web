@@ -1690,6 +1690,14 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 커미션 상세 상단바를 앱 헤더로 통합 (2026-08-15, 사용자 요청)
+상세에 상단 바가 **두 겹**이었다(앱 헤더 57px + 커미션 전용 바 59px). 아래 바는 `[←] …… [공유][⋯]`뿐이라 거의 빈 줄 → 제거하고 셋 다 앱 헤더로 올렸다. **이미지가 116px→57px에서 시작**(실측).
+- `.cm-detail-btn`(공유·더보기) 헤더에 추가, `body.cm-detail`일 때만 표시. 헤더의 ☰는 상세에서 ←로 바뀌고(아이콘 2개를 넣어 두고 CSS가 고름) `menuBtn` 핸들러가 `cm-detail`이면 `screenBack()`.
+- **⚠️ 대상 커미션 id는 `cmDetailHTML` 첫머리에서 `cmDetailCurrentId`에 기록** — 상세를 그리는 경로가 넷(목록 클릭·링크 진입·미리보기·미리보기 복귀)이라 호출부에 흩으면 한 곳만 빠뜨려도 조용히 어긋난다. 모두가 지나는 자리 한 곳에 둔다. 미리보기는 id가 없어 null → 버튼도 숨음.
+- **⚠️ 동반 수정**: 커미션 삭제 후 화면 판정이 `#main .cm-d-top` 존재로 돼 있었다 — 그 바를 지우면서 상세에서 삭제해도 목록으로 안 돌아가게 될 뻔했다. 화면 스택 기준으로 교체(사라질 수 있는 마크업 대신 상태를 본다).
+- **⚠️ 320px 헤더 넘침(실측 68px)**: 상세에서만 검색·랭킹·내 커미션을 접어 해결(셋 다 서랍·하단탭에 있음). **이 미디어 블록은 `body.cm-page` 규칙들 뒤에 와야 한다** — 특이도가 같아 순서로 갈린다(앞에 뒀다가 '내 커미션'이 안 숨는 것을 실측).
+- 검증(dev): 이미지 y=57·빈 바 없음·헤더 아이콘 전환·공유 클릭이 정확한 id 전달·← 뒤로 동작, 화면 6종(목록·홈·상세·작가프로필·상세복귀·후기)에서 버튼 켜짐/꺼짐 정확, 미리보기 0개, PC 1440 정상, 320px 넘침 0.
+
 ### 🐛 화면별 주소 정리 — 프로필이 커미션 주소를 달던 문제 (2026-08-15, 사용자 신고)
 "프로필 URL이 커미션 URL과 같다 — 공유되게 만들고 다른 부분도 구분되게."
 - **원인**: `cmOpenAuthorProfile`이 `openUserProfile(userId, keepStack=true)`로 여는데, `openUserProfile`은 `if(!keepStack)`일 때만 주소를 바꾼다 → 화면은 프로필인데 주소는 `/commission/<id>` 그대로. 링크를 복사해 공유하면 커미션이 열렸다. **수정**: `cmOpenAuthorProfile`이 `_setScreenUrl("/user/"+userId)`로 직접 맡는다(제목은 openUserProfile이 닉네임 받아 채움).

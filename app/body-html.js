@@ -22,7 +22,8 @@ export const BODY_HTML = `
 
 <header>
   <div class="wrap bar">
-    <button class="menu-btn" id="menuBtn" aria-label="메뉴 열기"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    ${""/* 커미션 상세에서는 ☰ 대신 ←(뒤로)로 바뀐다. 아이콘 두 개를 넣어 두고 CSS(body.cm-detail)가 고른다 — 상세로 들어갈 때마다 DOM을 갈아끼우지 않으려고. */}
+    <button class="menu-btn" id="menuBtn" aria-label="메뉴 열기"><svg class="ic ic-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg><svg class="ic ic-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
     <div class="brand" onclick="goHome()">
       <span class="logo"><img src="/logo-inapp.png" alt="" width="34" height="34"></span>
       <span class="mark">commi</span>
@@ -32,6 +33,9 @@ export const BODY_HTML = `
       <input type="text" id="searchInput" placeholder="제목, 내용, 댓글, 작성자 검색" autocomplete="off"><button class="s-clear" id="searchClear" aria-label="지우기" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </div>
     <div class="h-actions">
+      ${""/* 커미션 상세 전용 — 예전엔 이미지 위 별도 바(59px)에 있었고 그 바는 이 두 버튼과 뒤로가기뿐이라 거의 비어 있었다. 헤더로 올려 그 줄을 없앴다(2026-08-15). 대상 커미션은 cmDetailCurrentId 가 들고 있다. */}
+      <button class="icon-btn cm-detail-btn" aria-label="공유" onclick="cmShare(cmDetailCurrentId)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M4 15v5h16v-5"/></svg></button>
+      <button class="icon-btn cm-detail-btn" aria-label="더보기" onclick="cmOpenMoreMenu(cmDetailCurrentId)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>
       <button class="icon-btn msearch-ico-btn" aria-label="검색" onclick="openMSearch()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
       <button class="icon-btn cm-header-my-btn" aria-label="내 커미션" onclick="cmOpenMy()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/></svg></button>
       <button class="icon-btn" aria-label="랭킹" onclick="openLeaderboard()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4a2 2 0 0 0 2 4M17 6h3a2 2 0 0 1-2 4"/></svg></button>

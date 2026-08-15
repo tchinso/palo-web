@@ -1943,10 +1943,28 @@
   body.cm-page .side-l,body.cm-page .side-r{display:none}
   /* 커미션 화면에서는 Palo 기본 검색(모바일 아이콘 · 데스크톱 검색창)을 숨기고,
      그 자리에 내 커미션 버튼을 노출 */
+  /* 커미션 상세에서만 헤더에 나오는 공유·더보기.
+     ⚠️ [hidden]과 달리 display:flex 를 이기려면 규칙을 명시해야 한다(툴바에서 겪은 함정). */
+  .cm-detail-btn{display:none}
+  body.cm-detail .cm-detail-btn{display:flex}
+  /* 상세에서는 ☰ 가 ← 로 바뀐다(누르면 뒤로 — palo.js의 menuBtn 핸들러가 분기) */
+  #menuBtn .ic-back{display:none}
+  body.cm-detail #menuBtn .ic-menu{display:none}
+  body.cm-detail #menuBtn .ic-back{display:block}
   .cm-header-my-btn{display:none}
   body.cm-page .msearch-ico-btn{display:none}
   body.cm-page .search.desktop{display:none}
   body.cm-page .cm-header-my-btn{display:flex}
+  /* ⚠️ 상세에서는 헤더 아이콘이 2개 늘어 좁은 폰(320px대)에서 68px 넘쳤다(실측).
+     그 폭에서만 상세와 관련이 덜한 검색·랭킹·내 커미션을 접는다 — 셋 다 서랍(☰)이나
+     하단 탭에 있고, 지금 화면에서 필요한 건 공유·더보기다.
+     ⚠️ 이 블록은 반드시 body.cm-page 규칙들 **뒤에** 있어야 한다 — 특이도가 같아
+        순서로 승부가 갈린다(앞에 뒀다가 '내 커미션'이 안 숨는 것을 실측). */
+  @media(max-width:400px){
+    body.cm-detail .msearch-ico-btn,
+    body.cm-detail .cm-header-my-btn,
+    body.cm-detail .h-actions>button[aria-label="랭킹"]{display:none}
+  }
 
   /* ===== 커미션 페이지 (cm-) ===== */
   /* ===== 커미션 목록의 크기 값 — 전부 여기서 관리 ==========================
@@ -2140,11 +2158,8 @@
   .cm-c-meta span{display:inline-flex;align-items:center;gap:3px}
   .cm-c-meta svg{width:11px;height:11px;flex-shrink:0}
 
-  .cm-d-top{position:sticky;top:0;z-index:20;background:var(--bg);display:flex;align-items:center;
-    justify-content:space-between;padding:14px 18px}
-  .cm-d-top .cm-left svg{width:24px;height:24px;color:var(--ink);cursor:pointer}
-  .cm-d-top .cm-right{display:flex;gap:16px}
-  .cm-d-top .cm-right svg{width:22px;height:22px;color:var(--ink-2);cursor:pointer}
+  /* .cm-d-top(커미션 상세 전용 상단바)은 2026-08-15에 제거됨 — 뒤로·공유·더보기가 모두
+     앱 헤더로 올라갔다(위 .cm-detail-btn / #menuBtn .ic-back 규칙). */
   /* 커미션 상세 상단 이미지 슬라이더.
      ⚠️ 브라우저 기본 가로 스크롤 + scroll-snap으로 만든다(JS 드래그 구현 금지) —
         iOS의 관성 스크롤·스냅이 그대로 살아나서 손맛이 가장 자연스럽다.
