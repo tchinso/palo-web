@@ -6600,10 +6600,14 @@ function loadImageFromFile(file){
    ⚠️ GIF도 첫 프레임으로 정지 썸네일을 만든다 — 목록에서 GIF 원본(수 MB~수십 MB)을
       받는 게 가장 큰 전송량이었다. 원본 보기(뷰어·상세)는 그대로 움직인다. */
 /* 썸네일을 **두 규격**으로 만든다 — 한 규격으로는 폰과 PC를 동시에 만족시킬 수 없다.
-     sm(360px) : 배율 1인 화면(대부분의 PC 모니터)용. 카드가 220px 안팎이라 이게 딱 맞는다.
-     lg(720px) : 배율 2~3인 화면(폰·레티나)용. 같은 카드가 실제로는 330~500px다.
-   ⚠️ 한 규격만 두면 반드시 한쪽이 깨진다. 360만 두면 폰에서 확대돼 뭉개지고(2026-08-15 신고),
-      720만 두면 PC에서 원본급을 3배 넘게 줄이게 돼 선화가 계단처럼 깨진다(2026-08-15 PC 신고).
+     lg(900px) : 목록 카드가 실제로 쓰는 규격. **모든 배율에서 이걸 먼저 쓴다.**
+     sm(360px) : lg가 없을 때의 보조 후보(옛 이미지 대비).
+   ⚠️⚠️ **크기는 '긴 변'으로 정하지만 카드가 필요로 하는 건 '짧은 변'이다**(정사각으로 잘라
+      쓰므로). 세로 3:5 그림이면 짧은 변 ≈ 긴 변 × 0.6. 필요한 짧은 변은
+      폰 167px × 배율 3 = **501px** → 긴 변 900이면 짧은 변 540으로 덮인다.
+      720이었을 땐 짧은 변이 405~495라 고배율 폰에서 살짝 확대됐다(2026-08-15).
+      ⚠️ 그래도 가로로 아주 긴 그림(1500×500 같은 배너형)은 짧은 변이 300px이라 여전히 모자란다 —
+         정사각으로 잘리는 구조상 이런 비율은 규격을 더 키워도 비효율이라 감수한다.
    ⚠️ 원본은 한 번만 디코딩하고 캔버스만 두 번 그린다 — 큰 이미지를 두 번 읽으면 폰에서 느리다. */
 async function makeThumbBlobs(blob){
   var none={sm:null,lg:null};
@@ -6622,7 +6626,7 @@ async function makeThumbBlobs(blob){
       if(t.size>=blob.size)return null;           // 원본보다 크면 의미가 없다(아주 작은 원본)
       return t;
     }
-    return {sm:await at(360),lg:await at(720)};
+    return {sm:await at(360),lg:await at(900)};
   }catch(e){return none;}
 }
 async function uploadToStorage(blob,folder){
@@ -6666,16 +6670,18 @@ async function uploadToStorage(blob,folder){
       올렸더니 **이미 올라가 있던 썸네일이 전부 404가 되어** 모든 카드가 1800px 원본을
       받았다. PC(배율 1)에서는 그걸 219px 칸에 넣느라 4.9배 축소가 일어나 선화가 깨졌다.
       규격을 늘릴 땐 **접미사를 새로 추가하고 옛 것을 후보로 남긴다.** */
-var THUMB_SM=".thumb.webp";   // 360px — 배율 1 (대부분의 PC 모니터, 카드 220px 안팎)
-var THUMB_LG=".thumb2.webp";  // 720px — 배율 2~3 (폰·레티나, 같은 카드가 실제 330~500px)
+var THUMB_SM=".thumb.webp";   // 360px — 보조 후보(옛 이미지). 짧은 변이 작아 카드엔 부족하다
+var THUMB_LG=".thumb2.webp";  // 900px — 목록 카드가 쓰는 규격(모든 배율 공통)
 /* ⚠️⚠️ 썸네일 주소 뒤에 붙이는 판 번호. **이미지 서버가 404 응답에도
    `Cache-Control: max-age=31536000`(1년)을 붙인다**(2026-08-15 실측). 그래서 썸네일이
    아직 없을 때 그 주소를 한 번 요청한 브라우저는 **1년 동안 404를 기억하고**, 나중에
    썸네일을 만들어 둬도 계속 원본으로 폴백한다(백필을 돌리고도 안 바뀌어서 발견).
    판 번호를 올리면 주소가 달라져 그 죽은 캐시를 통째로 건너뛴다.
    → 썸네일을 대량으로 새로 만든 뒤에는 이 번호를 올릴 것.
-   ※ 근본 해결은 Cloudflare 캐시 규칙에서 **404에 긴 TTL을 주지 않게** 고치는 것이다. */
-var THUMB_V="?v=2";
+   ※ 404의 긴 TTL 자체는 2026-08-15 Cloudflare 캐시 규칙 수정으로 해결됨(브라우저에 이미
+      박힌 옛 캐시와, 재생성으로 내용이 바뀐 경우를 위해 판 번호는 계속 쓴다).
+   v3: .thumb2 를 720px→900px로 재생성(2026-08-15). 옛 720 캐시를 건너뛴다. */
+var THUMB_V="?v=3";
 /* 시도할 주소를 우선순위대로. 앞의 것이 404면 thumbFail 이 다음으로 넘어간다.
    ⚠️⚠️ **화면 배율만 보고 고르면 안 된다. 카드는 정사각으로 잘라 쓰므로(object-fit:cover)
       실제로 필요한 건 '짧은 변'인데, 썸네일 규격(360/720)은 '긴 변' 기준이다.**
@@ -9165,6 +9171,10 @@ async function openThumbBackfill(){
         '<button type="button" class="at-btn" id="bfRun" onclick="bfRun()" disabled>백필 시작</button>'+
       '</div>'+
       '<div class="at-note" id="bfLog"></div>'+
+      '<div class="bf-regen">'+
+        '<div class="pf-group-desc">규격을 바꿨을 때만 쓰는 버튼이에요. 목록용 썸네일(.thumb2)을 <b>이미 있어도 전부</b> 지금 규격(900px)으로 다시 만듭니다.</div>'+
+        '<button type="button" class="at-btn" id="bfRegen" onclick="bfRegen()">목록용 썸네일 전체 재생성</button>'+
+      '</div>'+
     '</div></div>';
   window.scrollTo({top:0,behavior:"auto"});
 }
@@ -9206,6 +9216,33 @@ async function bfRun(){
   BF.running=false;
   if(scan)scan.disabled=false;
   if(run){run.textContent="백필 시작";run.onclick=bfRun;run.disabled=false;}
+}
+/* 재생성 — 규격을 바꿨을 때 .thumb2 를 전부 다시 만든다.
+   ⚠️ "없는 것"이 줄어드는 구조가 아니므로 서버가 주는 커서(cursor)를 다음 호출의 after 로
+      이어 보낸다. 커서 없이 돌리면 같은 앞 8장만 무한히 덮어쓴다. */
+async function bfRegen(){
+  if(BF.running)return;
+  if(!confirm("목록용 썸네일을 전부 다시 만듭니다. 이미지가 많으면 시간이 걸려요. 진행할까요?"))return;
+  BF.running=true;BF.stop=false;BF.made=0;BF.failed=0;
+  var btn=document.getElementById("bfRegen"),scan=document.getElementById("bfScan"),run=document.getElementById("bfRun");
+  if(scan)scan.disabled=true;if(run)run.disabled=true;
+  if(btn){btn.textContent="중단";btn.onclick=function(){BF.stop=true;bfLog("현재 묶음까지 끝내고 멈춥니다...");};}
+  var cursor="",total=0,doneCnt=0;
+  try{
+    while(!BF.stop){
+      var j=await bfCall({regen:"lg",after:cursor,limit:8});
+      if(!total)total=j.missing+doneCnt;
+      doneCnt+=j.processed;BF.made+=j.made;BF.failed+=j.failed;
+      bfSet("재생성 "+doneCnt+"장 · 남은 "+j.remaining+"장",total?(doneCnt/total*100):100);
+      if(j.errors&&j.errors.length)bfLog("최근 실패: "+j.errors.join(" / "));
+      if(j.done||!j.cursor){bfSet("재생성 완료 🎉 · "+BF.made+"개"+(BF.failed?(" · 실패 "+BF.failed+"장"):""),100);break;}
+      if(j.processed===0&&j.failed>0){bfSet("처리에 계속 실패해서 멈췄어요.",null);break;}
+      cursor=j.cursor;
+    }
+  }catch(e){bfSet("재생성 실패: "+e.message,null);}
+  BF.running=false;
+  if(scan)scan.disabled=false;if(run)run.disabled=false;
+  if(btn){btn.textContent="목록용 썸네일 전체 재생성";btn.onclick=bfRegen;}
 }
 /* ===================== /썸네일 백필 ===================== */
 
