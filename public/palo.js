@@ -1051,8 +1051,13 @@ async function openLoginModal(){
   if(nvBtn)nvBtn.style.display=NAVER_LOGIN_ENABLED?"flex":"none";
   var twBtn=document.querySelector(".login-x-btn");
   if(twBtn)twBtn.style.display=TWITTER_LOGIN_ENABLED?"flex":"none";
+  // 틱톡: 정식 스위치 외에 시험 표식(localStorage tk_test=1)으로도 켜진다 —
+  // 심사용 데모 영상·샌드박스 테스트를 일반 사용자에게 노출하지 않고 찍기 위한 뒷문.
+  // 콘솔에서 localStorage.setItem("tk_test","1") / 제거는 removeItem. 남에게 알려져도
+  // 심사 전엔 샌드박스 테스터 계정만 로그인되므로 위험하지 않다.
   var tkBtn=document.querySelector(".login-tiktok-btn");
-  if(tkBtn)tkBtn.style.display=TIKTOK_LOGIN_ENABLED?"flex":"none";
+  var tkOn=TIKTOK_LOGIN_ENABLED||(function(){try{return localStorage.getItem("tk_test")==="1";}catch(e){return false;}})();
+  if(tkBtn)tkBtn.style.display=tkOn?"flex":"none";
   // 항상 '로그인' 모드로 열고 입력값은 비움(제목·안내문구·버튼 문구는 setLoginMode가 맞춰줌)
   ["lgEmail","lgPw","lgPw2","lgNick"].forEach(function(id){var el=document.getElementById(id);if(el)el.value="";});
   setLoginMode("login");
