@@ -5554,6 +5554,16 @@ function _cmScheduleSync(){
 }
 new MutationObserver(_cmScheduleSync)
   .observe(document.body,{childList:true,subtree:true});
+/* ⚠️ body **자신의 class**도 따로 감시한다(2026-08-15). childList만 보면 이런 구멍이 있었다:
+   입력 중(kb-open, 탭바 display:none) 토스트 등으로 DOM이 바뀌면 그 순간 탭바 높이가 0으로
+   측정되는데, 키보드가 닫혀 탭바가 돌아오는 건 body class 변화뿐이라 아무도 다시 재지 않았다.
+   → --cm-tabbar-h 가 0에 고착돼 문의하기·신청하기 버튼이 탭바 뒤에 깔렸다.
+   ⚠️ 위 옵저버에 attributes를 합치면 안 된다 — subtree와 결합돼 **모든 하위 요소의 class
+      변화**(좋아요 토글 등)마다 offsetHeight를 읽어 레이아웃을 강제하게 된다. body만 좁게 본다.
+   무한 루프 걱정은 없다 — _cmScheduleSync의 classList.toggle은 상태가 같으면 속성을 건드리지
+   않고, cmSyncTabbarHeight도 값이 같으면 아무것도 안 쓴다(둘 다 수렴한다). */
+new MutationObserver(_cmScheduleSync)
+  .observe(document.body,{attributes:true,attributeFilter:["class"]});
 cmSyncTabbarHeight();
 
 /* 화면 크기가 바뀔 때의 뒷정리.
@@ -10673,27 +10683,46 @@ syncNotifBadge();
 
   function isTextInput(el){return el&&(el.tagName==="INPUT"||el.tagName==="TEXTAREA"||el.isContentEditable);}
   function touchKeyboard(){return !!(window.matchMedia&&window.matchMedia("(pointer: coarse)").matches);}
+  /* iOS 홈 화면 앱(standalone): 키보드가 닫혀도 화면이 밀린 채(visualViewport.offsetTop>0)로
+     남는 경우가 있다 — 사파리는 스스로 되돌리지만 홈 화면 앱은 안 되돌려서, 고정된 하단
+     바(탭바·문의하기/신청하기 등)가 뜬 채 스크롤을 따라다닌다(2026-08-15 사용자 신고).
+     밀림이 남아 있으면 제자리 스크롤로 강제 재정착시킨다(없으면 아무 일도 안 함 — 몇 번을
+     불러도 안전한 이유이자, 아래에서 여러 경로에 걸어 두는 이유다). */
+  function settleViewport(){
+    var vv=window.visualViewport;
+    if(vv&&(vv.offsetTop||0)>0&&!isTextInput(document.activeElement)){
+      window.scrollTo(window.scrollX||0,window.scrollY||0);
+    }
+  }
   document.addEventListener("focusin",function(e){if(isTextInput(e.target)&&touchKeyboard())document.body.classList.add("kb-open");});
   document.addEventListener("focusout",function(e){
     if(!isTextInput(e.target))return;
     document.body.classList.remove("kb-open");
-    /* iOS 홈 화면 앱(standalone): 키보드가 닫혀도 화면이 밀린 채(visualViewport.offsetTop>0)로
-       남는 경우가 있다 — 사파리는 스스로 되돌리지만 홈 화면 앱은 안 되돌려서, 고정된 하단
-       탭바가 뜬 채 스크롤을 따라다닌다(2026-08-15 사용자 신고). 키보드 애니메이션이 끝난 뒤
-       밀림이 남아 있으면 제자리 스크롤로 강제 재정착시킨다(밀림이 없으면 아무 일도 안 함). */
-    setTimeout(function(){
-      var vv=window.visualViewport;
-      if(vv&&(vv.offsetTop||0)>0&&!isTextInput(document.activeElement)){
-        window.scrollTo(window.scrollX||0,window.scrollY||0);
-      }
-    },250);
+    setTimeout(settleViewport,250); // 키보드 닫힘 애니메이션이 끝난 뒤에 잰다
   });
   // 포커스된 입력칸이 화면 교체로 **사라지면 focusout이 오지 않는** 브라우저가 있다.
   // 그러면 하단 탭이 숨은 채 남는다 → 화면이 바뀔 때 실제 포커스를 보고 맞춘다.
+  // ⚠️ 밀림 복구도 여기서 같이 한다(2026-08-15 사용자 재신고로 발견) — focusout이 안 온
+  //    바로 그 경우가 "복구도 안 된" 경우다: 검색창에 입력하다 카드를 눌러 상세로 넘어가면
+  //    focusout 없이 화면이 바뀌고, 밀림이 남은 채 상세의 문의하기·신청하기 바가 떠다녔다.
   window.syncKbOpen=function(){
     var a=document.activeElement;
     if(!(a&&isTextInput(a)&&touchKeyboard()))document.body.classList.remove("kb-open");
+    setTimeout(settleViewport,250);
   };
+  /* 마지막 안전망: 키보드가 focusout 없이 닫히는 경우(iOS가 스스로 거둬가는 등)까지 잡는다.
+     ⚠️ 여기서는 **재정착만** 한다. body.kb-open은 절대 만지지 않는다 — 2026-08-14에
+        resize 기반 토글러를 얹었다가 focus 기반 주인과 경쟁해 탭바가 사라진 채 고착됐던
+        전례가 있다(위 fitChatRoom 주석). settleViewport는 상태를 바꾸지 않고 밀림만 되돌리는
+        멱등 동작이라 몇 번 불려도 충돌이 없다. resize는 키보드 개폐 애니메이션 중 여러 번
+        오므로 350ms 잠잠해진 뒤 한 번만 잰다. */
+  if(window.visualViewport){
+    var _settleTimer=null;
+    window.visualViewport.addEventListener("resize",function(){
+      clearTimeout(_settleTimer);
+      _settleTimer=setTimeout(settleViewport,350);
+    });
+  }
 })();
 
 // ===== 피드 pull-to-refresh: 목록 최상단에서 아래로 당기면 새로고침 =====
