@@ -1690,6 +1690,12 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 검색 결과 파비콘(로고) 노출 정비 (2026-08-15, 사용자 신고)
+구글 검색 결과에 로고 대신 기본 지구본이 나온다는 신고. **설정 자체는 이미 정상**이었다(아이콘 5종 전부 200, robots 허용, 이미지 정사각·로고 정상, `Organization.logo`도 있음). 실제로 고칠 것은 하나:
+- **⚠️ `app/favicon.ico` 파일 규칙이 head 맨 앞을 차지하고 있었다.** Next 문서(`file-conventions/metadata/app-icons.md`) 확인: 이 규칙은 `<link rel="icon">`을 자동 주입한다 → 우리가 layout.js에 적어 둔 의도("48의 배수인 192·512를 앞에 둬서 구글이 그걸 고르게")를 **256x256(48의 배수 아님) ico가 앞질러 덮고 있었다.**
+- **수정**: `app/favicon.ico` → `public/favicon.ico`로 이동(= 자동 주입 없음, `/favicon.ico` 루트 서빙은 유지) + icons 목록 맨 뒤에 명시. head 순서가 **192 → 512 → 32 → ico**로 정리됨(실측).
+- **⚠️ 나머지는 코드 문제가 아니라 크롤 시점 문제** — 구글 파비콘은 색인과 별개 크롤러가 가져가며 신규 사이트는 수 주 걸린다. 사용자에게 Search Console 재색인 요청을 안내.
+
 ### 커미션 화면 헤더 정리 — 알림·프로필 접기 (2026-08-15, 사용자 요청)
 "커미션 탭에서는 알림·프로필을 숨기고 그 자리에 새 아이콘을." 헤더가 길어 보인다는 지적.
 - `body.cm-page`에서 알림·내 프로필 숨김 → 상세는 `[공유][더보기][내 커미션][랭킹]`, 목록은 `[내 커미션][랭킹]`.

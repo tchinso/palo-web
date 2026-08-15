@@ -36,10 +36,16 @@ export const metadata = {
   icons: {
     // 구글 검색 로고는 48px 이상·정사각·48의 배수 favicon을 골라 쓴다.
     // 큰 PNG(192·512, 둘 다 48의 배수)를 앞에 둬서 32px짜리 대신 이걸 고르게 유도한다.
+    // ⚠️ favicon.ico 는 일부러 public/ 에 둔다(2026-08-15). app/favicon.ico 파일 규칙을 쓰면
+    //    Next 가 그 <link>를 **head 맨 앞에** 자동으로 넣어(256x256, 48의 배수 아님)
+    //    위 의도한 순서를 덮어썼다. public/ 에 두면 /favicon.ico 로 그대로 서빙되어
+    //    구식 크롤러도 찾을 수 있고, head 순서는 아래 목록이 그대로 결정한다.
     icon: [
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
       { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      // 맨 뒤 — 링크를 못 읽는 구식 크롤러가 관례적으로 /favicon.ico 를 직접 찾아가는 경우 대비
+      { url: "/favicon.ico", sizes: "256x256", type: "image/x-icon" },
     ],
     // ⚠️ 예전엔 /apple-icon.png 를 선언했는데 그 파일이 실제로 없어서 404였다(5회차 점검).
     //    iOS가 관례적으로 찾는 이름(/apple-touch-icon.png)으로 실제 파일을 두고 선언도 맞춘다.
