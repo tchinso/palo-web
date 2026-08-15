@@ -2108,7 +2108,10 @@ function onHomeListNow(){
 - 틱톡 API: authorize `www.tiktok.com/v2/auth/authorize/`(파라미터 이름이 `client_key`), token `open.tiktokapis.com/v2/oauth/token/`(**POST 폼** — 네이버처럼 GET 쿼리 아님), user info `v2/user/info/?fields=…`.
 - 콘솔 설정: 도메인 검증 TXT(`tiktok-developers-site-verification=…`) Cloudflare에 추가됨, Redirect URI `https://commi.kr/api/auth/tiktok/callback`, scope `user.info.basic`, 플랫폼 Web만. Client Secret은 Vercel `TIKTOK_CLIENT_SECRET`(사용자만 앎), `TIKTOK_CLIENT_KEY`도 Vercel에.
 - **실측**: 키 없는 로컬에서 start 500(친절 문구)·callback state 위조 시 `/?login_error=state` 302, 버튼 스위치 on/off 동작. **실제 OAuth 왕복은 배포+키 설정 후 관리자 계정으로만 테스트 가능**(심사 전).
-- 남은 절차: ①Vercel에 키 2개 설정(사용자) ②배포 후 관리자 계정으로 테스트 ③심사 제출(설명문 초안 완료) ④승인 후 `TIKTOK_LOGIN_ENABLED=true` 배포.
+- **샌드박스 동작 확인 완료(2026-08-15)** — 콘솔에 샌드박스 생성(테스터 uta_nala), 샌드박스 키를 Vercel에 넣고 테스트 로그인 성공. 시험 표식: `localStorage.setItem("tk_test","1")`이면 정식 스위치가 꺼져 있어도 버튼이 보인다(데모 영상용).
+- **🐛 처음엔 `login_error=token`(인증 실패)** — 원인은 **틱톡 콘솔이 Client secret을 두 줄로 꺾어 표시**해서 드래그 복사 때 끝 4자가 빠진 것. 진단법: 토큰 endpoint에 가짜 code로 직접 요청 → `invalid_grant`(코드 만료)면 키·시크릿은 유효, `invalid_client`면 자격증명이 틀린 것. **⚠️ 키 관련 오류가 나면 심사 전 앱은 이 방법으로 자격증명부터 확인할 것.**
+- **⚠️ user.info.basic은 Login Kit에 자동 포함**("Included in Login Kit") — Scopes에서 따로 추가하면 안 되고, `user.info.stats`·`video.list` 등 **불필요 권한을 추가하면 심사가 지연된다**(틱톡 명시).
+- 남은 절차: ①데모 영상 촬영·심사 제출(설명문 876자 초안 완료, 사용자) ②승인 후 Vercel 키를 **프로덕션 키로 교체** + `TIKTOK_LOGIN_ENABLED=true` 배포.
 
 ### 프로필 커스텀 주소(핸들) — commi.kr/<원하는이름> (2026-08-15)
 `docs/sql/profile-handle.sql` + `app/[handle]/page.js` + palo.js. 내 정보 → 설정 → 「프로필 주소」에서 설정.
