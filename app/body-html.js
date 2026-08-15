@@ -19,7 +19,13 @@ export const FEED_SKELETON = `<div class="list"><div class="skel-row"><div class
 //    (2026-08-10 틱톡 광고 거부). palo.js의 ensureAdultGate()가 필요한 순간에만 만들어 붙인다.
 //    ⚠️ 이 파일 안에서는 HTML 주석()도 소스에 나가므로, 설명은 이렇게 밖에 적을 것.
 export const BODY_HTML = `
-
+<script>/* 커미션 주소면 첫 페인트 전에 cm-page를 붙인다(2026-08-15 사용자 신고).
+   이 클래스(사이드바·카테고리바 숨김 등 커미션 레이아웃)는 원래 palo.js 부팅 → 로그인 확인
+   왕복 → 딥링크 라우팅이 끝나야 붙어서, 그때까지 홈 구조가 보였다가 커미션으로 바뀌었다.
+   이 스크립트는 서버 HTML에 실려 파싱 중 즉시 실행되므로(아래 요소들이 만들어지기 전),
+   홈 구조가 한 프레임도 안 보인다. ⚠️ 판정 정규식은 palo.js의 _cmPageNow와 같아야 한다 —
+   부팅 중 MutationObserver 틱이 _cmPageNow로 다시 판정해 어긋나면 클래스를 도로 벗긴다. */
+if(/^\\/commission(\\/|$)/.test(location.pathname))document.body.classList.add("cm-page");</script>
 <header>
   <div class="wrap bar">
     ${""/* 커미션 상세에서는 ☰ 대신 ←(뒤로)로 바뀐다. 아이콘 두 개를 넣어 두고 CSS(body.cm-detail)가 고른다 — 상세로 들어갈 때마다 DOM을 갈아끼우지 않으려고. */}

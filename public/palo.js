@@ -5607,7 +5607,12 @@ function cmSyncTabbarHeight(){
    실측 확인: 홈=[] · 커미션=["cmList"] · 글쓰기=[](에디터가 스택을 비운다) · 채팅=["chatList"]. */
 function _cmPageNow(){
   try{
-    if(typeof screenStack==="undefined"||!screenStack.length)return false;
+    /* 스택이 비어 있으면(부팅 중·에디터 등) **주소로** 판정한다(2026-08-15).
+       서버 HTML의 인라인 스크립트(body-html.js 맨 앞)가 첫 페인트 전에 cm-page를 붙이는데,
+       여기가 무조건 false를 돌려주면 부팅 중 MutationObserver 틱이 그 클래스를 도로 벗겨
+       홈 구조가 다시 비친다. ⚠️ 정규식은 그 인라인 스크립트와 같아야 한다. */
+    if(typeof screenStack==="undefined"||!screenStack.length)
+      return /^\/commission(\/|$)/.test(location.pathname);
     var top=screenStack[screenStack.length-1];
     return !!(top&&top.key&&top.key.indexOf("cm")===0);
   }catch(e){return false;}
