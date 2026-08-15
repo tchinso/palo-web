@@ -1930,6 +1930,17 @@ function onHomeListNow(){
     if(typeof screenStack!=="undefined"&&screenStack.length)return false; // 커미션·채팅 등 겹쳐 띄운 화면
     if(typeof curTab!=="undefined"&&curTab!=="home")return false;         // 내 정보 탭 등
     if(document.querySelector("#main .detail"))return false;              // 글 상세
+    /* ⚠️ 주소 검사 — 위 세 검사는 전부 "이미 그 화면을 열었는지"를 본다. 그런데 부팅 중에는
+       **아직 아무 화면도 안 연 순간**이 있다: 로그인 상태의 부팅에서 applySession이 두 번 돌고
+       (onAuthStateChange의 INITIAL_SESSION + initAuth의 직접 호출), 첫 번째 것의
+       loadMyNotes().then(renderList)이 routeDeepLinkEarly **보다 먼저** 끝나면 세 검사가 전부
+       통과돼 renderList가 홈을 그리며 주소를 '/'로 밀어버렸다. 그 뒤에 실행된
+       routeDeepLinkEarly는 이미 '/'가 된 주소를 읽어 딥링크가 증발 — /commission 새로고침이
+       홈으로 튕기던 버그(2026-08-15, 로그인+네트워크 타이밍에서만 재현되던 이유).
+       주소는 renderList 자신이 바꾸기 전까지 원래 값이 살아 있으므로, 홈 계열 주소가
+       아니면 시점과 무관하게 막힌다. */
+    var p=location.pathname;
+    if(p!=="/"&&p.indexOf("/board/")!==0)return false;
     return true;
   }catch(e){return false;}
 }
