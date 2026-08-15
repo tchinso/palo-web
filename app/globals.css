@@ -2167,16 +2167,21 @@
   .cm-revevent{position:relative;isolation:isolate;overflow:hidden;border-radius:20px;padding:17px 18px;margin:16px 0;
     border:1px solid rgba(255,255,255,.72);
     box-shadow:0 12px 30px -14px rgba(150,80,125,.42),inset 0 1px 0 rgba(255,255,255,.9)}
-  .cm-revevent::before{content:"";position:absolute;inset:-35%;z-index:-2;filter:blur(28px);
+  /* ⚠️ 여기에 filter:blur()를 쓰면 안 된다. **필터가 걸린 자식은 부모의 둥근 모서리로
+     잘리지 않아**(사각 박스로만 잘림) 모서리에 색 자투리가 삐져나온다 — overflow:hidden을
+     줘도 소용없다. 그래서 블러 대신 **모서리에 앵커를 둔 큰 radial-gradient**로 부드러움을
+     만들고, inset:0 + border-radius:inherit 로 각 층이 스스로 둥글게 잘리게 한다.
+     덤으로 큰 영역 블러가 사라져 모바일에서 훨씬 가볍다. */
+  .cm-revevent::before{content:"";position:absolute;inset:0;z-index:-2;border-radius:inherit;
     background:
-      radial-gradient(closest-side,rgba(224,122,166,.9),transparent) 6% 4%/58% 70% no-repeat,
-      radial-gradient(closest-side,rgba(151,132,214,.66),transparent) 96% 0%/52% 62% no-repeat,
-      radial-gradient(closest-side,rgba(224,160,116,.5),transparent) 78% 100%/56% 64% no-repeat}
+      radial-gradient(125% 135% at 0% 0%,rgba(224,122,166,.8),rgba(224,122,166,0) 60%),
+      radial-gradient(115% 125% at 100% 0%,rgba(151,132,214,.58),rgba(151,132,214,0) 58%),
+      radial-gradient(125% 130% at 85% 100%,rgba(224,160,116,.45),rgba(224,160,116,0) 58%)}
   /* ⚠️ 유리의 흰색 농도는 취향이 아니라 **글자 대비**가 정한다. .74→.52 로 얇게 뒀을 때
      오른쪽 아래(주황 얼룩 위)의 작은 안내문이 4.18:1 로 기준(4.5:1) 미달이었다.
      .78→.60 + 얼룩 농도를 낮춰 제목 5.08:1 / 안내문 5.52:1 로 맞췄다. 값을 다시 만질 땐
      **오른쪽 아래 모서리**를 기준으로 계산할 것 — 거기가 가장 불리하다. */
-  .cm-revevent::after{content:"";position:absolute;inset:0;z-index:-1;
+  .cm-revevent::after{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;
     background:linear-gradient(145deg,rgba(255,255,255,.78),rgba(255,255,255,.6));
     -webkit-backdrop-filter:blur(8px) saturate(150%);backdrop-filter:blur(8px) saturate(150%)}
   /* 유리판 위 글자라 색이 흐려지기 쉽다 — --brand-2(#d1608f)는 3.5:1로 기준 미달이라
