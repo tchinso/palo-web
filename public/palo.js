@@ -10569,9 +10569,9 @@ function openHandleModal(){
     m.className="rules-scrim";m.id="handleModal";
     m.addEventListener("click",function(e){if(e.target===m)closeHandleModal();});
     m.innerHTML='<div class="rules"><h3>🔗 프로필 주소</h3>'+
-      '<p class="nick-hint" style="margin-bottom:10px">내 프로필 주소: <b id="handlePreview"></b></p>'+
+      '<p class="nick-hint" style="margin-bottom:10px">설정하면 이 주소로 내 프로필이 열려요<br><b id="handlePreview" style="font-size:15px"></b></p>'+
       '<input id="handleInput" class="nick-in" maxlength="20" placeholder="원하는 주소 (2~20자)" oninput="handlePreviewSync()">'+
-      '<p class="nick-hint">한글·영문 소문자·숫자·밑줄(_)·붙임표(-)만 쓸 수 있어요.<br>비워서 저장하면 기본 주소로 돌아가요.</p>'+
+      '<p class="nick-hint">한글·영문 소문자·숫자·밑줄(_)·붙임표(-)만 쓸 수 있어요.<br>비워서 저장하면 기본 주소(user/…)로 돌아가요.</p>'+
       '<button class="r-ok" onclick="saveHandle()">저장</button></div>';
     document.body.appendChild(m);
   }
@@ -10581,10 +10581,13 @@ function openHandleModal(){
   setTimeout(function(){try{document.getElementById("handleInput").focus();}catch(e){}},60);
 }
 function closeHandleModal(){var m=document.getElementById("handleModal");if(m)m.classList.remove("open");}
+/* 미리보기는 **항상 commi.kr/<입력값>** 꼴로 — 빈 상태에서 기본 주소(user/…)를 보여줬더니
+   "핸들을 만들어도 commi.kr/user/mimu 가 되는구나"로 오해할 수 있었다(2026-08-15 사용자 지적).
+   비어 있으면 자리표시(원하는주소)를 흐리게 넣어 구조만 보여준다. */
 function handlePreviewSync(){
   var v=(document.getElementById("handleInput").value||"").trim().toLowerCase();
   var p=document.getElementById("handlePreview");
-  if(p)p.textContent=v?("commi.kr/"+v):("commi.kr/user/… (기본 주소)");
+  if(p)p.innerHTML='commi.kr/'+(v?esc(v):'<span style="color:var(--muted-2)">원하는주소</span>');
 }
 async function saveHandle(){
   if(!AUTH.user||!window.supabase)return;
