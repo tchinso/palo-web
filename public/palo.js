@@ -703,6 +703,8 @@ function routeDeepLinkEarly(){
   if(isRankingPath()){userLeftHome=true;openLeaderboard();return true;}
   var tab=getTabFromPath();
   if(tab){userLeftHome=true;openTabByKey(tab);return true;}
+  var hd=getHandleFromPath(); // 맨 마지막 — 알려진 주소가 전부 아니었을 때만 핸들로 본다
+  if(hd){userLeftHome=true;openUserProfileByHandle(hd);return true;}
   return false;
 }
 /* 링크로 바로 들어온 경우엔 목록이 아직 없다 — 먼저 불러온 뒤 연다.
@@ -748,6 +750,35 @@ function getEmoticonIdFromPath(){
   return m?parseInt(m[1],10):null;
 }
 function isRankingPath(){return location.pathname==="/ranking";}
+/* ===== 프로필 커스텀 주소(핸들) — commi.kr/<원하는이름> (2026-08-15) =====
+   ⚠️ 이 목록은 docs/sql/profile-handle.sql 의 reserved_handles 와 짝이다.
+      서버(RPC)가 최종 심판이고 여기는 "시도조차 못 하게" 하는 예의 검사 —
+      최상위 라우트·공개 파일을 새로 만들면 **둘 다에** 추가할 것. */
+var HANDLE_RESERVED=new Set(["commission","chat","me","board","post","user","emoticon","ranking",
+  "admin","api","terms","privacy","rss","sitemap","robots","manifest","favicon",
+  "palo","agegate","sw","og-image","icon-192","icon-512","apple-icon","apple-touch-icon","logo-inapp","palo-icon",
+  "login","logout","signup","auth","search","settings","setting","notice","notification","notifications",
+  "help","support","about","home","index","static","assets","img","image","images",
+  "commi","official","staff","mod","moderator","administrator",
+  "write","edit","new","popular","best","review","reviews","point","points","event","events","shop","market","attendance"]);
+var HANDLE_RE=/^[a-z0-9가-힣][a-z0-9가-힣_-]{1,19}$/;
+/* 주소가 핸들 후보면 핸들(소문자), 아니면 null. 알려진 라우트·파일은 형식/예약어에서 걸러진다
+   (마침표를 허용하지 않아 robots.txt 류는 형식에서 이미 탈락). */
+function getHandleFromPath(){
+  var m=location.pathname.match(/^\/([^\/]+)$/);
+  if(!m)return null;
+  var seg;try{seg=decodeURIComponent(m[1]);}catch(e){return null;}
+  seg=seg.toLowerCase();
+  if(!HANDLE_RE.test(seg)||HANDLE_RESERVED.has(seg))return null;
+  return seg;
+}
+/* 핸들 → 프로필. 없는 핸들이면(오타·삭제된 계정) 홈으로 안내한다. */
+async function openUserProfileByHandle(h){
+  if(!window.supabase)return;
+  var res=await window.supabase.from("profiles").select("id").eq("handle",h).single();
+  if(res.error||!res.data){toast("그런 주소의 프로필이 없어요");goHome();return;}
+  openUserProfile(res.data.id);
+}
 /* 지금 화면의 주소로 바꾼다. enterScreen 이 이미 히스토리 항목을 쌓았으므로 **교체**만 한다
    (여기서 또 push 하면 뒤로가기를 두 번 눌러야 빠져나온다 — _cmSetDetailUrl 과 같은 규칙). */
 function _setScreenUrl(path,title){
@@ -865,6 +896,7 @@ window.addEventListener("popstate",function(){
   else if(emoticonId)openEmoticonPackById(emoticonId);
   else if(isRankingPath())openLeaderboard();
   else if(tab)openTabByKey(tab);
+  else if(getHandleFromPath())openUserProfileByHandle(getHandleFromPath());
   else if(boardId)selectBoard(boardId);
   // 구글 로그인 리다이렉트 직후 Supabase가 URL의 인증 토큰을 정리하면서 popstate 이벤트를
   // 발생시키는 경우가 있음 — 그때 postsLoaded가 아직 false면(실제 글을 아직 못 불러온 상태)
@@ -8326,9 +8358,13 @@ async function openUserProfile(userId,keepStack){
     return;
   }
   var profile=res.data;
+  // 핸들이 있으면 그게 정식 주소다(/작가이름). 없으면 예전처럼 /user/<uuid>.
+  var targetPath=profile.handle?("/"+encodeURIComponent(profile.handle)):("/user/"+userId);
   if(!keepStack){
-    var targetPath="/user/"+userId;
     if(location.pathname!==targetPath)history.pushState({},"",targetPath);
+  }else{
+    // keepStack 호출부(커미션 상세→작가 등)는 /user/<uuid>를 미리 박아 뒀다 — 핸들로 바로잡는다
+    if(profile.handle&&location.pathname!==targetPath){try{history.replaceState({},"",targetPath);}catch(e){}}
   }
   document.title=profile.nickname+"님의 프로필 · commi";
   var theirPosts=POSTS.filter(function(p){return p.authorId===userId});
@@ -9747,6 +9783,7 @@ function renderMyProfile(){
      ,'notifSettingsSec');
   h+=pfSection('설정','프로필과 계정 정보를 관리해요',
      pfRow(pfMiniIcon('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>'),'닉네임 변경',"openNickModal()",{})+
+     pfRow(pfMiniIcon('<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>'),'프로필 주소'+(AUTH.profile&&AUTH.profile.handle?' <span class="pf-item-count">/'+esc(AUTH.profile.handle)+'</span>':''),"openHandleModal()",{})+
      pfRow(pfMiniIcon('<path d="M4 4h16v9H9l-5 3z"/><path d="M4 4v16"/>'),'칭호'+(AUTH.profile&&AUTH.profile.title_id&&TITLES_BY_ID[AUTH.profile.title_id]?' <span class="pf-item-count">'+esc(TITLES_BY_ID[AUTH.profile.title_id].name)+'</span>':''),"openTitlePicker()",{})+
      // 복구용 이메일은 아이디 계정 전용 — 소셜 계정은 메뉴 자체를 숨긴다(눌렀다 거절당하는 것보다 낫다)
      (isIdAccount()?pfRow(pfMiniIcon('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>'),'복구용 이메일',"openRecoveryEmail()",{}):''));
@@ -10521,6 +10558,62 @@ function openNickModal(){
   setTimeout(function(){document.getElementById("nickInput").focus()},60);
 }
 function closeNick(){document.getElementById("nickModal").classList.remove("open");}
+/* ===== 프로필 주소(핸들) 설정 =====
+   모달은 처음 열 때 만든다(body-html에 넣으면 모든 페이지의 서버 HTML이 무거워진다).
+   검증·예약어·중복은 서버 RPC(set_my_handle)가 최종 심판 — 여기 검사는 안내용이다. */
+function openHandleModal(){
+  if(!AUTH.user){toast("로그인이 필요해요","🔒");return;}
+  var m=document.getElementById("handleModal");
+  if(!m){
+    m=document.createElement("div");
+    m.className="rules-scrim";m.id="handleModal";
+    m.addEventListener("click",function(e){if(e.target===m)closeHandleModal();});
+    m.innerHTML='<div class="rules"><h3>🔗 프로필 주소</h3>'+
+      '<p class="nick-hint" style="margin-bottom:10px">내 프로필 주소: <b id="handlePreview"></b></p>'+
+      '<input id="handleInput" class="nick-in" maxlength="20" placeholder="원하는 주소 (2~20자)" oninput="handlePreviewSync()">'+
+      '<p class="nick-hint">한글·영문 소문자·숫자·밑줄(_)·붙임표(-)만 쓸 수 있어요.<br>비워서 저장하면 기본 주소로 돌아가요.</p>'+
+      '<button class="r-ok" onclick="saveHandle()">저장</button></div>';
+    document.body.appendChild(m);
+  }
+  document.getElementById("handleInput").value=(AUTH.profile&&AUTH.profile.handle)||"";
+  handlePreviewSync();
+  m.classList.add("open");
+  setTimeout(function(){try{document.getElementById("handleInput").focus();}catch(e){}},60);
+}
+function closeHandleModal(){var m=document.getElementById("handleModal");if(m)m.classList.remove("open");}
+function handlePreviewSync(){
+  var v=(document.getElementById("handleInput").value||"").trim().toLowerCase();
+  var p=document.getElementById("handlePreview");
+  if(p)p.textContent=v?("commi.kr/"+v):("commi.kr/user/… (기본 주소)");
+}
+async function saveHandle(){
+  if(!AUTH.user||!window.supabase)return;
+  var v=(document.getElementById("handleInput").value||"").trim().toLowerCase();
+  if(v){
+    if(!HANDLE_RE.test(v)){toast("2~20자, 한글·영문 소문자·숫자·_·- 만 쓸 수 있어요");return;}
+    if(HANDLE_RESERVED.has(v)){toast("사용할 수 없는 주소예요");return;}
+  }
+  var r=await window.supabase.rpc("set_my_handle",{p_handle:v||null});
+  if(r.error){toast("저장 실패: "+r.error.message);return;}
+  var d=r.data||{};
+  if(!d.ok){
+    toast({invalid:"2~20자, 한글·영문 소문자·숫자·_·- 만 쓸 수 있어요",
+           reserved:"사용할 수 없는 주소예요",
+           taken:"이미 다른 분이 쓰고 있는 주소예요",
+           banned:"이용이 제한된 계정이에요"}[d.reason]||"저장에 실패했어요");
+    return;
+  }
+  if(AUTH.profile)AUTH.profile.handle=d.handle||null;
+  closeHandleModal();
+  if(d.handle){
+    toast("프로필 주소가 설정됐어요 · commi.kr/"+d.handle,"🔗");
+    // 주소를 바로 클립보드에 — 만들자마자 공유하려는 경우가 대부분이다
+    try{navigator.clipboard&&navigator.clipboard.writeText("https://commi.kr/"+encodeURIComponent(d.handle));}catch(e){}
+  }else{
+    toast("기본 주소로 돌아갔어요");
+  }
+  openProfile(); // 설정 줄의 현재 주소 표시 갱신
+}
 async function saveNick(){
   var v=document.getElementById("nickInput").value.trim();
   if(v.length<2||v.length>12){toast("닉네임은 2~12자여야 해요");return;}
@@ -10952,8 +11045,11 @@ function loadReadCache(){ try{var a=JSON.parse(localStorage.getItem("palo_read")
 function saveRead(){ try{var a=Array.from(READ);if(a.length>1000)a=a.slice(a.length-1000);localStorage.setItem("palo_read",JSON.stringify(a));}catch(e){} }
 loadReadCache();
 (function primeFromCache(){
+  /* ⚠️ getHandleFromPath 도 반드시 본다(2026-08-15) — 핸들 주소(/작가이름)로 들어왔는데
+     여기서 홈을 그리면 renderList의 pushState가 주소를 '/'로 밀어 딥링크가 증발한다
+     (부팅 경합 버그와 같은 계열). */
   if(getPostIdFromPath()||getUserIdFromPath()||getCommissionIdFromPath()||getTabFromPath()
-     ||getReviewsCmIdFromPath()||getEmoticonIdFromPath()||isRankingPath()||userLeftHome)return;
+     ||getReviewsCmIdFromPath()||getEmoticonIdFromPath()||isRankingPath()||getHandleFromPath()||userLeftHome)return;
   if(!window.__paloHasBackend)return; // 백엔드 없는 로컬 데모는 기존 폴백에 맡김
   var cached=loadFeedCache();
   if(cached&&cached.posts&&cached.posts.length){
