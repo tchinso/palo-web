@@ -2106,9 +2106,25 @@
     .cm-root-list{max-width:1060px}                                  /* (1060-32-30)/4 ≈ 249 */
     .cm-root-list .cm-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
   }
-  /* 검색창까지 같이 늘어나면 1060px짜리 입력칸이 된다 — 상단 줄만 따로 묶어 둔다 */
+  /* PC 상단 재배치(2026-08-15, 포스타입 PC 참고) — 모바일은 '검색 위 / 탭 아래' 두 줄인데
+     PC에서 그대로 늘리면 좁은 검색창과 작은 탭이 넓은 화면에 붕 뜬다.
+     포스타입 리퀘스트 PC 실측(1280px): 본문 폭 전체를 쓰는 얇은 텍스트 탭 줄
+     (높이 44px·글자 16px·아래 1px 구분선), 검색은 넓게 별도 배치.
+     → 한 줄로 합친다: [홈 추천 신규 인기] ─공간─ [🔞] [검색 300px], 아래 구분선.
+     DOM은 모바일과 같고(검색이 먼저) order로만 재배치 — 마크업 분기가 없어야
+     화면 크기를 넘나들 때 상태(입력값·활성 탭)가 유지된다. */
   @media(min-width:861px){
-    .cm-root-list .cm-search{max-width:420px}
+    .cm-root-list .cm-top{display:flex;flex-wrap:wrap;align-items:center;column-gap:16px;padding-top:6px}
+    .cm-root-list .cm-search{order:2;flex:0 1 300px;margin-bottom:8px}
+    /* ⚠️ align-items:center 를 주면 안 된다 — 탭이 글자 높이(23px)로 줄어 활성 밑줄이
+       구분선에 안 닿고 공중에 뜬다. 기본값(stretch)으로 탭이 줄 전체(44px)를 채우게 둔다. */
+    .cm-root-list .cm-tabs{order:1;flex:1;min-width:0;gap:26px;padding-bottom:0;align-self:stretch;min-height:44px}
+    .cm-root-list .cm-top-line{order:3;flex-basis:100%}
+    /* 탭을 포스타입식으로 키운다: 알약이 아니라 글자 + 활성 밑줄. 밑줄이 구분선 위에 딱 닿게
+       탭 높이를 줄 전체로 늘리고(align-self:stretch → 44px 안팎) 글자는 가운데 정렬한다. */
+    .cm-root-list .cm-tab{font-size:15.5px;display:flex;align-items:center;padding-bottom:0}
+    .cm-root-list .cm-tab.on::after{height:2px;border-radius:0}
+    .cm-root-list .cm-tab-adult{align-self:center;font-size:12px}
   }
   .cm-top{position:sticky;top:0;z-index:20;background:var(--bg);padding:10px var(--cm-padx) 0}
   /* 핑크 테두리 → 연한 회색 배경으로. 테두리는 투명하게 자리만 잡아 둬서
