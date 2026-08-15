@@ -9087,7 +9087,201 @@ async function refreshMyProfile(){
   var res=await window.supabase.from("profiles").select("*").eq("id",AUTH.user.id).single();
   if(!res.error)AUTH.profile=res.data;
 }
-var SCORE_EVENT_LABELS={post_create:"글 작성",comment_create:"댓글 작성",like_received:"글이 추천받음",helpful_received:"댓글이 도움돼요 받음"};
+var SCORE_EVENT_LABELS={post_create:"글 작성",comment_create:"댓글 작성",like_received:"글이 추천받음",helpful_received:"댓글이 도움돼요 받음",attendance:"출석체크"};
+
+/* ===================== 출석체크 =====================
+   하루 한 번 출석하면 활동 포인트 20 + 광고 포인트 20.
+   ⚠️ 지급은 전적으로 서버(check_in_today RPC)가 한다 — 여기서는 결과를 보여줄 뿐이다.
+      화면의 상태(오늘 했는지)는 어디까지나 표시용이고, 두 번 눌러도 DB의
+      (user_id, day) 기본키가 막는다.
+   ⚠️ 날짜는 **한국 시간 기준**으로 계산한다. 브라우저 표준시가 무엇이든
+      서버가 쓰는 Asia/Seoul 날짜와 어긋나면 "오늘"이 하루씩 밀린다. */
+var AT={days:null,total:0,busy:false};
+var AT_VIEW=null; // 달력에서 보고 있는 달 'YYYY-MM'
+
+function atYmd(d){return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);}
+/* 한국 시간의 '벽시계'를 그대로 담은 Date — 연/월/일만 읽는 용도다(시각은 의미 없음) */
+function atTodayDate(){return new Date(Date.now()+new Date().getTimezoneOffset()*60000+9*3600000);}
+function atTodayStr(){return atYmd(atTodayDate());}
+function atHas(k){return !!(AT.days&&AT.days.has(k));}
+
+async function atLoad(fromYmd,toYmd){
+  if(!AUTH.user||!window.supabase)return;
+  var r=await window.supabase.from("attendance").select("day")
+    .eq("user_id",AUTH.user.id).gte("day",fromYmd).lte("day",toYmd);
+  if(!AT.days)AT.days=new Set();
+  if(r.error)return;
+  (r.data||[]).forEach(function(x){AT.days.add(String(x.day).slice(0,10));});
+}
+async function atLoadMonth(ym){
+  var y=+ym.slice(0,4),m=+ym.slice(5,7);
+  await atLoad(ym+"-01",ym+"-"+("0"+new Date(y,m,0).getDate()).slice(-2));
+}
+async function atLoadTotal(){
+  if(!AUTH.user||!window.supabase)return;
+  var r=await window.supabase.from("attendance").select("day",{count:"exact",head:true}).eq("user_id",AUTH.user.id);
+  if(!r.error)AT.total=r.count||0;
+}
+/* 연속 출석일 — 오늘(아직 안 했으면 어제)부터 거꾸로 끊기지 않은 날 수.
+   불러온 범위 안에서만 셀 수 있으므로 카드가 최근 60일을 미리 받아 둔다. */
+function atStreak(){
+  if(!AT.days)return 0;
+  var d=atTodayDate(),n=0;
+  if(!AT.days.has(atYmd(d)))d.setDate(d.getDate()-1);
+  while(AT.days.has(atYmd(d))){n++;d.setDate(d.getDate()-1);}
+  return n;
+}
+
+/* ---- 내 정보 위쪽의 작은 출석 카드 ---- */
+function atCardHTML(){return '<div class="at-card" id="atCard"></div>';}
+async function atFillCard(){
+  if(!document.getElementById("atCard"))return;
+  if(AT.days===null){
+    var t=atTodayDate(),from=new Date(t.getTime()-59*86400000);
+    await atLoad(atYmd(from),atYmd(t));
+  }
+  var el=document.getElementById("atCard"); // 기다리는 사이 화면이 바뀌었을 수 있다
+  if(el)el.innerHTML=atCardInnerHTML();
+}
+function atCardInnerHTML(){
+  var today=atTodayStr(),done=atHas(today),st=atStreak(),W=["일","월","화","수","목","금","토"];
+  var d=atTodayDate();d.setDate(d.getDate()-6);
+  var strip="";
+  for(var i=0;i<7;i++){
+    var k=atYmd(d);
+    strip+='<div class="at-d'+(atHas(k)?" on":"")+(k===today?" now":"")+'">'+
+      '<span>'+W[d.getDay()]+'</span><i>'+d.getDate()+'</i></div>';
+    d.setDate(d.getDate()+1);
+  }
+  return '<div class="at-head"><div class="at-title">출석체크</div>'+
+      (st>0?'<div class="at-streak">🔥 '+st+'일 연속</div>':'')+'</div>'+
+    '<div class="at-sub">하루 한 번 · 활동 20P + 광고 20P</div>'+
+    '<div class="at-strip">'+strip+'</div>'+
+    '<button type="button" class="at-btn'+(done?" done":"")+'"'+(done?" disabled":' onclick="atCheckIn()"')+'>'+
+      (done?"오늘 출석 완료":"오늘 출석하기")+'</button>'+
+    '<button type="button" class="at-more" onclick="openAttendance()">달력으로 보기'+
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>';
+}
+
+/* ---- 출석 실행 ---- */
+async function atCheckIn(){
+  if(!AUTH.user){openLoginModal();return;}
+  if(!window.supabase||AT.busy)return;
+  AT.busy=true;
+  Array.prototype.forEach.call(document.querySelectorAll(".at-btn"),function(b){b.disabled=true;b.textContent="확인 중...";});
+  var r=await window.supabase.rpc("check_in_today");
+  AT.busy=false;
+  if(r.error){toast("출석에 실패했어요: "+r.error.message);atRefreshUI();return;}
+  var d=r.data||{};
+  if(!d.ok){
+    toast(d.reason==="banned"?"이용이 제한된 계정이에요.":"로그인이 필요해요.");
+    atRefreshUI();return;
+  }
+  if(!AT.days)AT.days=new Set();
+  AT.days.add(String(d.day).slice(0,10));
+  if(!d.already){
+    AT.total=(AT.total||0)+1;
+    // 화면의 점수·포인트를 곧바로 맞춘다. 등급이 오를 수도 있어 프로필도 다시 받아온다.
+    if(AUTH.profile){
+      AUTH.profile.score=(AUTH.profile.score||0)+(d.score||0);
+      AUTH.profile.ad_points=(AUTH.profile.ad_points||0)+(d.points||0);
+    }
+    toast("출석 완료! 활동 "+(d.score||0)+"P · 광고 "+(d.points||0)+"P 받았어요"+
+      ((d.streak||0)>1?" · "+d.streak+"일 연속 🔥":""));
+    atRefreshUI();
+    refreshMyProfile().then(atPatchScoreUI);
+    return;
+  }
+  toast("오늘은 이미 출석했어요.");
+  atRefreshUI();
+}
+/* 출석 카드와 달력을 지금 상태로 다시 그린다(화면 전체를 다시 그리면 스크롤이 튄다) */
+function atRefreshUI(){
+  var c=document.getElementById("atCard");
+  if(c)c.innerHTML=atCardInnerHTML();
+  if(document.getElementById("atCal"))renderAttendance();
+}
+/* 내 정보 화면에 떠 있는 점수·광고 포인트·등급 진행바만 살짝 갱신 */
+function atPatchScoreUI(){
+  if(!AUTH.profile)return;
+  var s=document.getElementById("pfScoreStat");
+  if(s)s.textContent=AUTH.profile.score||0;
+  var p=document.getElementById("pfAdPtSub");
+  if(p)p.textContent="광고 P "+(AUTH.profile.ad_points||0);
+  var bar=document.querySelector("#myProfileView .pp-fill");
+  if(bar){
+    var pr=levelProgress(AUTH.profile.score||0,AUTH.profile.level||1);
+    bar.style.width=pr.pct+"%";
+    var row=document.querySelector("#myProfileView .pp-row");
+    if(row)row.innerHTML='<span>'+esc(levelName(AUTH.profile.level||1))+'</span><span>'+
+      (pr.maxed?'최고 등급 달성! 🎉':('다음 등급('+esc(pr.nextName)+')까지 '+pr.remain+'점'))+'</span>';
+  }
+}
+
+/* ---- 달력 화면 ---- */
+async function openAttendance(){
+  if(!AUTH.user){openLoginModal();return;}
+  enterScreen("attendance",openProfile);
+  var t=atTodayDate();
+  AT_VIEW=t.getFullYear()+"-"+("0"+(t.getMonth()+1)).slice(-2);
+  document.getElementById("main").innerHTML='<div class="profile"><p style="padding:40px 0;text-align:center;color:var(--muted)">불러오는 중...</p></div>';
+  await atLoadMonth(AT_VIEW);
+  await atLoadTotal();
+  renderAttendance();
+  window.scrollTo({top:0,behavior:"auto"});
+}
+async function atShiftMonth(delta){
+  if(!AT_VIEW)return;
+  var y=+AT_VIEW.slice(0,4),m=+AT_VIEW.slice(5,7)-1+delta;
+  var d=new Date(y,m,1),ym=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2);
+  if(ym>atTodayStr().slice(0,7))return; // 다음 달은 볼 것이 없다
+  AT_VIEW=ym;
+  await atLoadMonth(ym);
+  renderAttendance();
+}
+function renderAttendance(){
+  var ym=AT_VIEW||atTodayStr().slice(0,7);
+  var y=+ym.slice(0,4),m=+ym.slice(5,7);
+  var today=atTodayStr(),thisMonth=today.slice(0,7);
+  var lead=new Date(y,m-1,1).getDay(),last=new Date(y,m,0).getDate();
+  var W=["일","월","화","수","목","금","토"];
+  var head="";
+  for(var i=0;i<7;i++)head+='<div class="at-w'+(i===0?" sun":(i===6?" sat":""))+'">'+W[i]+'</div>';
+  var cells="",monthCount=0;
+  for(var b=0;b<lead;b++)cells+='<div class="at-c gap"></div>';
+  for(var day=1;day<=last;day++){
+    var k=ym+"-"+("0"+day).slice(-2),on=atHas(k);
+    if(on)monthCount++;
+    cells+='<div class="at-c'+(on?" on":"")+(k===today?" now":"")+(k>today?" fut":"")+'">'+day+'</div>';
+  }
+  var done=atHas(today),st=atStreak();
+  var h='<div class="profile">'+
+    '<button class="d-back" onclick="screenBack()">← 내 정보로</button>'+
+    '<div class="pf-sec">출석체크</div>'+
+    '<div class="at-stats">'+
+      '<div class="at-st"><b>'+st+'</b><span>연속 출석</span></div>'+
+      '<div class="at-st"><b>'+monthCount+'</b><span>'+m+'월 출석</span></div>'+
+      '<div class="at-st"><b>'+(AT.total||0)+'</b><span>누적 출석</span></div>'+
+    '</div>'+
+    '<div class="at-cal" id="at-cal">'+
+      '<div class="at-nav">'+
+        '<button type="button" aria-label="이전 달" onclick="atShiftMonth(-1)">'+
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>'+
+        '<div class="at-ym">'+y+'년 '+m+'월</div>'+
+        '<button type="button" aria-label="다음 달"'+(ym>=thisMonth?" disabled":"")+' onclick="atShiftMonth(1)">'+
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>'+
+      '</div>'+
+      '<div class="at-grid at-wk">'+head+'</div>'+
+      '<div class="at-grid">'+cells+'</div>'+
+      '<div class="at-legend"><span class="at-dot"></span>출석한 날</div>'+
+    '</div>'+
+    '<button type="button" class="at-btn big'+(done?" done":"")+'"'+(done?" disabled":' onclick="atCheckIn()"')+'>'+
+      (done?"오늘 출석 완료":"오늘 출석하기 · 활동 20P + 광고 20P")+'</button>'+
+    '<p class="at-note">출석은 한국 시간 기준으로 하루에 한 번만 할 수 있어요. 받은 포인트는 <b>내 정보 → 포인트</b>에서 확인할 수 있어요.</p>'+
+    '</div>';
+  document.getElementById("main").innerHTML=h;
+}
+/* ===================== /출석체크 ===================== */
 async function openScoreLog(){
   if(!AUTH.user||!window.supabase)return;
   enterScreen("scoreLog",openProfile); // 뒤로가기가 프로필로 정확히 복귀하도록 히스토리 남김
@@ -9224,9 +9418,11 @@ function renderMyProfile(){
      '<div class="pp-bar"><div class="pp-fill" style="width:'+prog.pct+'%"></div></div></div>';
   // 통계 3개. 광고 포인트는 광고 낼 때만 쓰는 값이라 상단에서 빼고 [내 활동]으로 옮겼다.
   h+='<div class="pf-stats">'+
-     '<div class="pf-st"><b>'+myScore+'</b><span>활동 점수</span></div>'+
+     '<div class="pf-st"><b id="pfScoreStat">'+myScore+'</b><span>활동 점수</span></div>'+
      '<div class="pf-st"><b>'+likeSum+'</b><span>받은 추천</span></div>'+
      '<div class="pf-st"><b>'+cmSum+'</b><span>받은 댓글</span></div></div>';
+  // 출석체크 — 매일 하는 행동이라 눈에 잘 띄는 위쪽에 둔다(내용은 비동기로 채운다)
+  h+=atCardHTML();
   // 고정한 글 + 받은 후기(콘텐츠)
   h+=pinnedPostCardHTML(AUTH.profile?AUTH.profile.pinned_post_id:null);
   if(pfReviewsForUserId!==AUTH.user.id){pfReviewsExpanded=false;pfReviewsForUserId=AUTH.user.id;}
@@ -9243,8 +9439,9 @@ function renderMyProfile(){
      pfTile(pfMiniIcon('<path d="M8 12l3 3 5-5"/><path d="M3 10l5-5 4 3 4-3 5 5-6 8H9z"/>'),'내 커미션','등록·신청 관리',"cmOpenMy()")+
      pfTile(pfMiniIcon('<path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8 8.38 8.38 0 0 1 8.5-8.5 8.5 8.5 0 0 1 8.5 8.5z"/>'),'채팅','주고받은 대화',"openChatList('profile')")+
      pfTile(pfMiniIcon('<circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/>'),'이모티콘','담기·만들기',"openEmoticonMarket()")+
-     pfTile(pfMiniIcon('<circle cx="12" cy="12" r="9"/><path d="M12 8v8M9 12h6"/>'),'포인트','광고 P '+(AUTH.profile?(AUTH.profile.ad_points||0):0),"openScoreLog()")+
+     pfTile(pfMiniIcon('<circle cx="12" cy="12" r="9"/><path d="M12 8v8M9 12h6"/>'),'포인트','<span id="pfAdPtSub">광고 P '+(AUTH.profile?(AUTH.profile.ad_points||0):0)+'</span>',"openScoreLog()")+
      pfTile(pfMiniIcon('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>'),'친구 초대','보상 받기',"openReferral()")+
+     pfTile(pfMiniIcon('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M9 15l2 2 4-4"/>'),'출석체크','매일 40P',"openAttendance()")+
      '</div>');
   h+=pfSection('알림','받고 싶은 알림만 골라서 켜요',notifEnableHTML()+
      '<label class="pf-toggle-row"><span class="pf-item-label">내 글에 댓글이 달리면 알림</span><input type="checkbox" '+(SETTINGS.cm?'checked':'')+' onchange="toggleNotifPref(\'cm\',this.checked,\'댓글\')"></label>'+
@@ -9284,6 +9481,7 @@ function renderMyProfile(){
   document.getElementById("main").innerHTML=h;
   syncTabs("me");pfScrollAfterRender();
   loadFollowBar(AUTH.user.id);
+  atFillCard();
   pfBookmarkCount(AUTH.user.id).then(function(n){
     var el=document.getElementById("pfhBmCount");
     if(el)el.textContent=n;

@@ -157,6 +157,7 @@ Supabase 프로젝트: https://qabbdgfottbnapmyjudy.supabase.co
 | `level_thresholds` | `level`(int PK, 1~8), `min_score`(int), `name`(text), `emoji`(text, 2026-07-29 추가) | 등급 기준표. **등급 이름/이모지/필요 점수를 바꾸려면 이 표만 수정하면 됨** — 코드 변경 불필요. insert/update/delete 정책 없음(관리자가 SQL Editor로만 직접 수정) |
 | `comment_helpful` | `comment_id`(FK→comments), `user_id`(uuid, FK→profiles), `created_at` | PK가 `(comment_id,user_id)`. "도움돼요"를 실제로 저장하는 테이블(2026-07-29 추가 — 이전엔 완전히 가짜였음, 아래 "등급 시스템" 절 참고). **로그인 필수**(likes와 달리 익명 불가) |
 | `score_log` | `id`(bigint PK), `user_id`(FK→profiles), `amount`(int, 실제 지급된 양), `event`(text), `source_table`/`source_id`(어느 글/댓글에 귀속되는지), `created_at` | 등급 시스템의 지급 내역(2026-07-29 추가) — 글/댓글 삭제 시 정확한 회수의 근거. select는 본인만, insert/update/delete는 트리거만 |
+| `attendance` | `user_id`(uuid, FK→auth.users, `on delete cascade`), `day`(date, **한국 시간 기준 날짜**), `score_awarded`(int), `points_awarded`(int), `created_at` | 출석체크(2026-08-15 추가). **PK가 `(user_id, day)`** — 하루 두 번 출석이 DB 차원에서 불가능하다(함수 안에서 "오늘 했나?" 조회 후 insert 하는 방식은 동시에 두 번 누르면 둘 다 통과한다). select 정책은 본인 것만, **insert/update/delete 정책은 일부러 없음** → `check_in_today()` RPC로만 기록됨 |
 | `score_awarded_likes` | `user_id`, `post_id`(FK→posts) | PK가 `(user_id,post_id)`. "이 사람이 이 글로 추천 점수를 받은 적 있는지" 영구 기록(2026-07-29 추가, 좋아요 취소 후 재클릭 악용 방지) — RLS만 켜고 정책은 없음, 클라이언트 접근 완전 차단 |
 | `score_awarded_helpful` | `user_id`, `comment_id`(FK→comments) | 위와 동일한 목적, 도움돼요용 |
 | `user_ads` | `id`(bigint PK), `user_id`(FK→profiles), `image_url`(text), `linked_post_id`(FK→posts, `on delete cascade`, **nullable** — 2026-07-31부터), `linked_commission_id`(FK→commissions, `on delete cascade`, nullable, 2026-07-31 추가 — 글 대신 커미션을 광고할 때), `points_spent`(int), `duration_days`(int), `status`(text: pending/active/rejected/expired/removed_by_admin), `created_at`, `expires_at`(nullable — `pending` 상태일 땐 아직 안 채워짐) | 유저 이미지 배너 광고(2026-07-29 추가, 2026-07-31 커미션 광고 확장). insert/update는 RLS 정책 없음 — `create_user_ad()`(생성, `pending`)/`approve_user_ad()`/`reject_user_ad()`(관리자 사전 승인·거절)/`admin_remove_ad()`(사후 삭제) RPC로만 상태 변경. **`user_ads_target_check` 제약**으로 `linked_post_id`/`linked_commission_id` 중 정확히 하나만 채워짐(글 광고 또는 커미션 광고). 연결된 글·커미션이 삭제되면 광고도 cascade로 자동 삭제 |
@@ -1983,6 +1984,29 @@ function onHomeListNow(){
 - **`_cmSetDetailUrl(id,title)`에 제목 인자 추가** — `openPost`는 `document.title`을 바꾸는데 커미션만 빠져 있어서, 앱 안에서 들어가면 탭·방문기록에 홈 제목이 남았다. 링크로 바로 들어온 경우는 서버가 이미 넣어 준다.
 
 **검증**: 커미션 상세에서 `onHomeListNow()`=false·`renderList` 건너뜀·주소 `/commission/1` 유지, 홈에서 =true·정상 렌더, 글 상세/커미션 목록 =false, 앱 내 이동 시 제목이 커미션 제목으로 바뀜.
+
+### 리뷰 이벤트 배너 글래스모피즘 (2026-08-15)
+커미션 상세페이지의 「🎁 리뷰 이벤트 진행 중」 배너(`.cm-revevent`)를 유리 느낌으로 교체. 기존엔 팔레트에 없는 벽돌색(`#c0392b`·`#e0607a`)이라 사이트 분위기에서 혼자 튀었다.
+
+- **⚠️ 단색 배경 위에서는 `backdrop-filter`만으로 유리가 안 만들어진다.** 블러는 "뒤에 있는 것"을 흐리는 건데 `--bg`는 민무늬라 흐릴 게 없다. 그래서 **색 얼룩을 `::before`로 직접 깔고 그 위를 `::after` 유리판이 덮는 2겹 구조**로 만들었다(얼룩은 `filter:blur(28px)`, 브랜드/포도/귤 3색).
+- **⚠️ 쌓임 순서 때문에 부모에 배경을 주면 안 된다.** 순서가 `요소 자기 배경 → 음수 z-index 자식 → 본문 내용`이라, 부모에 흰색을 깔면 얼룩 **아래**로 들어가 아무 소용이 없다. 부모는 테두리·그림자만, 얼룩 `z-index:-2`, 유리판 `-1`.
+- **⚠️ `isolation:isolate` 필수.** 없으면 음수 z-index가 조상 스택까지 뚫고 올라가 상세페이지의 다른 요소 뒤로 숨는다.
+- **유리의 흰색 농도는 취향이 아니라 글자 대비가 정한다.** 처음 `.74→.52`로 얇게 뒀더니 오른쪽 아래(주황 얼룩 위) 11.5px 안내문이 **4.18:1로 기준 미달**. `.78→.60` + 얼룩 농도를 낮추고 안내문 색을 `--muted`→`--ink-2`로 바꿔 해결. **실측(코드 검산): 제목 5.03 / 본문 11.28 / 안내문 5.67.** 값을 다시 만질 땐 **오른쪽 아래 모서리 기준**으로 계산할 것 — 거기가 가장 불리하다.
+- **구형 사파리 대비 안전장치**: `::after`의 `backdrop-filter`가 무시돼도 흰색 그라디언트만으로 이미 서리 유리처럼 보인다(얼룩이 이미 `filter:blur`로 흐려져 있으므로).
+- 같이 고친 것 — ①제목 옆 `.cm-revevent-tag`: `--brand` 글자/`--brand-soft` 배경이 **2.6:1**밖에 안 됐다 → 배너 제목과 같은 진한 톤(`#a83a68`) ②목록 카드 `.cm-revevent-badge`: 여기는 뒤가 그림이라 `backdrop-filter`가 **진짜로 먹는다**(유일하게 진짜 유리). 다만 밝은 그림 위 흰 글자가 안 읽히므로 브랜드색을 `.82`로 충분히 깔고 그 위에 블러 ③`.cm-revevent-cta`에 `font-family:inherit` 누락돼 있어 버튼만 시스템 폰트로 나오던 것 수정.
+- **실측**: 375px에서 배너 303×217, CTA 46px(터치 목표 충분), 가로 스크롤 없음.
+
+### 출석체크 (2026-08-15 추가)
+하루 한 번 출석하면 **활동 포인트 +20, 광고 포인트 +20**. `docs/sql/attendance.sql`.
+
+- **지급 권한을 열지 않았다.** 예전에 `award_score`를 누구나 호출할 수 있어 무한 지급이 가능했던 사고가 있었으므로, 이번엔 "포인트를 주는 함수"가 아니라 **"출석하는 함수"(`check_in_today()`)만** `authenticated`에게 열었다. 지급량 20/20은 함수 안에 박혀 있어 클라이언트가 못 건드린다.
+- **⚠️ 중복 지급은 조회로 막지 않는다.** "오늘 출석했나?" 조회 후 insert 하면 버튼을 동시에 두 번 눌렀을 때 둘 다 통과한다(경쟁 조건). `(user_id, day)` PK + `on conflict do nothing ... returning`으로 **삽입이 실제로 일어났을 때만** 지급하므로 원천적으로 불가능하다.
+- **하루 경계는 `Asia/Seoul`.** UTC로 하면 한국에서 오전 9시에 날짜가 바뀐다. 클라이언트도 같은 기준으로 계산한다(`atTodayDate()` = `Date.now() + getTimezoneOffset()*60000 + 9시간`) — 서버와 어긋나면 "오늘"이 하루 밀린다.
+- 점수 컬럼은 `guard_profile_score_columns()`로 잠겨 있으므로 update 전에 `set_config('app.trusted_score_update','true',true)`. 등급은 `recalc_level()`, 없으면 `level_thresholds`로 직접 계산(referral.sql과 같은 패턴).
+- `score_log`에 `event='attendance'`로 남긴다(내 정보 → 포인트에 "출석체크"로 표시). ⚠️ 이 표는 원래 트리거만 쓰는 곳이라 컬럼 구성이 달라질 수 있어 **insert 실패해도 출석 자체는 막지 않게** 예외로 감쌌다.
+- **연속 출석일**은 `day + 역순 순번`이 `오늘+1`로 일정한 구간의 길이(gaps-and-islands). 클라이언트는 최근 60일만 받아 두고 같은 방식으로 센다.
+- UI: 내 정보 상단에 최근 7일 띠 + 출석 버튼 카드(`atCardHTML`/`atFillCard`), 「내 활동」 타일에 진입점, `openAttendance()`가 월 달력 화면. 출석한 날은 브랜드색 원, 오늘은 링, 미래 날짜는 흐리게. **다음 달로는 못 넘어간다**(볼 것이 없다).
+- **실측**(2026년 8월 기준): 8/1이 토요일 → 앞 빈칸 6 + 31일 = 37칸, 7월은 3 + 31 = 34칸. 375px에서 칸 40×40, 가로 스크롤 없음. 오늘 출석 전 연속 6일 → 출석 후 7일.
 
 ### 검색 [4단계] 무한 스크롤 (2026-08-13)
 검색 결과만 페이저 대신 스크롤로 이어 붙인다(`SEARCH_STEP=20`). **게시판 목록은 페이저 그대로** — 그쪽은 "몇 페이지에 있었지"로 되찾는 일이 잦다.

@@ -1656,6 +1656,54 @@
   .pf-progress .pp-row{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:8px}
   .pf-progress .pp-bar{height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden}
   .pf-progress .pp-fill{height:100%;background:linear-gradient(90deg,var(--brand),var(--grape));border-radius:4px;transition:width .4s}
+
+  /* ===== 출석체크 =====
+     ⚠️ .at-card 는 내용이 비동기로 채워진다. 비어 있는 동안 테두리만 뜬 빈 상자가
+        보이지 않도록 :empty 일 때는 아예 감춘다(.profile 이 flex+gap 이라 빈 칸도 자리를 먹는다). */
+  .at-card{background:var(--surface);border:1.5px solid var(--line-2);border-radius:var(--r);padding:14px 16px 12px}
+  .at-card:empty{display:none}
+  .at-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .at-title{font-size:14px;font-weight:900;color:var(--ink)}
+  .at-streak{font-size:11.5px;font-weight:800;color:var(--brand-2);background:var(--brand-soft);border-radius:999px;padding:4px 9px;white-space:nowrap}
+  .at-sub{font-size:11.5px;font-weight:700;color:var(--muted);margin-top:3px}
+  .at-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:11px 0 12px}
+  .at-d{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .at-d span{font-size:10px;font-weight:800;color:var(--muted)}
+  .at-d i{display:flex;align-items:center;justify-content:center;width:100%;max-width:34px;aspect-ratio:1/1;border-radius:50%;background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:800;font-style:normal}
+  .at-d.on i{background:var(--brand);color:#fff}
+  .at-d.now i{box-shadow:0 0 0 2px var(--brand-2)}
+  .at-btn{width:100%;border:0;border-radius:13px;background:var(--brand);color:#fff;font-family:inherit;font-size:13.5px;font-weight:900;padding:12px;cursor:pointer;transition:.14s}
+  .at-btn:hover:not(:disabled){background:var(--brand-2)}
+  .at-btn.done,.at-btn:disabled{background:var(--surface-2);color:var(--muted);cursor:default}
+  .at-btn.big{padding:15px;font-size:14.5px;border-radius:15px}
+  .at-more{display:flex;align-items:center;justify-content:center;gap:2px;width:100%;background:none;border:0;font-family:inherit;font-size:12px;font-weight:800;color:var(--muted);padding:9px 0 2px;cursor:pointer}
+  .at-more svg{width:14px;height:14px}
+  .at-more:hover{color:var(--brand-2)}
+  .at-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .at-st{background:var(--surface);border:1.5px solid var(--line-2);border-radius:18px;padding:15px 8px;text-align:center}
+  .at-st b{display:block;font-size:19px;font-weight:900;color:var(--ink)}
+  .at-st span{font-size:11px;color:var(--muted);font-weight:700;margin-top:3px;display:block}
+  .at-cal{background:var(--surface);border:1.5px solid var(--line-2);border-radius:var(--r);padding:14px 14px 12px}
+  .at-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .at-nav button{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:none;border:0;border-radius:50%;color:var(--ink-2);cursor:pointer}
+  .at-nav button:hover:not(:disabled){background:var(--surface-2)}
+  .at-nav button:disabled{color:var(--muted-2);cursor:default}
+  .at-nav button svg{width:20px;height:20px}
+  .at-ym{font-size:15px;font-weight:900;color:var(--ink)}
+  .at-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .at-wk{margin-bottom:4px}
+  .at-w{text-align:center;font-size:11px;font-weight:800;color:var(--muted);padding:2px 0}
+  .at-w.sun{color:#c2546a}
+  .at-w.sat{color:#5570b8}
+  .at-c{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;border-radius:50%;font-size:12.5px;font-weight:800;color:var(--ink-2)}
+  .at-c.gap{visibility:hidden}
+  .at-c.fut{color:var(--muted-2)}
+  .at-c.on{background:var(--brand);color:#fff;font-weight:900}
+  .at-c.now{box-shadow:inset 0 0 0 2px var(--brand-2)}
+  .at-legend{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--muted);margin-top:11px}
+  .at-dot{width:11px;height:11px;border-radius:50%;background:var(--brand);display:inline-block}
+  .at-note{font-size:11.5px;line-height:1.65;color:var(--muted)}
+  .at-note b{font-weight:800;color:var(--ink-2)}
   .pf-tabs{display:flex;gap:6px;flex-wrap:wrap}
   .pf-tab{background:var(--surface);border:1.5px solid var(--line-2);border-radius:11px;padding:9px 14px;font-size:12.5px;font-weight:800;color:var(--muted);cursor:pointer;font-family:inherit;transition:.13s}
   .pf-tab.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
@@ -2069,7 +2117,13 @@
   .cm-bookmark.on svg{fill:var(--brand);color:var(--brand)}
   .cm-status{position:absolute;top:10px;right:10px;font-size:11px;font-weight:700;padding:4px 8px;border-radius:8px}
   .cm-status.open{background:rgba(63,143,95,.92);color:#fff}
-  .cm-revevent-badge{position:absolute;top:10px;left:10px;font-size:11px;font-weight:800;padding:4px 8px;border-radius:8px;background:rgba(224,96,122,.94);color:#fff}
+  /* 목록 카드 위 배지 — 여기는 뒤가 그림이라 backdrop-filter가 실제로 먹는다(진짜 유리).
+     ⚠️ 다만 밝은 그림 위에서 흰 글자가 안 읽히므로, 완전 투명이 아니라 브랜드색을
+        충분히 깔고(.82) 그 위에 블러를 얹는다. */
+  .cm-revevent-badge{position:absolute;top:10px;left:10px;font-size:11px;font-weight:800;padding:5px 9px;border-radius:999px;
+    background:rgba(224,122,166,.82);color:#fff;border:1px solid rgba(255,255,255,.5);
+    -webkit-backdrop-filter:blur(8px) saturate(150%);backdrop-filter:blur(8px) saturate(150%);
+    box-shadow:0 3px 10px -3px rgba(90,40,70,.4)}
   /* ── 가려진 성인 커미션 카드(미인증자) ──
      ⚠️ 진짜 이미지에 blur를 씌운 게 아니다. 서버가 내용을 안 주므로 여기 있는 건 무늬뿐이고,
         흐림은 "가려져 있다"는 신호일 뿐 보호 장치가 아니다(보호는 RLS가 한다). */
@@ -2095,12 +2149,50 @@
      ⚠️ '오픈중'(.cm-status)은 오른쪽 위라 서로 안 부딪힌다. */
   .cm-adult-badge{position:absolute;left:10px;bottom:10px;font-size:11px;font-weight:900;
     padding:3px 8px;border-radius:8px;background:rgba(40,28,36,.82);color:#fff;letter-spacing:.02em}
-  .cm-revevent-tag{display:inline-block;vertical-align:middle;font-size:12px;font-weight:800;padding:3px 9px;border-radius:20px;background:var(--brand-soft);color:var(--brand);margin-left:6px;letter-spacing:0}
-  .cm-revevent{border:1.5px solid #f0c4cf;background:linear-gradient(135deg,#fff5f8,#fdeef2);border-radius:14px;padding:15px 16px;margin:14px 0}
-  .cm-revevent-h{font-size:14.5px;font-weight:900;color:#c0392b;margin-bottom:7px}
-  .cm-revevent-benefit{font-size:14px;line-height:1.6;color:var(--ink);white-space:normal;font-weight:600}
-  .cm-revevent-cta{margin-top:12px;width:100%;background:linear-gradient(120deg,#e0607a,#c0392b);color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:800;cursor:pointer}
-  .cm-revevent-note{margin-top:10px;font-size:11.5px;line-height:1.5;color:var(--muted)}
+  /* 제목 옆 태그. 예전엔 --brand(#e07aa6) 글자 / --brand-soft(#f7e6ef) 배경이라 대비가
+     2.6:1밖에 안 돼 12px 글자가 흐릿했다 — 배너 제목과 같은 진한 톤으로 맞춘다. */
+  .cm-revevent-tag{display:inline-block;vertical-align:middle;font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px;
+    background:linear-gradient(135deg,rgba(247,230,239,.9),rgba(238,232,250,.9));color:#a83a68;
+    border:1px solid rgba(255,255,255,.8);box-shadow:0 2px 8px -3px rgba(150,80,125,.4);
+    margin-left:6px;letter-spacing:0}
+  /* 리뷰 이벤트 배너 — 글래스모피즘.
+     ⚠️ 이 페이지 배경(--bg)은 단색이라 backdrop-filter만 걸면 **아무 효과도 안 보인다**
+        (블러는 뒤에 있는 것을 흐리는 건데 뒤가 민무늬라 흐릴 게 없다).
+        그래서 색 얼룩을 ::before로 직접 깔고, 그 위를 ::after 유리판이 덮는 2겹 구조로 만든다.
+     ⚠️ 쌓임 순서: 요소 자기 배경 → 음수 z-index 자식 → 본문 내용. 그래서 얼룩은 z-index:-2,
+        유리판은 -1 이어야 글자가 항상 맨 위로 온다. 부모 배경에 흰색을 주면 얼룩 **아래**로
+        깔려 아무 소용이 없다 — 그래서 부모는 배경 없이 테두리만 갖는다.
+     ⚠️ isolation:isolate 로 쌓임 맥락을 가둔다. 없으면 음수 z-index가 조상까지 뚫고 올라가
+        상세페이지의 다른 요소 뒤로 숨는다. */
+  .cm-revevent{position:relative;isolation:isolate;overflow:hidden;border-radius:20px;padding:17px 18px;margin:16px 0;
+    border:1px solid rgba(255,255,255,.72);
+    box-shadow:0 12px 30px -14px rgba(150,80,125,.42),inset 0 1px 0 rgba(255,255,255,.9)}
+  .cm-revevent::before{content:"";position:absolute;inset:-35%;z-index:-2;filter:blur(28px);
+    background:
+      radial-gradient(closest-side,rgba(224,122,166,.9),transparent) 6% 4%/58% 70% no-repeat,
+      radial-gradient(closest-side,rgba(151,132,214,.66),transparent) 96% 0%/52% 62% no-repeat,
+      radial-gradient(closest-side,rgba(224,160,116,.5),transparent) 78% 100%/56% 64% no-repeat}
+  /* ⚠️ 유리의 흰색 농도는 취향이 아니라 **글자 대비**가 정한다. .74→.52 로 얇게 뒀을 때
+     오른쪽 아래(주황 얼룩 위)의 작은 안내문이 4.18:1 로 기준(4.5:1) 미달이었다.
+     .78→.60 + 얼룩 농도를 낮춰 제목 5.08:1 / 안내문 5.52:1 로 맞췄다. 값을 다시 만질 땐
+     **오른쪽 아래 모서리**를 기준으로 계산할 것 — 거기가 가장 불리하다. */
+  .cm-revevent::after{content:"";position:absolute;inset:0;z-index:-1;
+    background:linear-gradient(145deg,rgba(255,255,255,.78),rgba(255,255,255,.6));
+    -webkit-backdrop-filter:blur(8px) saturate(150%);backdrop-filter:blur(8px) saturate(150%)}
+  /* 유리판 위 글자라 색이 흐려지기 쉽다 — --brand-2(#d1608f)는 3.5:1로 기준 미달이라
+     같은 계열의 더 진한 톤을 쓴다(약 5:1). */
+  .cm-revevent-h{font-size:14.5px;font-weight:900;color:#a83a68;margin-bottom:8px;letter-spacing:-.2px}
+  .cm-revevent-benefit{font-size:14px;line-height:1.65;color:var(--ink);white-space:normal;font-weight:600}
+  .cm-revevent-cta{margin-top:14px;width:100%;font-family:inherit;
+    background:linear-gradient(120deg,var(--brand),var(--brand-2));color:#fff;
+    border:1px solid rgba(255,255,255,.45);border-radius:14px;padding:12.5px;
+    font-size:14px;font-weight:800;cursor:pointer;
+    box-shadow:0 8px 18px -8px rgba(209,96,143,.75),inset 0 1px 0 rgba(255,255,255,.35);
+    transition:transform .14s,box-shadow .14s,filter .14s}
+  .cm-revevent-cta:hover{filter:brightness(1.04);transform:translateY(-1px);box-shadow:0 11px 22px -9px rgba(209,96,143,.8),inset 0 1px 0 rgba(255,255,255,.35)}
+  .cm-revevent-cta:active{transform:translateY(0)}
+  /* --muted 는 --bg(민무늬) 기준으로 맞춘 색이라 색 얼룩이 비치는 유리 위에서는 모자란다 */
+  .cm-revevent-note{margin-top:11px;font-size:11.5px;line-height:1.5;color:var(--ink-2)}
   .cm-adminscore{border:1.5px solid #cdd8e6;background:#f4f7fb;border-radius:14px;padding:14px 15px;margin:14px 0}
   .cm-as-h{font-size:13.5px;font-weight:900;color:#31435c;margin-bottom:9px;display:flex;align-items:center;gap:7px}
   .cm-as-badge{font-size:10.5px;font-weight:800;color:#fff;background:#5b7aa8;border-radius:20px;padding:2px 8px}
