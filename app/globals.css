@@ -1714,6 +1714,11 @@
   .at-c.on.now{box-shadow:inset 0 0 0 2px var(--brand-2),0 3px 10px rgba(255,93,162,.3)}
   .at-legend{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--muted);margin-top:11px}
   .at-dot{width:11px;height:11px;border-radius:50%;background:linear-gradient(120deg,var(--brand),var(--grape));display:inline-block}
+  /* 썸네일 백필(관리자) */
+  .bf-stat{font-size:13px;font-weight:700;color:var(--ink);padding:2px 2px 10px}
+  .bf-bar{height:8px;background:rgba(255,255,255,.62);border-radius:4px;overflow:hidden}
+  .bf-fill{height:100%;width:0;background:linear-gradient(120deg,var(--brand),var(--grape));border-radius:4px;transition:width .3s}
+  .bf-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
   .at-note{font-size:11.5px;line-height:1.65;color:var(--muted)}
   .at-note b{font-weight:800;color:var(--ink-2)}
   .pf-tabs{display:flex;gap:6px;flex-wrap:wrap}
@@ -2070,6 +2075,26 @@
       margin-left:-20px;margin-right:-20px;  /* = .wrap.grid의 모바일 좌우 여백 */
       margin-top:-18px;                      /* = #main의 모바일 위 여백 */
     }
+  }
+  /* PC에서 커미션 **목록만** 폭을 넓혀 열을 늘린다(2026-08-15 요청).
+     그전에는 1440px 화면에서도 480px만 쓰고 640px이 비어 있었다.
+     ⚠️ 대상은 .cm-root-list — 상세·등록 폼·내 커미션은 같은 .cm-root를 쓰지만 넓히면
+        글줄과 입력칸이 화면 끝까지 늘어져 오히려 읽기 나빠진다.
+     ⚠️ 폭은 **카드가 360px을 넘지 않게** 잡았다. 그 이상 커지면 PC용 썸네일(360px)을
+        확대하게 돼 다시 뭉개진다 — 아래 값은 둘 다 카드 약 249px이 되도록 계산한 것이다
+        (여백 16×2, 카드 간격 10). 폭을 바꾸면 이 계산을 다시 할 것.
+     ⚠️ 861px 미만은 건드리지 않는다 — 모바일 규칙(음수 여백 등)이 그대로 살아 있어야 한다. */
+  @media(min-width:861px) and (max-width:1179px){
+    .cm-root-list{max-width:800px}                                   /* (800-32-20)/3 ≈ 249 */
+    .cm-root-list .cm-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  }
+  @media(min-width:1180px){
+    .cm-root-list{max-width:1060px}                                  /* (1060-32-30)/4 ≈ 249 */
+    .cm-root-list .cm-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  }
+  /* 검색창까지 같이 늘어나면 1060px짜리 입력칸이 된다 — 상단 줄만 따로 묶어 둔다 */
+  @media(min-width:861px){
+    .cm-root-list .cm-search{max-width:420px}
   }
   .cm-top{position:sticky;top:0;z-index:20;background:var(--bg);padding:10px var(--cm-padx) 0}
   /* 핑크 테두리 → 연한 회색 배경으로. 테두리는 투명하게 자리만 잡아 둬서

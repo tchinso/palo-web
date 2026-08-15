@@ -3870,7 +3870,9 @@ function cmChipsHTML(){
   return all+rest;
 }
 function cmListHTML(){
-  return '<div class="cm-root">'+
+  /* ⚠️ cm-root-list — PC에서 폭을 넓히는 건 **목록일 때만**이다. 상세·등록 폼·내 커미션도
+     같은 .cm-root를 쓰는데 거기까지 넓어지면 글줄과 입력칸이 화면 끝까지 늘어져 읽기 나빠진다. */
+  return '<div class="cm-root cm-root-list">'+
     '<div class="cm-top">'+
       '<div class="cm-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>'+
         '<input id="cmSearchInput" type="text" placeholder="커미션 검색 (제목·태그)" value="'+esc(cmState.query||'')+'" oninput="cmSearch(this.value)"></div>'+
@@ -9113,6 +9115,83 @@ async function refreshMyProfile(){
 }
 var SCORE_EVENT_LABELS={post_create:"글 작성",comment_create:"댓글 작성",like_received:"글이 추천받음",helpful_received:"댓글이 도움돼요 받음",attendance:"출석체크"};
 
+/* ===================== 썸네일 백필 (관리자) =====================
+   썸네일 기능 이전에 올라간 이미지에 360/720 썸네일을 붙인다.
+   ⚠️ 한 번에 다 하지 않는다 — 서버가 이미지를 받아 두 규격으로 줄여 다시 올리는 작업이라
+      한 호출에 몇 장씩만 처리하고, 남은 개수가 0이 될 때까지 여기서 반복 호출한다. */
+var BF={running:false,stop:false,made:0,processed:0,failed:0,skipped:0};
+async function bfCall(payload){
+  var sess=await window.supabase.auth.getSession();
+  var token=sess.data.session?sess.data.session.access_token:null;
+  if(!token)throw new Error("로그인이 필요해요");
+  var r=await fetch("/api/storage/backfill-thumbs",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+    body:JSON.stringify(payload||{})
+  });
+  var j=null;try{j=await r.json();}catch(e){}
+  if(!r.ok||!j||!j.ok)throw new Error((j&&j.message)||"요청에 실패했어요");
+  return j;
+}
+async function openThumbBackfill(){
+  if(!AUTH.profile||!AUTH.profile.is_admin){toast("관리자만 사용할 수 있어요");return;}
+  enterScreen("thumbBackfill",openProfile);
+  document.getElementById("main").innerHTML='<div class="profile">'+
+    '<button class="d-back" onclick="screenBack()">← 내 정보로</button>'+
+    '<div class="pf-sec">썸네일 백필</div>'+
+    '<div class="pf-group"><div class="pf-group-head"><div class="pf-group-title">옛 이미지에 썸네일 붙이기</div>'+
+      '<div class="pf-group-desc">썸네일이 없는 이미지는 목록에서 원본을 그대로 받아 화질이 깨져 보여요. 한 번에 몇 장씩 처리하며, 이미 있는 건 건너뜁니다.</div></div>'+
+      '<div class="bf-stat" id="bfStat">먼저 얼마나 남았는지 확인해 보세요.</div>'+
+      '<div class="bf-bar"><div class="bf-fill" id="bfFill" style="width:0%"></div></div>'+
+      '<div class="bf-actions">'+
+        '<button type="button" class="at-btn" id="bfScan" onclick="bfScan()">남은 개수 확인</button>'+
+        '<button type="button" class="at-btn" id="bfRun" onclick="bfRun()" disabled>백필 시작</button>'+
+      '</div>'+
+      '<div class="at-note" id="bfLog"></div>'+
+    '</div></div>';
+  window.scrollTo({top:0,behavior:"auto"});
+}
+function bfSet(msg,pct){
+  var s=document.getElementById("bfStat");if(s)s.textContent=msg;
+  var f=document.getElementById("bfFill");if(f&&pct!=null)f.style.width=Math.max(0,Math.min(100,pct))+"%";
+}
+function bfLog(msg){var l=document.getElementById("bfLog");if(l)l.innerHTML=esc(msg);}
+async function bfScan(){
+  if(BF.running)return;
+  bfSet("확인 중...",0);
+  try{
+    var j=await bfCall({dryRun:true});
+    BF.total=j.missing;
+    bfSet(j.missing?("썸네일이 없는 이미지 "+j.missing+"장 (전체 "+j.scanned+"개 훑음)"):"모두 처리되어 있어요 🎉",j.missing?0:100);
+    var b=document.getElementById("bfRun");if(b)b.disabled=!j.missing;
+  }catch(e){bfSet("확인 실패: "+e.message,0);}
+}
+async function bfRun(){
+  if(BF.running)return;
+  BF.running=true;BF.stop=false;BF.made=0;BF.processed=0;BF.failed=0;BF.skipped=0;
+  var run=document.getElementById("bfRun"),scan=document.getElementById("bfScan");
+  if(scan)scan.disabled=true;
+  if(run){run.textContent="중단";run.onclick=function(){BF.stop=true;bfLog("현재 묶음까지 끝내고 멈춥니다...");};}
+  var total=BF.total||0;
+  try{
+    while(!BF.stop){
+      var j=await bfCall({limit:8});
+      BF.processed+=j.processed;BF.made+=j.made;BF.failed+=j.failed;BF.skipped+=j.skipped;
+      if(!total)total=j.missing+BF.processed;
+      var left=j.remaining;
+      bfSet("남은 "+left+"장 · 만든 썸네일 "+BF.made+"개",total?((total-left)/total*100):100);
+      if(j.errors&&j.errors.length)bfLog("최근 실패: "+j.errors.join(" / "));
+      if(j.done||left<=0){bfSet("백필 완료 🎉 · 만든 썸네일 "+BF.made+"개"+(BF.failed?(" · 실패 "+BF.failed+"장"):""),100);break;}
+      // 한 묶음이 아무것도 처리하지 못하면(전부 실패) 무한 반복이 되므로 멈춘다
+      if(j.processed===0&&j.failed>0){bfSet("처리에 계속 실패해서 멈췄어요. 로그를 확인해주세요.",null);break;}
+    }
+  }catch(e){bfSet("백필 실패: "+e.message,null);}
+  BF.running=false;
+  if(scan)scan.disabled=false;
+  if(run){run.textContent="백필 시작";run.onclick=bfRun;run.disabled=false;}
+}
+/* ===================== /썸네일 백필 ===================== */
+
 /* ===================== 출석체크 =====================
    하루 한 번 출석하면 활동 포인트 20 + 광고 포인트 20.
    ⚠️ 지급은 전적으로 서버(check_in_today RPC)가 한다 — 여기서는 결과를 보여줄 뿐이다.
@@ -9499,6 +9578,7 @@ function renderMyProfile(){
        pfRow(pfMiniIcon('<path d="M9 3v6l-4 4v8h14v-8l-4-4V3z"/>'),'매니저 픽 관리',"openManagerPickList()",{})+
        pfRow(pfMiniIcon('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>'),'초대 관리',"openAdminReferrals()",{})+
        pfRow(pfMiniIcon('<path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>'),'삭제 기록',"openAdminDeletionLog()",{})+
+       pfRow(pfMiniIcon('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>'),'썸네일 백필',"openThumbBackfill()",{})+
        pfRow(pfMiniIcon('<path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/><circle cx="17" cy="7" r="1.6"/>'),'광고 성과',"openAdminMkt()",{})+
        pfRow(pfMiniIcon('<path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6"/><path d="M16 3l5 5-9 9H7v-5z"/>'),'커미션 추천 관리',"openAdminCommissionMgmt()",{})+
        pfRow(pfMiniIcon('<path d="M12 2l2.4 7.4H22l-6 4.3 2.3 7.3-6.3-4.6-6.3 4.6 2.3-7.3-6-4.3h7.6z"/>'),'추천 점수 조정 기록',"openCommissionBonusLog()",{})+
