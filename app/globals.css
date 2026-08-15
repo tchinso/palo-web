@@ -1955,15 +1955,16 @@
   body.cm-page .msearch-ico-btn{display:none}
   body.cm-page .search.desktop{display:none}
   body.cm-page .cm-header-my-btn{display:flex}
-  /* ⚠️ 상세에서는 헤더 아이콘이 2개 늘어 좁은 폰(320px대)에서 68px 넘쳤다(실측).
-     그 폭에서만 상세와 관련이 덜한 검색·랭킹·내 커미션을 접는다 — 셋 다 서랍(☰)이나
-     하단 탭에 있고, 지금 화면에서 필요한 건 공유·더보기다.
-     ⚠️ 이 블록은 반드시 body.cm-page 규칙들 **뒤에** 있어야 한다 — 특이도가 같아
-        순서로 승부가 갈린다(앞에 뒀다가 '내 커미션'이 안 숨는 것을 실측). */
-  @media(max-width:400px){
-    body.cm-detail .msearch-ico-btn,
-    body.cm-detail .cm-header-my-btn,
-    body.cm-detail .h-actions>button[aria-label="랭킹"]{display:none}
+  /* 커미션 화면에서는 알림·프로필을 접는다(2026-08-15 사용자 요청 — 아이콘이 늘어 헤더가 길어졌다).
+     둘 다 하단 탭('내 정보')과 서랍(☰)으로 갈 수 있어 이 화면에서 빠져도 막히지 않는다.
+     그 자리를 상세 전용 아이콘(공유·더보기)이 대신 쓴다.
+     ⚠️ 이 규칙들은 반드시 위 body.cm-page 규칙들 **뒤에** 둘 것 — 특이도가 같아 순서로
+        승부가 갈린다(앞에 뒀다가 '내 커미션'이 안 숨는 것을 실측). */
+  /* ⚠️ 모바일에서만 접는다. PC는 하단 탭이 없고 상세에서는 ☰(서랍)마저 ←로 바뀌어 있어,
+     여기서 알림·프로필까지 숨기면 **갈 방법이 아예 없어진다**(실측: menuBtn 폭 0, 탭바 none). */
+  @media(max-width:860px){
+    body.cm-page .h-actions>button[aria-label="알림"],
+    body.cm-page .h-actions>button[aria-label="내 프로필"]{display:none}
   }
 
   /* ===== 커미션 페이지 (cm-) ===== */
