@@ -47,8 +47,13 @@ export async function POST(request) {
     if (!FOLDERS.has(parts[0])) continue;
     if (parts[1] !== user.id) continue;     // ← 남의 폴더면 제외
     keys.push({ Key: key });
-    // 딸린 썸네일도 함께 — 없으면 R2가 조용히 무시한다(Quiet 삭제라 실패 아님)
-    if (!key.endsWith(".thumb.webp")) keys.push({ Key: key + ".thumb.webp" });
+    // 딸린 썸네일도 함께 — 없으면 R2가 조용히 무시한다(Quiet 삭제라 실패 아님).
+    // ⚠️ 세대별로 전부 지운다 — 규격을 바꾸며 접미사 번호를 올리므로, 옛 세대를 빼먹으면
+    //    원본이 사라진 뒤에도 저장소에 고아 파일로 영영 남는다.
+    if (!/\.thumb\d*\.webp$/.test(key)) {
+      keys.push({ Key: key + ".thumb.webp" });   // 1세대(360px)
+      keys.push({ Key: key + ".thumb2.webp" });  // 2세대(720px)
+    }
   }
   if (!keys.length) return Response.json({ ok: true, deleted: 0 });
 

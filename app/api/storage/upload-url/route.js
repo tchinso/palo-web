@@ -50,12 +50,15 @@ export async function POST(request) {
   }
   if (!(size > 0) || size > MAX_BYTES) return bad("40MB 이하 파일만 올릴 수 있어요.");
 
-  // 썸네일(선택) — 목록에서 원본 대신 쓸 작은 webp. 원본 키 뒤에 ".thumb.webp"를 붙여
+  // 썸네일(선택) — 목록에서 원본 대신 쓸 작은 webp. 원본 키 뒤에 접미사를 붙여
   // **주소만 보고 썸네일 주소를 유도**할 수 있게 한다(DB에 따로 기록하지 않는 이유).
-  // 2MB면 360px webp로 차고 넘친다 — 그보다 크면 썸네일이 아니다.
+  // ⚠️ 접미사는 클라이언트의 THUMB_SUFFIX 와 반드시 같아야 한다(palo.js). 규격을 바꿀 때
+  //    번호를 올려 옛 썸네일을 건너뛰게 하는 구조라, 한쪽만 바꾸면 조용히 어긋난다.
+  // 4MB면 720px webp로 차고 넘친다 — 그보다 크면 썸네일이 아니다.
+  const THUMB_SUFFIX = ".thumb2.webp";
   const thumbSize = Number(body?.thumbSize || 0);
   const wantThumb = thumbSize > 0 && !isFileSlot;
-  if (wantThumb && thumbSize > 2 * 1024 * 1024) return bad("썸네일이 너무 커요.");
+  if (wantThumb && thumbSize > 4 * 1024 * 1024) return bad("썸네일이 너무 커요.");
 
   // 로그인 확인 — 익명 업로드를 막는다
   const authHeader = request.headers.get("authorization") || "";
@@ -103,7 +106,7 @@ export async function POST(request) {
         r2Client(),
         new PutObjectCommand({
           Bucket: R2_BUCKET,
-          Key: objectKey + ".thumb.webp",
+          Key: objectKey + THUMB_SUFFIX,
           ContentType: "image/webp",
           ContentLength: thumbSize,
         }),

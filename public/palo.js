@@ -6602,11 +6602,17 @@ async function makeThumbBlob(blob){
     var img=await loadImageFromFile(blob);
     var w=img.naturalWidth,h=img.naturalHeight;
     if(!w||!h)return null;
-    var maxSide=360,longSide=Math.max(w,h);
+    /* ⚠️ 긴 변 720px — 예전 360px은 **화면 배율을 빼먹은 값**이라 목록에서 뭉개졌다
+       (2026-08-15 신고). 카드는 165px로 그려지지만 배율 2배 화면에서 실제로 필요한 건 330px,
+       3배면 495px다. 게다가 카드는 정사각으로 잘라 쓰므로(object-fit:cover) 세로 이미지는
+       '짧은 변'이 기준이 된다 — 3:4 사진이면 720 → 짧은 변 540px 로 3배 화면까지 덮는다.
+       원본(1800px)보다는 여전히 훨씬 작아 절감 효과는 유지된다. */
+    var maxSide=720,longSide=Math.max(w,h);
+    // 원본이 이미 작으면 키우지 않는다 — 확대해 봐야 화질은 그대로고 용량만 는다
     if(longSide>maxSide){var sc=maxSide/longSide;w=Math.round(w*sc);h=Math.round(h*sc);}
     var c=document.createElement("canvas");c.width=w;c.height=h;
     c.getContext("2d").drawImage(img,0,0,w,h);
-    var t=await canvasToBlob(c,"image/webp",0.72);
+    var t=await canvasToBlob(c,"image/webp",0.82); // 0.72는 그림에서 뭉개짐이 보였다
     if(!t||t.type!=="image/webp")return null;   // webp를 못 만드는 브라우저면 썸네일 없이 감
     if(t.size>=blob.size)return null;           // 원본보다 크면 의미가 없다(아주 작은 원본)
     return t;
@@ -6641,12 +6647,17 @@ async function uploadToStorage(blob,folder){
     toast("업로드 실패: 네트워크를 확인해주세요");return null;
   }
 }
-/* 원본 주소 → 썸네일 주소. 우리 저장소(이미지 도메인) 주소일 때만 — 외부·데모 주소는 그대로. */
+/* 원본 주소 → 썸네일 주소. 우리 저장소(이미지 도메인) 주소일 때만 — 외부·데모 주소는 그대로.
+   ⚠️ 접미사에 세대 번호를 둔다(thumb2). 규격을 바꾸면 **이미 올라간 옛 썸네일이 남아 있어서**
+      그것만 계속 뭉개져 보인다 — 번호를 올리면 옛 파일은 404가 되고, thumbFail 이 원본으로
+      바꿔 끼워 즉시 선명해진다. 새로 올리는 이미지부터 새 규격 썸네일이 생긴다.
+      (thumb1 = 360px/q0.72 — 화면 배율을 빼먹어 목록에서 뭉개졌다, 2026-08-15) */
+var THUMB_SUFFIX=".thumb2.webp";
 function thumbOf(u){
   if(!u||typeof u!=="string")return u;
   if(u.indexOf("img.commi.kr")===-1&&u.indexOf("r2.dev")===-1)return u;
-  if(/\.thumb\.webp$/.test(u))return u;
-  return u+".thumb.webp";
+  if(/\.thumb\d*\.webp$/.test(u))return u;
+  return u+THUMB_SUFFIX;
 }
 // 썸네일 404(옛 이미지) → 원본으로 교체. onerror를 비워 무한 반복을 막는다.
 function thumbFail(el){
