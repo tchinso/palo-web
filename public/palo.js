@@ -6597,26 +6597,31 @@ function loadImageFromFile(file){
       옛 이미지는 썸네일이 없어 404가 나는데, 그때 thumbFail이 원본으로 바꿔 끼운다.
    ⚠️ GIF도 첫 프레임으로 정지 썸네일을 만든다 — 목록에서 GIF 원본(수 MB~수십 MB)을
       받는 게 가장 큰 전송량이었다. 원본 보기(뷰어·상세)는 그대로 움직인다. */
-async function makeThumbBlob(blob){
+/* 썸네일을 **두 규격**으로 만든다 — 한 규격으로는 폰과 PC를 동시에 만족시킬 수 없다.
+     sm(360px) : 배율 1인 화면(대부분의 PC 모니터)용. 카드가 220px 안팎이라 이게 딱 맞는다.
+     lg(720px) : 배율 2~3인 화면(폰·레티나)용. 같은 카드가 실제로는 330~500px다.
+   ⚠️ 한 규격만 두면 반드시 한쪽이 깨진다. 360만 두면 폰에서 확대돼 뭉개지고(2026-08-15 신고),
+      720만 두면 PC에서 원본급을 3배 넘게 줄이게 돼 선화가 계단처럼 깨진다(2026-08-15 PC 신고).
+   ⚠️ 원본은 한 번만 디코딩하고 캔버스만 두 번 그린다 — 큰 이미지를 두 번 읽으면 폰에서 느리다. */
+async function makeThumbBlobs(blob){
+  var none={sm:null,lg:null};
   try{
     var img=await loadImageFromFile(blob);
-    var w=img.naturalWidth,h=img.naturalHeight;
-    if(!w||!h)return null;
-    /* ⚠️ 긴 변 720px — 예전 360px은 **화면 배율을 빼먹은 값**이라 목록에서 뭉개졌다
-       (2026-08-15 신고). 카드는 165px로 그려지지만 배율 2배 화면에서 실제로 필요한 건 330px,
-       3배면 495px다. 게다가 카드는 정사각으로 잘라 쓰므로(object-fit:cover) 세로 이미지는
-       '짧은 변'이 기준이 된다 — 3:4 사진이면 720 → 짧은 변 540px 로 3배 화면까지 덮는다.
-       원본(1800px)보다는 여전히 훨씬 작아 절감 효과는 유지된다. */
-    var maxSide=720,longSide=Math.max(w,h);
-    // 원본이 이미 작으면 키우지 않는다 — 확대해 봐야 화질은 그대로고 용량만 는다
-    if(longSide>maxSide){var sc=maxSide/longSide;w=Math.round(w*sc);h=Math.round(h*sc);}
-    var c=document.createElement("canvas");c.width=w;c.height=h;
-    c.getContext("2d").drawImage(img,0,0,w,h);
-    var t=await canvasToBlob(c,"image/webp",0.82); // 0.72는 그림에서 뭉개짐이 보였다
-    if(!t||t.type!=="image/webp")return null;   // webp를 못 만드는 브라우저면 썸네일 없이 감
-    if(t.size>=blob.size)return null;           // 원본보다 크면 의미가 없다(아주 작은 원본)
-    return t;
-  }catch(e){return null;}
+    var w0=img.naturalWidth,h0=img.naturalHeight;
+    if(!w0||!h0)return none;
+    async function at(maxSide){
+      var w=w0,h=h0,longSide=Math.max(w,h);
+      // 원본이 이미 작으면 키우지 않는다 — 확대해 봐야 화질은 그대로고 용량만 는다
+      if(longSide>maxSide){var sc=maxSide/longSide;w=Math.round(w*sc);h=Math.round(h*sc);}
+      var c=document.createElement("canvas");c.width=w;c.height=h;
+      c.getContext("2d").drawImage(img,0,0,w,h);
+      var t=await canvasToBlob(c,"image/webp",0.82); // 0.72는 그림에서 뭉개짐이 보였다
+      if(!t||t.type!=="image/webp")return null;   // webp를 못 만드는 브라우저면 썸네일 없이 감
+      if(t.size>=blob.size)return null;           // 원본보다 크면 의미가 없다(아주 작은 원본)
+      return t;
+    }
+    return {sm:await at(360),lg:await at(720)};
+  }catch(e){return none;}
 }
 async function uploadToStorage(blob,folder){
   if(!window.supabase){toast("업로드를 사용할 수 없어요");return null;}
@@ -6625,12 +6630,13 @@ async function uploadToStorage(blob,folder){
   if(!token){toast("로그인이 필요해요");return null;}
   var type=blob.type||"application/octet-stream";
   // 이미지 슬롯이면 썸네일도 준비(파일 첨부·비이미지는 제외). 실패해도 원본 업로드는 계속.
-  var thumb=(folder!=="file"&&/^image\//.test(type))?await makeThumbBlob(blob):null;
+  var th=(folder!=="file"&&/^image\//.test(type))?await makeThumbBlobs(blob):{sm:null,lg:null};
   try{
     var r=await fetch("/api/storage/upload-url",{
       method:"POST",
       headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
-      body:JSON.stringify({folder:folder,contentType:type,size:blob.size,thumbSize:thumb?thumb.size:0})
+      body:JSON.stringify({folder:folder,contentType:type,size:blob.size,
+        thumbSize:th.sm?th.sm.size:0,thumb2Size:th.lg?th.lg.size:0})
     });
     var j=null;try{j=await r.json();}catch(e){}
     if(!r.ok||!j||!j.ok){toast("업로드 실패: "+((j&&j.message)||"잠시 후 다시 시도해주세요"));return null;}
@@ -6639,8 +6645,11 @@ async function uploadToStorage(blob,folder){
     if(!put.ok){toast("업로드 실패: 파일을 저장하지 못했어요");return null;}
     // 썸네일은 곁다리 — 실패해도 원본은 이미 올라갔으니 업로드 전체를 실패시키지 않는다
     // (썸네일이 없으면 목록에서 404 → thumbFail이 원본으로 대체하므로 동작엔 지장 없음)
-    if(thumb&&j.thumbUploadUrl){
-      try{await fetch(j.thumbUploadUrl,{method:"PUT",body:thumb,headers:{"Content-Type":"image/webp"}});}catch(e){}
+    if(th.sm&&j.thumbUploadUrl){
+      try{await fetch(j.thumbUploadUrl,{method:"PUT",body:th.sm,headers:{"Content-Type":"image/webp"}});}catch(e){}
+    }
+    if(th.lg&&j.thumb2UploadUrl){
+      try{await fetch(j.thumb2UploadUrl,{method:"PUT",body:th.lg,headers:{"Content-Type":"image/webp"}});}catch(e){}
     }
     return j.publicUrl;
   }catch(e){
@@ -6648,28 +6657,43 @@ async function uploadToStorage(blob,folder){
   }
 }
 /* 원본 주소 → 썸네일 주소. 우리 저장소(이미지 도메인) 주소일 때만 — 외부·데모 주소는 그대로.
-   ⚠️ 접미사에 세대 번호를 둔다(thumb2). 규격을 바꾸면 **이미 올라간 옛 썸네일이 남아 있어서**
-      그것만 계속 뭉개져 보인다 — 번호를 올리면 옛 파일은 404가 되고, thumbFail 이 원본으로
-      바꿔 끼워 즉시 선명해진다. 새로 올리는 이미지부터 새 규격 썸네일이 생긴다.
-      (thumb1 = 360px/q0.72 — 화면 배율을 빼먹어 목록에서 뭉개졌다, 2026-08-15) */
-var THUMB_SUFFIX=".thumb2.webp";
-function thumbOf(u){
-  if(!u||typeof u!=="string")return u;
-  if(u.indexOf("img.commi.kr")===-1&&u.indexOf("r2.dev")===-1)return u;
-  if(/\.thumb\d*\.webp$/.test(u))return u;
-  return u+THUMB_SUFFIX;
+   썸네일 주소는 DB에 없고 원본 주소에서 **유도**한다(접미사를 붙인다).
+   THUMB_SM=360px / THUMB_LG=720px 두 규격이 있고, 화면 배율로 무엇을 먼저 쓸지 고른다.
+
+   ⚠️ 세대 번호를 올려서 규격을 바꾸는 방식은 쓰지 말 것. 2026-08-15에 thumb→thumb2로
+      올렸더니 **이미 올라가 있던 썸네일이 전부 404가 되어** 모든 카드가 1800px 원본을
+      받았다. PC(배율 1)에서는 그걸 219px 칸에 넣느라 4.9배 축소가 일어나 선화가 깨졌다.
+      규격을 늘릴 땐 **접미사를 새로 추가하고 옛 것을 후보로 남긴다.** */
+var THUMB_SM=".thumb.webp";   // 360px — 배율 1 (대부분의 PC 모니터, 카드 220px 안팎)
+var THUMB_LG=".thumb2.webp";  // 720px — 배율 2~3 (폰·레티나, 같은 카드가 실제 330~500px)
+/* 시도할 주소를 우선순위대로. 앞의 것이 404면 thumbFail 이 다음으로 넘어간다.
+   ⚠️ 고배율에서 sm(360)은 후보에 넣지 않는다 — 500px로 늘리면 원본을 줄여 쓰는 것보다
+      오히려 더 뭉개진다. 저배율에서는 반대로 lg(720)도 원본보다 훨씬 낫다. */
+function thumbChain(u){
+  if(!u||typeof u!=="string")return [u];
+  if(u.indexOf("img.commi.kr")===-1&&u.indexOf("r2.dev")===-1)return [u];
+  if(/\.thumb\d*\.webp$/.test(u))return [u];
+  return ((window.devicePixelRatio||1)>1.25)
+    ? [u+THUMB_LG,u]                 // 폰·레티나
+    : [u+THUMB_SM,u+THUMB_LG,u];     // PC
 }
-// 썸네일 404(옛 이미지) → 원본으로 교체. onerror를 비워 무한 반복을 막는다.
+/* 404면 다음 후보로. 남은 후보를 data-alts에 담아 두고 하나씩 꺼낸다.
+   ⚠️ 마지막 후보(원본)에서 또 실패하면 onerror를 비워 무한 반복을 막는다.
+   ⚠️ 구분자가 공백인 것은 안전하다 — URL에는 공백이 들어갈 수 없다(%20으로 인코딩된다). */
 function thumbFail(el){
-  el.onerror=null;
-  var f=el.getAttribute("data-full");
-  if(f&&el.src!==f)el.src=f;
+  var alts=(el.getAttribute("data-alts")||"").split(" ").filter(Boolean);
+  if(!alts.length){el.onerror=null;return;}
+  var next=alts.shift();
+  el.setAttribute("data-alts",alts.join(" "));
+  if(!alts.length)el.onerror=null;
+  el.src=next;
 }
 /* 목록 칸에 꽉 차게 들어가는 썸네일 img 태그. extra엔 class·style 등 추가 속성. */
 function thumbImgHTML(u,extra){
-  var t=thumbOf(u);
-  if(t===u)return '<img src="'+esc(u)+'" alt="" loading="lazy" '+(extra||'')+'>'; // 유도 불가 주소는 예전 그대로
-  return '<img src="'+esc(t)+'" data-full="'+esc(u)+'" onerror="thumbFail(this)" alt="" loading="lazy" '+(extra||'')+'>';
+  var chain=thumbChain(u);
+  if(chain.length<2)return '<img src="'+esc(u)+'" alt="" loading="lazy" '+(extra||'')+'>'; // 유도 불가 주소
+  return '<img src="'+esc(chain[0])+'" data-alts="'+esc(chain.slice(1).join(" "))+
+    '" onerror="thumbFail(this)" alt="" loading="lazy" '+(extra||'')+'>';
 }
 // 커미션을 지울 때 딸린 이미지 정리. 실패해도 서비스 동작엔 지장 없으므로 조용히 넘어간다.
 async function deleteFromStorage(urls){
