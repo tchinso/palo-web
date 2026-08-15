@@ -6668,16 +6668,25 @@ async function uploadToStorage(blob,folder){
       규격을 늘릴 땐 **접미사를 새로 추가하고 옛 것을 후보로 남긴다.** */
 var THUMB_SM=".thumb.webp";   // 360px — 배율 1 (대부분의 PC 모니터, 카드 220px 안팎)
 var THUMB_LG=".thumb2.webp";  // 720px — 배율 2~3 (폰·레티나, 같은 카드가 실제 330~500px)
+/* ⚠️⚠️ 썸네일 주소 뒤에 붙이는 판 번호. **이미지 서버가 404 응답에도
+   `Cache-Control: max-age=31536000`(1년)을 붙인다**(2026-08-15 실측). 그래서 썸네일이
+   아직 없을 때 그 주소를 한 번 요청한 브라우저는 **1년 동안 404를 기억하고**, 나중에
+   썸네일을 만들어 둬도 계속 원본으로 폴백한다(백필을 돌리고도 안 바뀌어서 발견).
+   판 번호를 올리면 주소가 달라져 그 죽은 캐시를 통째로 건너뛴다.
+   → 썸네일을 대량으로 새로 만든 뒤에는 이 번호를 올릴 것.
+   ※ 근본 해결은 Cloudflare 캐시 규칙에서 **404에 긴 TTL을 주지 않게** 고치는 것이다. */
+var THUMB_V="?v=2";
 /* 시도할 주소를 우선순위대로. 앞의 것이 404면 thumbFail 이 다음으로 넘어간다.
    ⚠️ 고배율에서 sm(360)은 후보에 넣지 않는다 — 500px로 늘리면 원본을 줄여 쓰는 것보다
-      오히려 더 뭉개진다. 저배율에서는 반대로 lg(720)도 원본보다 훨씬 낫다. */
+      오히려 더 뭉개진다. 저배율에서는 반대로 lg(720)도 원본보다 훨씬 낫다.
+   ⚠️ 판 번호는 썸네일에만 붙인다 — 원본은 늘 200이라 죽은 캐시가 생길 일이 없다. */
 function thumbChain(u){
   if(!u||typeof u!=="string")return [u];
   if(u.indexOf("img.commi.kr")===-1&&u.indexOf("r2.dev")===-1)return [u];
   if(/\.thumb\d*\.webp$/.test(u))return [u];
   return ((window.devicePixelRatio||1)>1.25)
-    ? [u+THUMB_LG,u]                 // 폰·레티나
-    : [u+THUMB_SM,u+THUMB_LG,u];     // PC
+    ? [u+THUMB_LG+THUMB_V,u]                        // 폰·레티나
+    : [u+THUMB_SM+THUMB_V,u+THUMB_LG+THUMB_V,u];    // PC
 }
 /* 404면 다음 후보로. 남은 후보를 data-alts에 담아 두고 하나씩 꺼낸다.
    ⚠️ 마지막 후보(원본)에서 또 실패하면 onerror를 비워 무한 반복을 막는다.
