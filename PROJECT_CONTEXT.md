@@ -1690,6 +1690,16 @@ KCP **서비스 오픈 메일 수신 후** 첫 실인증 성공. `adult_verified
 
 **③ 🐛 손님 문의 알림을 누르면 이용규칙이 뜨던 오류** — `dbRowToNotif`가 `link_conversation_id`를 **아예 안 읽고 있었다.** 손님 알림엔 `link_chat_user`가 없어서(계정이 없으니) `notifClick`의 분기가 전부 비고 맨 아래 `openRules()`로 떨어졌다. `conversationId`를 매핑에 추가하고, `openConversationById(id)` 신설 — 방을 읽어 손님방이면 `openGuestRoomAsOwner`, 일반 방이면 상대를 알아내 `openChat`. 검증: 합성 알림으로 `notifClick` 분기가 `openConversationById(42)`로 가는 것 확인.
 
+### 🐛 화면별 주소 정리 — 프로필이 커미션 주소를 달던 문제 (2026-08-15, 사용자 신고)
+"프로필 URL이 커미션 URL과 같다 — 공유되게 만들고 다른 부분도 구분되게."
+- **원인**: `cmOpenAuthorProfile`이 `openUserProfile(userId, keepStack=true)`로 여는데, `openUserProfile`은 `if(!keepStack)`일 때만 주소를 바꾼다 → 화면은 프로필인데 주소는 `/commission/<id>` 그대로. 링크를 복사해 공유하면 커미션이 열렸다. **수정**: `cmOpenAuthorProfile`이 `_setScreenUrl("/user/"+userId)`로 직접 맡는다(제목은 openUserProfile이 닉네임 받아 채움).
+- **새 공유 주소 3개**(라우트+딥링크+popstate+부팅가드 전부 배선): `/commission/<id>/reviews`(커미션 후기) · `/emoticon/<id>`(이모티콘 팩) · `/ranking`(포인트 랭킹). 각 라우트에 `generateMetadata`로 제목·OG까지.
+- **⚠️ 정규식 순서**: `getCommissionIdFromPath`가 `$`로 끝나 `/commission/1/reviews`와 안 겹치지만, 라우팅 분기에서는 **reviews를 커미션보다 먼저** 검사해야 안전하다.
+- **⚠️ 랭킹은 `enterScreen`을 안 쓰는 화면** — 스택 없이 #main만 교체하므로 주소는 `pushState`로 직접 쌓고, **이미 `/ranking`이면 아무것도 안 한다**(주/월 토글마다 히스토리가 쌓이면 뒤로가기를 여러 번 눌러야 나간다). 실측: 토글 2회에 히스토리 증가 0.
+- 딥링크 진입 시 목록이 없으므로 `cmOpenReviewsById`/`openEmoticonPackById`가 먼저 불러온 뒤 연다. 없는 대상이면 안내 후 홈 복귀(크래시 없음 — 실측).
+- **URL을 일부러 안 주는 화면**: 등록·신청·후기작성 폼(작성 중 상태라 딥링크가 빈 폼을 염), 채팅방(사생활), 관리자 화면, 작업샘플 폼 — 부모 주소를 유지한다.
+- 검증(dev): 라우트 5개 200+제목 정확, 작가 프로필 `/user/<uuid>`로 전환·뒤로 한 번에 커미션 복귀, 후기 딥링크가 홈 안 거치고 바로 열림, 랭킹 토글 히스토리 0, 없는 팩 안전 복귀, 콘솔 오류 0.
+
 ### 프로필 자유 링크 추가 (2026-08-15, 사용자 요청)
 트위터·인스타·이메일은 그대로 두고, 아무 사이트나 넣는 링크 하나(`sns_link`) 추가.
 - **DB(사용자 실행)**: `docs/sql/profile-sns-link.sql` — `profiles`에 `sns_link text` 컬럼. (기존 sns_* 컬럼은 SQL 파일에 기록 없이 대시보드로 추가됐던 것 — 이건 파일로 남김)

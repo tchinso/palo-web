@@ -692,13 +692,34 @@ function getPostIdFromPath(){
    ⚠️ 로그인 상태를 알아야 성인 커미션 판정이 되므로 initAuth() 다음에 부른다. */
 function routeDeepLinkEarly(){
   if(userLeftHome)return false;
+  var rcid=getReviewsCmIdFromPath();               // /commission/<id>/reviews — 커미션보다 먼저 본다
+  if(rcid){userLeftHome=true;cmOpenReviewsById(rcid);return true;}
   var cid=getCommissionIdFromPath();
   if(cid){cmOpenCommissionById(cid);return true;} // 안에서 userLeftHome=true
   var uid=getUserIdFromPath();
   if(uid){userLeftHome=true;openUserProfile(uid);return true;}
+  var eid=getEmoticonIdFromPath();
+  if(eid){userLeftHome=true;openEmoticonPackById(eid);return true;}
+  if(isRankingPath()){userLeftHome=true;openLeaderboard();return true;}
   var tab=getTabFromPath();
   if(tab){userLeftHome=true;openTabByKey(tab);return true;}
   return false;
+}
+/* 링크로 바로 들어온 경우엔 목록이 아직 없다 — 먼저 불러온 뒤 연다.
+   (앱 안에서 누를 때는 이미 목록이 있어 openEmoticonPack / cmOpenReviews 가 바로 열린다) */
+async function openEmoticonPackById(packId){
+  if(!EMO_MARKET.length&&typeof reloadEmoticonMarket==="function"){
+    try{await reloadEmoticonMarket();}catch(e){}
+  }
+  if(!EMO_MARKET.find(function(x){return x.id===packId;})){
+    toast("이모티콘 팩을 찾을 수 없어요");goHome();return;
+  }
+  openEmoticonPack(packId);
+}
+async function cmOpenReviewsById(commissionId){
+  var idx=await cmEnsureCommissionInData(commissionId);
+  if(idx<0){toast("커미션을 찾을 수 없어요(삭제되었을 수 있어요)");goHome();return;}
+  cmOpenReviews(commissionId);
 }
 function sharePost(id){
   var p=POSTS.find(function(x){return x.id===id});if(!p)return;
@@ -712,6 +733,27 @@ function sharePost(id){
 function getCommissionIdFromPath(){
   var m=location.pathname.match(/^\/commission\/(\d+)$/);
   return m?parseInt(m[1],10):null;
+}
+/* 공유 가능한 화면들의 주소 (2026-08-15).
+   ⚠️ 화면마다 주소가 달라야 "지금 보는 것"과 "복사되는 링크"가 어긋나지 않는다 —
+      예전엔 커미션 상세에서 작가 프로필로 들어가도 주소가 /commission/6 이라,
+      프로필을 공유하려고 복사하면 커미션이 열렸다(사용자 신고).
+   ⚠️ /commission/12/reviews 는 위 getCommissionIdFromPath 의 정규식이 $ 로 끝나 겹치지 않는다. */
+function getReviewsCmIdFromPath(){
+  var m=location.pathname.match(/^\/commission\/(\d+)\/reviews$/);
+  return m?parseInt(m[1],10):null;
+}
+function getEmoticonIdFromPath(){
+  var m=location.pathname.match(/^\/emoticon\/(\d+)$/);
+  return m?parseInt(m[1],10):null;
+}
+function isRankingPath(){return location.pathname==="/ranking";}
+/* 지금 화면의 주소로 바꾼다. enterScreen 이 이미 히스토리 항목을 쌓았으므로 **교체**만 한다
+   (여기서 또 push 하면 뒤로가기를 두 번 눌러야 빠져나온다 — _cmSetDetailUrl 과 같은 규칙). */
+function _setScreenUrl(path,title){
+  if(!path)return;
+  if(location.pathname!==path){try{history.replaceState({},"",path);}catch(e){}}
+  if(title)document.title=title;
 }
 /* ===== 하단 탭의 주소 =====================================================
    탭을 눌러 들어간 화면도 주소가 달라야 링크·새로고침·공유·뒤로가기가 된다.
@@ -811,12 +853,17 @@ window.addEventListener("popstate",function(){
   var dbId=getPostIdFromPath();
   var post=dbId?POSTS.find(function(x){return x.dbId===dbId}):null;
   var userId=getUserIdFromPath();
+  var reviewsCmId=getReviewsCmIdFromPath();   // 커미션보다 먼저 — /commission/<id>/reviews
   var commissionId=getCommissionIdFromPath();
+  var emoticonId=getEmoticonIdFromPath();
   var boardId=getBoardFromPath();
   var tab=getTabFromPath();
   if(post)openPost(post.id);
   else if(userId)openUserProfile(userId);
+  else if(reviewsCmId)cmOpenReviewsById(reviewsCmId);
   else if(commissionId)cmOpenCommissionById(commissionId);
+  else if(emoticonId)openEmoticonPackById(emoticonId);
+  else if(isRankingPath())openLeaderboard();
   else if(tab)openTabByKey(tab);
   else if(boardId)selectBoard(boardId);
   // 구글 로그인 리다이렉트 직후 Supabase가 URL의 인증 토큰을 정리하면서 popstate 이벤트를
@@ -4238,6 +4285,10 @@ function cmBackToDetail(){
 // keepStack 모드로 openUserProfile을 열어, 커미션 흐름의 단계별 뒤로가기가 끊기지 않게 함.
 function cmOpenAuthorProfile(userId){
   enterScreen("cmAuthorProfile",cmBackToDetail);
+  // 주소도 프로필로 바꾼다 — 안 바꾸면 화면은 프로필인데 주소는 /commission/<id> 라
+  // 링크를 복사해 공유하면 엉뚱하게 커미션이 열린다(2026-08-15 사용자 신고).
+  // keepStack 모드라 openUserProfile 은 주소를 건드리지 않으므로 여기서 맡는다.
+  _setScreenUrl("/user/"+userId);   // 제목은 openUserProfile 이 닉네임을 받아 채운다
   openUserProfile(userId,true);
 }
 function cmOpenArtistProfile(name){
@@ -4433,6 +4484,11 @@ var cmReviewCommissionId=null;
 function cmOpenReviews(commissionId){
   enterScreen("cmReviews",cmBackToDetail);
   cmReviewCommissionId=commissionId;
+  if(commissionId!=null){
+    var _c=cmData.find(function(c){return c.id===commissionId;});
+    _setScreenUrl("/commission/"+commissionId+"/reviews",
+      (_c&&_c.title?_c.title+" 후기":"커미션 후기")+" · commi");
+  }
   var reviews=(commissionId!=null)?cmCommissionReviews(commissionId):[];
   var goodCnt=reviews.filter(function(r){return r.commissionSentiment==='good'}).length;
   var badCnt=reviews.filter(function(r){return r.commissionSentiment==='bad'}).length;
@@ -6971,6 +7027,7 @@ function clearEmoticonSearch(){EMO_QUERY="";reloadEmoticonMarket();}
 function openEmoticonPack(packId){
   var p=EMO_MARKET.find(function(x){return x.id===packId;});if(!p)return;
   enterScreen("emoPack",openEmoticonMarket);
+  _setScreenUrl("/emoticon/"+packId,p.title+" 이모티콘 · commi");
   var grid=p.items.map(function(e){return '<div class="emo-slot"><img src="'+esc(e.url)+'" alt=""></div>';}).join("");
   var isAdmin=!!(AUTH.profile&&AUTH.profile.is_admin);
   document.getElementById("main").innerHTML='<div class="profile">'+
@@ -7691,7 +7748,8 @@ document.addEventListener("keydown",function(e){if(e.key==="Escape"){closeWrite(
 
 renderNav(document.getElementById("boardNav"));renderNav(document.getElementById("boardNavM"));renderNav(document.getElementById("boardNavS"));
 // 딥링크로 들어온 경우엔 홈 셸을 그리지 않는다(곧 그 화면이 덮어쓰므로 깜빡임만 생긴다)
-if(!getPostIdFromPath()&&!getUserIdFromPath()&&!getCommissionIdFromPath()&&!getTabFromPath()){
+if(!getPostIdFromPath()&&!getUserIdFromPath()&&!getCommissionIdFromPath()&&!getTabFromPath()
+   &&!getReviewsCmIdFromPath()&&!getEmoticonIdFromPath()&&!isRankingPath()){
   renderChips();renderHot();
   // renderTrend()는 이제 실제 글의 인기 순위를 보여주므로 loadRealPosts()가 끝난 뒤에 그림(아래 참고).
   // 실제 글은 loadRealPosts()가 곧 채워줌 — 여기서 더미 글로 renderList()를 한 번 더 돌리면
@@ -9030,6 +9088,11 @@ function renderScoreLog(rows){
 async function openLeaderboard(period){
   period=(period==="month")?"month":"week";
   closeNotif();
+  /* 이 화면은 enterScreen 을 쓰지 않으므로(화면 스택 없이 #main 만 교체) 주소는 여기서 직접 쌓는다.
+     ⚠️ 이미 /ranking 이면 아무것도 안 한다 — '이번 주 / 이번 달'을 번갈아 누를 때마다
+        히스토리가 쌓이면 뒤로가기를 여러 번 눌러야 빠져나온다. */
+  if(location.pathname!=="/ranking"){try{history.pushState({},"","/ranking");}catch(e){}}
+  document.title="포인트 랭킹 · commi";
   document.getElementById("main").innerHTML='<div class="profile"><p style="padding:40px 0;text-align:center;color:var(--muted)">불러오는 중...</p></div>';
   if(!window.supabase){toast("사용할 수 없어요");return;}
   var days=period==="month"?30:7;
@@ -10345,7 +10408,8 @@ function loadReadCache(){ try{var a=JSON.parse(localStorage.getItem("palo_read")
 function saveRead(){ try{var a=Array.from(READ);if(a.length>1000)a=a.slice(a.length-1000);localStorage.setItem("palo_read",JSON.stringify(a));}catch(e){} }
 loadReadCache();
 (function primeFromCache(){
-  if(getPostIdFromPath()||getUserIdFromPath()||getCommissionIdFromPath()||getTabFromPath()||userLeftHome)return;
+  if(getPostIdFromPath()||getUserIdFromPath()||getCommissionIdFromPath()||getTabFromPath()
+     ||getReviewsCmIdFromPath()||getEmoticonIdFromPath()||isRankingPath()||userLeftHome)return;
   if(!window.__paloHasBackend)return; // 백엔드 없는 로컬 데모는 기존 폴백에 맡김
   var cached=loadFeedCache();
   if(cached&&cached.posts&&cached.posts.length){
