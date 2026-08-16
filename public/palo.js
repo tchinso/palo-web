@@ -4112,7 +4112,10 @@ async function cmOpenChatAbout(authorId,commissionId,commissionTitle){
   await openChat(authorId);
   if(!currentConversationId||!AUTH.user)return; // openChat 자체 가드(로그인/셀프채팅)에 걸린 경우
   cmPendingChatRef={commissionId:commissionId,title:commissionTitle,conversationId:currentConversationId};
-  var inputRow=document.querySelector('.chat-inputrow');
+  /* ⚠️ 입력줄 클래스는 .cr-inputrow 다. 예전 이름(.chat-inputrow)을 찾던 동안 이 아래의
+     참조 힌트·알림 배너가 **조용히 한 번도 안 떴다**(querySelector가 null → if 가드가 건너뜀,
+     2026-08-15 사용자 신고로 발견). 참조 자체(cmPendingChatRef)는 정상 동작해서 티가 안 났다. */
+  var inputRow=document.querySelector('#chatRoom .cr-inputrow');
   if(inputRow){
     inputRow.insertAdjacentHTML('beforebegin','<div class="cm-chat-ref-hint" id="cmChatRefHint">🎨 다음 메시지에 <b>'+esc(commissionTitle)+'</b> 참조가 함께 전송돼요 <span onclick="cmCancelChatRef()">취소</span></div>');
     // 문의하러 온 사람이 알림을 안 켰으면 여기서 권유 — 답장이 언제 올지 모르는 채로 기다리게 된다.

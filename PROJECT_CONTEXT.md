@@ -2110,7 +2110,7 @@ function onHomeListNow(){
 | 문의 채팅 진입(로그인) | 의뢰인 | 채팅 입력줄 위 배너 `inquiry` — "답장 알림을 받아보세요" (`cmOpenChatAbout`, `id=notifBanner` 중복 방지) |
 
 - 비로그인 문의는 대상 아님(게스트 배너가 이미 "알림 못 받는다"를 안내).
-- **🐛 문의 채팅 배너가 안 뜨던 버그(같은 날 신고·수정)**: 중복 방지 검사를 `getElementById("notifBanner")`로 **문서 전체**에서 했더니, 채팅 아래에 깔린 홈 피드의 배너에 걸려 "이미 있다"고 오판 → 채팅방 삽입을 건너뜀. **⚠️ 배너가 여러 자리에 동시에 존재할 수 있게 된 뒤로는** ①중복 검사는 그 자리 범위로 좁혀서(`#chatRoom .notif-banner`) ②켜기/닫기/구독발견 제거는 `removeNotifBanners()`(querySelectorAll)로 **전부** — getElementById는 문서상 첫 번째(홈 것)만 지워서 누른 배너가 남는다.
+- **🐛 문의 채팅 배너가 안 뜨던 버그(같은 날 신고·수정, 원인 2개)**: ①중복 방지 검사를 `getElementById("notifBanner")`로 **문서 전체**에서 했더니, 채팅 아래에 깔린 홈 피드의 배너에 걸려 "이미 있다"고 오판 → 채팅방 범위(`#chatRoom .notif-banner`)로 좁힘. 켜기/닫기/구독발견 제거도 `removeNotifBanners()`(querySelectorAll)로 전부 — getElementById는 첫 번째(홈 것)만 지운다. ②**입력줄 셀렉터가 옛 클래스(`.chat-inputrow`)였다** — 실제 클래스는 `.cr-inputrow`. querySelector가 null → `if(inputRow)` 가드가 **조용히 건너뛰어**, 배너는 물론 **원래 있던 🎨 참조 힌트도 한 번도 안 뜨고 있었다**(참조 자체 `cmPendingChatRef`는 정상이라 티가 안 났다). **⚠️ 교훈: `if(el)` 침묵 가드는 셀렉터가 썩어도 아무 신호를 안 준다** — 삽입 실패가 기능 실종을 뜻하는 자리라면 셀렉터를 실측으로 검증할 것.
 - **실측**: 자격 스텁으로 3종 문구 분기·등록 화면 삽입(폼 위)·정상 렌더 확인. 홈 배너 존재 상태에서 채팅방 삽입·닫기 시 전체 제거 재현 확인.
 - **시험 표식**: `localStorage.setItem("nb_test","1")` — 이미 켠 사람도 권유 4곳 전부 보임(확인용, 일반 사용자 무관).
 
