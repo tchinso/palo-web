@@ -4115,6 +4115,11 @@ async function cmOpenChatAbout(authorId,commissionId,commissionTitle){
   var inputRow=document.querySelector('.chat-inputrow');
   if(inputRow){
     inputRow.insertAdjacentHTML('beforebegin','<div class="cm-chat-ref-hint" id="cmChatRefHint">🎨 다음 메시지에 <b>'+esc(commissionTitle)+'</b> 참조가 함께 전송돼요 <span onclick="cmCancelChatRef()">취소</span></div>');
+    // 문의하러 온 사람이 알림을 안 켰으면 여기서 권유 — 답장이 언제 올지 모르는 채로 기다리게 된다.
+    // (자격 판정·중복 표시 방지는 notifBannerKind와 id=notifBanner 가 알아서 한다)
+    if(!document.getElementById("notifBanner")){
+      inputRow.insertAdjacentHTML('beforebegin',notifBannerHTML('inquiry'));
+    }
   }
 }
 function cmCancelChatRef(){
@@ -4917,6 +4922,8 @@ function cmRenderRegisterScreen(){
   document.getElementById("main").innerHTML='<div class="cm-root">'+
     '<div class="cm-sub-top"><svg onclick="screenBack()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg><b>'+(editing?'커미션 수정':'커미션 등록')+'</b></div>'+
     '<div class="cm-ws-shortcut" onclick="cmOpenWsCommissionPicker()"><span>🎨 이미 등록한 커미션에 최신 작업물 올리기</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>'+
+    // 알림을 아직 안 켠 작가에게만 — 문의·신청 알림을 못 받으면 커미션을 열어 둔 의미가 없다
+    notifBannerHTML('cmreg')+
     '<div class="cm-reg">'+
       '<div class="cm-reg-label">샘플 이미지 <span class="cm-reg-req">*</span> <span class="cm-reg-sub">최대 10장</span></div>'+
       '<input type="file" id="cmRegFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="hidden" onchange="cmOnRegFileChange(event)">'+
@@ -5405,8 +5412,24 @@ async function cmSubmitReg(){
   }catch(e){toast('저장 중 오류가 났어요. 다시 시도해주세요');_fail();return;}
   cmRegSubmitting=false; // 성공 — 화면이 곧 내 커미션 목록으로 바뀌므로 버튼은 복구할 필요 없음
   toast(cmReg.editingId?'커미션이 수정되었어요!':'커미션이 등록되었어요!',cmReg.editingId?'✏️':'🎨');
+  var wasEdit=!!cmReg.editingId;
   cmDataLoaded=false;
   cmOpenMy();
+  // 새로 등록한 작가가 알림을 안 켰으면 지금이 가장 설득력 있는 순간이다(방금 문의를 기다리기 시작했다).
+  // 수정일 때는 안 묻는다 — 등록 때 이미 물었고, 고칠 때마다 물으면 잔소리가 된다.
+  if(!wasEdit)setTimeout(cmNudgeNotifAfterRegister,600); // 토스트가 먼저 보인 뒤에
+}
+/* 등록 직후 알림 권유 — 자격(안 켬·거절 아님·로그인 등)은 notifBannerKind가 판정.
+   ⚠️ 화면 배너가 아니라 확인창을 쓴다: 등록 직후엔 '내 커미션' 화면으로 이동해 버려서
+      등록 화면에 뒀던 배너는 이미 사라졌다 — 순간을 놓치지 않으려면 떠 있는 창이어야 한다. */
+async function cmNudgeNotifAfterRegister(){
+  var kind=notifBannerKind();
+  if(!kind)return;
+  if(kind==="ios"){
+    if(await confirmDialog("커미션이 등록됐어요! 🎨\n\n아이폰은 홈 화면에 추가해야 문의·신청 알림을 받을 수 있어요.\n방법을 볼까요?"))openNotifSettings();
+    return;
+  }
+  if(await confirmDialog("커미션이 등록됐어요! 🎨\n\n문의·신청이 오면 푸시 알림으로 바로 알려드릴까요?"))await enablePushNotifications();
 }
 function cmMyListHTML(){
   if(cmMyList.length===0)return '<div class="cm-my-empty">아직 등록한 커미션이 없어요.<br>+ 새 커미션 버튼으로 등록해보세요!</div>';
@@ -8245,16 +8268,23 @@ function notifBannerKind(){
 /* 종 아이콘 — 이모지는 기기마다 모양·크기가 제각각이라 배너 정렬이 흔들린다. SVG로 고정. */
 var NB_ICON_BELL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-3 7-3 7h18s-3-1-3-7"/><path d="M13.7 20a1.9 1.9 0 0 1-3.4 0"/></svg>';
 var NB_ICON_PHONE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.6"/><path d="M12 7v6M9 10h6"/></svg>';
-function notifBannerHTML(){
+/* ctx 로 상황별 문구를 고른다(2026-08-15 사용자 요청 — 커미션 등록·문의 자리에도 띄우되
+   각자에게 맞는 말로). 자격 판정은 전부 notifBannerKind가 하므로 이미 켠 사람·거절한 사람·
+   비로그인에게는 어느 자리에서도 안 나온다. iOS(홈 화면 추가 먼저) 문구는 상황과 무관하게 동일. */
+function notifBannerHTML(ctx){
   var kind=notifBannerKind();
   if(!kind)return "";
   var ios=(kind==="ios");
+  // 문구는 짧게 — 텍스트 칸이 좁아서(아이콘·버튼·닫기가 폭을 가져간다) 길면 3줄로 늘어진다
+  var tx={
+    cmreg:["문의·신청 알림을 놓치지 마세요","알림을 켜면 문의가 오는 즉시 알려드려요."],
+    inquiry:["답장 알림을 받아보세요","작가님이 답장하면 바로 알려드려요."]
+  }[ctx]||["새 댓글을 바로 알려드려요","내 글의 댓글·좋아요, 커미션 문의까지."];
   return '<div class="notif-banner" id="notifBanner">'+
     '<span class="nb-ic">'+(ios?NB_ICON_PHONE:NB_ICON_BELL)+'</span>'+
     '<span class="nb-tx">'+
-      // 문구는 짧게 — 텍스트 칸이 좁아서(아이콘·버튼·닫기가 폭을 가져간다) 길면 3줄로 늘어진다
-      '<b>'+(ios?'홈 화면에 추가하면 알림을 받아요':'새 댓글을 바로 알려드려요')+'</b>'+
-      '<span>'+(ios?'아이폰은 홈 화면에 추가해야 알림을 보낼 수 있어요.':'내 글의 댓글·좋아요, 커미션 문의까지.')+'</span>'+
+      '<b>'+(ios?'홈 화면에 추가하면 알림을 받아요':tx[0])+'</b>'+
+      '<span>'+(ios?'아이폰은 홈 화면에 추가해야 알림을 보낼 수 있어요.':tx[1])+'</span>'+
     '</span>'+
     '<button type="button" class="nb-go" onclick="'+(ios?'openNotifSettings(event)':'notifBannerEnable(event)')+'">'+
       (ios?'방법 보기':'알림 켜기')+'</button>'+
