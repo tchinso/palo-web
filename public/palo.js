@@ -1043,6 +1043,19 @@ async function _makeLoginNonce(){
   var hashed=Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0");}).join("");
   return {nonce:nonce,hashed:hashed};
 }
+/* ===== 인앱 브라우저 판별 =====
+   트위터(X)·틱톡 앱 안의 브라우저는 User-Agent에 자기 표식을 남긴다.
+   틱톡: musical_ly(구 이름)·Bytedance·trill — 안드로이드·아이폰 모두 확실하다.
+   X: "Twitter" — 안드로이드는 확실, **아이폰 X앱은 최신 버전에서 표식이 없을 수 있다**
+      (그 경우 일반 브라우저로 취급되어 기본 모달이 뜬다 — 잘못 판별하는 것보다 낫다).
+   ua 인자는 테스트용 — 실제 호출은 인자 없이 한다. */
+function inAppBrowser(ua){
+  ua=ua||navigator.userAgent||"";
+  if(/musical_ly|bytedance|tiktok|trill/i.test(ua))return "tiktok";
+  if(/twitter/i.test(ua))return "x";
+  return null;
+}
+var _lgShowAll=false; // '다른 방법으로 로그인'을 누르면 true — 페이지를 떠날 때까지 유지
 async function openLoginModal(){
   var m=document.getElementById("loginModal");if(!m)return;
   var gwrap=document.getElementById("gsiButton");
@@ -1061,6 +1074,46 @@ async function openLoginModal(){
   // 항상 '로그인' 모드로 열고 입력값은 비움(제목·안내문구·버튼 문구는 setLoginMode가 맞춰줌)
   ["lgEmail","lgPw","lgPw2","lgNick"].forEach(function(id){var el=document.getElementById(id);if(el)el.value="";});
   setLoginMode("login");
+  /* ===== 인앱 집중 모드(2026-08-15 사용자 요청) =====
+     X 인앱에서 들어왔으면 X 로그인만, 틱톡 인앱이면 틱톡 로그인만 보여준다.
+     ⚠️ 이유가 둘이다: ①그 앱 사용자는 그 계정이 이미 로그인돼 있어 한 번에 끝난다
+        ②구글 로그인은 인앱 웹뷰를 구글이 차단해서(disallowed_useragent) 어차피 자주 실패한다.
+     ⚠️ 단 그 서비스 로그인이 꺼져 있으면(심사 전 틱톡 등) 집중 모드를 켜지 않는다 —
+        버튼이 하나도 없는 모달이 된다.
+     ⚠️ '다른 방법으로 로그인'을 반드시 남긴다 — 구글로 가입한 기존 회원이 인앱으로
+        들어왔을 때 로그인 길이 막히면 안 된다.
+     ⚠️ 이 블록은 setLoginMode **뒤에** 있어야 한다 — setLoginMode가 입력칸 표시를
+        되돌리므로 앞에 두면 숨김이 풀린다. */
+  var _app=inAppBrowser(),_focus=null;
+  if(!_lgShowAll){
+    if(_app==="x"&&TWITTER_LOGIN_ENABLED)_focus="x";
+    else if(_app==="tiktok"&&tkOn)_focus="tiktok";
+  }
+  var _rest=["lgEmail","lgPw","lgSubmit"].map(function(id){return document.getElementById(id);})
+    .concat([document.querySelector(".login-links"),document.querySelector(".login-or"),document.getElementById("lgToSignup")]);
+  if(_focus){
+    if(gwrap)gwrap.style.display="none";
+    if(nvBtn)nvBtn.style.display="none";
+    if(twBtn)twBtn.style.display=_focus==="x"?"flex":"none";
+    if(tkBtn)tkBtn.style.display=_focus==="tiktok"?"flex":"none";
+    _rest.forEach(function(el){if(el)el.style.display="none";});
+    var alt=document.getElementById("lgFocusAlt");
+    if(!alt){
+      alt=document.createElement("button");
+      alt.type="button";alt.id="lgFocusAlt";alt.className="login-alt";
+      alt.style.cssText="display:block;margin:6px auto 0";
+      alt.textContent="다른 방법으로 로그인";
+      alt.onclick=function(){_lgShowAll=true;openLoginModal();};
+      var social=document.getElementById("loginSocial");
+      if(social)social.appendChild(alt);
+    }
+    alt.style.display="block";
+  }else{
+    if(gwrap)gwrap.style.display="";
+    _rest.forEach(function(el){if(el)el.style.display="";});
+    var alt2=document.getElementById("lgFocusAlt");
+    if(alt2)alt2.style.display="none";
+  }
   // 구글 버튼: **보이는 건** 네이버·X와 같은 모양의 우리 버튼이지만,
   // **실제 클릭은** 그 위에 투명하게 겹쳐 둔 진짜 GIS 버튼이 받는다.
   // ⚠️ 왜 — 리다이렉트(signInWithOAuth)는 Supabase 주소를 거치므로 구글 동의 화면에
