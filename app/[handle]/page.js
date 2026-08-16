@@ -32,6 +32,20 @@ export async function generateMetadata({ params }) {
         alternates: { canonical: `https://commi.kr/${profile.handle}` },
       };
     }
+    // 프로필 핸들이 아니면 커미션 슬러그일 수 있다(같은 이름공간 — 서버 RPC가 겹치지 않게 지킨다)
+    const { data: cm } = await supabase
+      .from('commissions')
+      .select('title, slug')
+      .eq('slug', decoded)
+      .single();
+    if (cm) {
+      const title = `${cm.title} · commi`;
+      return {
+        title,
+        openGraph: { title },
+        alternates: { canonical: `https://commi.kr/${encodeURIComponent(cm.slug)}` },
+      };
+    }
   }
   return { title: 'commi · 그림 그리는 사람들의 커뮤니티' };
 }

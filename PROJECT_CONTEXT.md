@@ -2145,6 +2145,14 @@ X(트위터)·틱톡 **앱 안의 브라우저**로 들어온 방문자에게는
 - **⚠️ user.info.basic은 Login Kit에 자동 포함**("Included in Login Kit") — Scopes에서 따로 추가하면 안 되고, `user.info.stats`·`video.list` 등 **불필요 권한을 추가하면 심사가 지연된다**(틱톡 명시).
 - **심사 제출 완료(2026-08-15)** — Production에 Login Kit+Redirect URI 설정, 876자 영문 설명 + 데모 영상 첨부. **결과 나오면**: 승인 → Vercel 키를 **프로덕션 키로 교체**(지금은 샌드박스 키가 들어 있음) + `TIKTOK_LOGIN_ENABLED=true` 배포 / 반려 → 사유 보고 대응.
 
+### 커미션 커스텀 주소(슬러그) — commi.kr/<원하는이름> (2026-08-15)
+`docs/sql/commission-slug.sql` + palo.js + `app/[handle]/page.js` 확장. **내 커미션 → 각 항목의 「🔗 링크」**에서 설정. 프로필 핸들과 형식·예약어 동일.
+
+- **⚠️ 프로필 핸들과 같은 이름공간** — 둘 다 최상위 한 조각 주소라, 같은 단어를 양쪽이 가져가면 한쪽(커미션)이 영영 가려진다(해석 순서: 프로필 먼저). **양쪽 RPC가 서로의 표를 교차 검사** + `pg_advisory_xact_lock(hashtext('commi_slug:'||단어))`로 동시 선점 직렬화(교차 unique 인덱스는 표가 달라 불가능 — lock이 그 빈틈을 메운다). `set_my_handle`도 교차 검사 버전으로 재생성됨.
+- 해석(`openUserProfileByHandle`): 프로필 핸들 조회 → 없으면 커미션 슬러그 → 둘 다 없으면 홈. Next 메타데이터도 같은 순서(커미션이면 제목 og + canonical).
+- `_cmSetDetailUrl`: 슬러그가 있으면 `/슬러그`가 정식 주소(공유·주소창), `/commission/<id>`는 계속 동작하는 예비 주소. 슬러그 저장 시 cmMyList·cmData·cmDetail 캐시에 즉시 반영.
+- **실측**: 모달(기존 값 채움·실시간 미리보기), 상세 URL 슬러그/기본 분기, 한글 슬러그 라우트 200.
+
 ### 프로필 커스텀 주소(핸들) — commi.kr/<원하는이름> (2026-08-15)
 `docs/sql/profile-handle.sql` + `app/[handle]/page.js` + palo.js. 내 정보 → 설정 → 「프로필 주소」에서 설정.
 

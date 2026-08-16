@@ -772,12 +772,16 @@ function getHandleFromPath(){
   if(!HANDLE_RE.test(seg)||HANDLE_RESERVED.has(seg))return null;
   return seg;
 }
-/* 핸들 → 프로필. 없는 핸들이면(오타·삭제된 계정) 홈으로 안내한다. */
+/* 한 조각 주소 → 프로필 또는 커미션. 프로필 핸들을 먼저 보고, 없으면 커미션 슬러그를 본다
+   (두 이름공간은 서버 RPC가 교차 검사로 겹치지 않게 지키므로 순서는 사실상 무의미하다).
+   둘 다 아니면(오타·삭제) 홈으로 안내한다. */
 async function openUserProfileByHandle(h){
   if(!window.supabase)return;
   var res=await window.supabase.from("profiles").select("id").eq("handle",h).single();
-  if(res.error||!res.data){toast("그런 주소의 프로필이 없어요");goHome();return;}
-  openUserProfile(res.data.id);
+  if(res.data){openUserProfile(res.data.id);return;}
+  var cm=await window.supabase.from("commissions").select("id").eq("slug",h).single();
+  if(cm.data){cmOpenCommissionById(cm.data.id);return;}
+  toast("그런 주소가 없어요");goHome();
 }
 /* 지금 화면의 주소로 바꾼다. enterScreen 이 이미 히스토리 항목을 쌓았으므로 **교체**만 한다
    (여기서 또 push 하면 뒤로가기를 두 번 눌러야 빠져나온다 — _cmSetDetailUrl 과 같은 규칙). */
@@ -821,7 +825,9 @@ function getBoardFromPath(){ // /board/{id} — 유효한 게시판 id만 반환
 }
 function _cmSetDetailUrl(id,title){ // 커미션 상세 주소를 브라우저 URL에 반영(공유·SEO). 히스토리 항목은 enterScreen이 이미 쌓았으니 현재 항목의 경로만 교체.
   if(id==null)return;
-  var path="/commission/"+id;
+  // 커스텀 주소(슬러그)가 있으면 그게 정식 주소다 — /commission/<id>는 계속 동작하는 예비 주소
+  var d=cmData.find(function(x){return x.id===id;})||((typeof cmDetail!=="undefined"&&cmDetail&&cmDetail.id===id)?cmDetail:null);
+  var path=(d&&d.slug)?("/"+encodeURIComponent(d.slug)):("/commission/"+id);
   if(location.pathname!==path){try{history.replaceState({},"",path);}catch(e){}}
   // 제목도 같이 바꾼다 — 글 상세(openPost)는 하는데 여기만 빠져 있어서, 앱 안에서 들어오면
   // 탭·방문기록·즐겨찾기에 홈 제목("commi · 그림 그리는…")이 그대로 남았다.
@@ -3515,7 +3521,7 @@ function cmRowToData(row,artistNickname,artistAvatar){
     id:row.id,authorId:row.author_id,
     artist:artistNickname||'탈퇴한 사용자',
     artistAvatar:artistAvatar||null,
-    title:row.title,price:row.price,status:row.status,tags:row.tags||[],
+    title:row.title,price:row.price,status:row.status,tags:row.tags||[],slug:row.slug||null,
     period:row.period,slots:row.slots,desc:row.description,descHtml:row.description_html||null,usage:row.usage_rights,policy:row.trade_policy,
     images:imgs,likes:0,views:row.views||0,createdAt:row.created_at,form:row.application_form||[],
     reviewEventOn:!!row.review_event_on,reviewEventBenefit:row.review_event_benefit||'',
@@ -5466,6 +5472,7 @@ function cmMyListHTML(){
       '<div class="cm-my-info"><div class="cm-my-title">'+esc(c.title)+'</div>'+
         '<div class="cm-my-price">'+Number(c.price).toLocaleString()+'원~</div>'+st+'</div>'+
       '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">'+cmBumpBtnHTML(c)+editBtn+
+        '<button class="cm-my-edit" onclick="cmOpenSlugModal('+c.id+')">🔗 링크</button>'+
         '<button class="cm-my-edit" onclick="openCreateAdForCommission('+c.id+')">📢 광고</button>'+
         '<button class="cm-my-edit cm-my-del" onclick="cmDeleteCommission('+c.id+')">🗑 삭제</button></div></div>';
   }).join('');
@@ -5633,7 +5640,7 @@ async function cmOpenMy(tab){
       return{id:row.id,title:row.title,price:row.price,tags:row.tags||[],status:row.status,period:row.period,
         slots:row.slots,desc:row.description,descHtml:row.description_html||null,usage:row.usage_rights,policy:row.trade_policy,images:imgs,
         reviewEventOn:!!row.review_event_on,reviewEventBenefit:row.review_event_benefit||'',
-        form:row.application_form||[],adLocked:!!AD_LOCKED_COMMISSION_IDS[row.id],
+        form:row.application_form||[],adLocked:!!AD_LOCKED_COMMISSION_IDS[row.id],slug:row.slug||null,
         createdAt:row.created_at,bumpedAt:row.bumped_at||row.created_at};
     });
     var listEl=document.getElementById('cmMyList');
@@ -10709,6 +10716,66 @@ function openHandleModal(){
   setTimeout(function(){try{document.getElementById("handleInput").focus();}catch(e){}},60);
 }
 function closeHandleModal(){var m=document.getElementById("handleModal");if(m)m.classList.remove("open");}
+/* ===== 커미션 주소(슬러그) 설정 — 프로필 핸들 모달과 같은 패턴 =====
+   프로필과 같은 이름공간이라 규칙·예약어도 같다. 최종 심판은 서버 RPC(set_commission_slug). */
+var _slugTargetId=null;
+function cmOpenSlugModal(id){
+  if(!AUTH.user){toast("로그인이 필요해요","🔒");return;}
+  _slugTargetId=id;
+  var m=document.getElementById("cmSlugModal");
+  if(!m){
+    m=document.createElement("div");
+    m.className="rules-scrim";m.id="cmSlugModal";
+    m.addEventListener("click",function(e){if(e.target===m)cmCloseSlugModal();});
+    m.innerHTML='<div class="rules"><h3>🔗 커미션 주소</h3>'+
+      '<p class="nick-hint" style="margin-bottom:10px">설정하면 이 주소로 커미션이 열려요<br><b id="cmSlugPreview" style="font-size:15px"></b></p>'+
+      '<input id="cmSlugInput" class="nick-in" maxlength="20" placeholder="원하는 주소 (2~20자)" oninput="cmSlugPreviewSync()">'+
+      '<p class="nick-hint">한글·영문 소문자·숫자·밑줄(_)·붙임표(-)만 쓸 수 있어요.<br>비워서 저장하면 기본 주소로 돌아가요. 프로필 주소와 같은 자리를 쓰므로 이미 쓰이는 이름은 안 돼요.</p>'+
+      '<button class="r-ok" onclick="cmSaveSlug()">저장</button></div>';
+    document.body.appendChild(m);
+  }
+  var cur=(cmMyList.find(function(c){return c.id===id;})||{}).slug||"";
+  document.getElementById("cmSlugInput").value=cur;
+  cmSlugPreviewSync();
+  m.classList.add("open");
+  setTimeout(function(){try{document.getElementById("cmSlugInput").focus();}catch(e){}},60);
+}
+function cmCloseSlugModal(){var m=document.getElementById("cmSlugModal");if(m)m.classList.remove("open");}
+function cmSlugPreviewSync(){
+  var v=(document.getElementById("cmSlugInput").value||"").trim().toLowerCase();
+  var p=document.getElementById("cmSlugPreview");
+  if(p)p.innerHTML='commi.kr/'+(v?esc(v):'<span style="color:var(--muted-2)">원하는주소</span>');
+}
+async function cmSaveSlug(){
+  if(!AUTH.user||!window.supabase||_slugTargetId==null)return;
+  var v=(document.getElementById("cmSlugInput").value||"").trim().toLowerCase();
+  if(v){
+    if(!HANDLE_RE.test(v)){toast("2~20자, 한글·영문 소문자·숫자·_·- 만 쓸 수 있어요");return;}
+    if(HANDLE_RESERVED.has(v)){toast("사용할 수 없는 주소예요");return;}
+  }
+  var r=await window.supabase.rpc("set_commission_slug",{p_commission_id:_slugTargetId,p_slug:v||null});
+  if(r.error){toast("저장 실패: "+r.error.message);return;}
+  var d=r.data||{};
+  if(!d.ok){
+    toast({invalid:"2~20자, 한글·영문 소문자·숫자·_·- 만 쓸 수 있어요",
+           reserved:"사용할 수 없는 주소예요",
+           taken:"이미 쓰이고 있는 주소예요(프로필 주소 포함)",
+           not_owner:"내 커미션에만 주소를 붙일 수 있어요",
+           banned:"이용이 제한된 계정이에요"}[d.reason]||"저장에 실패했어요");
+    return;
+  }
+  // 화면 캐시에도 반영 — 다음에 상세를 열면 주소창이 바로 새 주소가 된다
+  var apply=function(c){if(c&&c.id===_slugTargetId)c.slug=d.slug||null;};
+  cmMyList.forEach(apply);cmData.forEach(apply);
+  if(typeof cmDetail!=="undefined"&&cmDetail)apply(cmDetail);
+  cmCloseSlugModal();
+  if(d.slug){
+    toast("커미션 주소가 설정됐어요 · commi.kr/"+d.slug,"🔗");
+    try{navigator.clipboard&&navigator.clipboard.writeText("https://commi.kr/"+encodeURIComponent(d.slug));}catch(e){}
+  }else{
+    toast("기본 주소로 돌아갔어요");
+  }
+}
 /* 미리보기는 **항상 commi.kr/<입력값>** 꼴로 — 빈 상태에서 기본 주소(user/…)를 보여줬더니
    "핸들을 만들어도 commi.kr/user/mimu 가 되는구나"로 오해할 수 있었다(2026-08-15 사용자 지적).
    비어 있으면 자리표시(원하는주소)를 흐리게 넣어 구조만 보여준다. */
