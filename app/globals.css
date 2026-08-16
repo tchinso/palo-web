@@ -2638,7 +2638,25 @@
 
   /* 내 커미션 관리 페이지 */
   .cm-my-list{padding:14px 18px 40px}
-  .cm-my-item{display:flex;gap:12px;border:1px solid var(--line-2);border-radius:14px;padding:12px;margin-bottom:12px;align-items:center}
+  /* 내 커미션 카드(2026-08-16 개편) — 위 정보 + 아래 균등 액션 바.
+     ⚠️ 액션은 구분선으로 나뉜 고스트 버튼 — 알약 버튼을 쌓으면 카드가 버튼 기둥이 된다. */
+  .cm-my-item{border:1px solid var(--line-2);border-radius:18px;margin-bottom:12px;background:var(--surface);overflow:hidden}
+  .cm-my-main{display:flex;gap:13px;padding:13px 14px;align-items:center}
+  .cm-my-badges{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .cm-my-badges .cm-my-badge{margin-top:0}
+  .cm-my-badge.wait{background:var(--surface-2);color:var(--muted)}
+  .cm-my-badge.lnk{background:var(--brand-soft);color:var(--brand-2);cursor:pointer;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cm-my-acts{display:flex;border-top:1px solid var(--line)}
+  .cm-act-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;
+    background:none;border:none;border-left:1px solid var(--line);padding:11px 4px;
+    font-family:inherit;font-size:12.5px;font-weight:700;color:var(--ink-2);cursor:pointer;
+    white-space:nowrap;transition:background .13s}
+  .cm-act-btn:first-child{border-left:none}
+  .cm-act-btn span{font-size:13px;line-height:1}
+  .cm-act-btn:hover{background:var(--surface-2)}
+  .cm-act-btn.danger{color:#c0392b}
+  .cm-act-btn.is-off{color:var(--muted-2);cursor:default}
+  .cm-act-btn.is-off:hover{background:none}
   /* 끌올 — 목록에서 제일 눈에 띄어야 하는 버튼이라 브랜드색을 채운다 */
   .cm-my-edit.cm-bump{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:800}
   .cm-my-edit.cm-bump:hover{filter:brightness(1.06)}

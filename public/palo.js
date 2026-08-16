@@ -5467,19 +5467,31 @@ async function cmNudgeNotifAfterRegister(){
 function cmMyListHTML(){
   if(cmMyList.length===0)return '<div class="cm-my-empty">아직 등록한 커미션이 없어요.<br>+ 새 커미션 버튼으로 등록해보세요!</div>';
   return cmMyList.map(function(c){
+    /* 카드 구조(2026-08-16 개편): 위 = 썸네일+정보, 아래 = 가로 액션 바.
+       예전엔 오른쪽에 버튼 5개가 세로로 쌓여 카드가 버튼 기둥 높이만큼 늘어났고
+       (실측 캡처: 버튼 영역이 내용의 3배) 낡아 보였다. 액션은 아이콘+짧은 글자의
+       균등 4칸 바로 — 끌올 대기는 버튼이 아니라 상태 옆 칩으로 강등(누를 수 없는 건
+       버튼 모양이면 안 된다). */
     var st=c.status==='open'?'<span class="cm-my-badge open">🟢 접수중</span>':'<span class="cm-my-badge close">⛔ 마감</span>';
+    var left=(CM_BUMP_READY&&c.status==='open')?cmBumpLeftMs(c):-1;
+    var waitChip=left>0?'<span class="cm-my-badge wait" title="24시간에 한 번 올릴 수 있어요">⏳ '+cmFmtLeft(left)+'</span>':'';
+    var slugChip=c.slug?'<span class="cm-my-badge lnk" onclick="cmOpenSlugModal('+c.id+')" title="커미션 주소">/'+esc(c.slug)+'</span>':'';
     var thumbStyle=c.images[0]?'':'background:var(--brand-soft)';
     var thumbImg=c.images[0]?thumbImgHTML(c.images[0],'class="thumb-fill"'):'';
-    var editBtn=c.adLocked
-      ?'<span class="cm-my-edit" style="opacity:.55;cursor:default" title="광고를 집행 중인 커미션은 수정할 수 없어요">🔒 수정 불가</span>'
-      :'<button class="cm-my-edit" onclick="cmOpenRegister('+c.id+')">수정</button>';
-    return '<div class="cm-my-item"><div class="cm-my-thumb" style="'+thumbStyle+'">'+thumbImg+'</div>'+
-      '<div class="cm-my-info"><div class="cm-my-title">'+esc(c.title)+'</div>'+
-        '<div class="cm-my-price">'+Number(c.price).toLocaleString()+'원~</div>'+st+'</div>'+
-      '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">'+cmBumpBtnHTML(c)+editBtn+
-        '<button class="cm-my-edit" onclick="cmOpenSlugModal('+c.id+')">🔗 링크</button>'+
-        '<button class="cm-my-edit" onclick="openCreateAdForCommission('+c.id+')">📢 광고</button>'+
-        '<button class="cm-my-edit cm-my-del" onclick="cmDeleteCommission('+c.id+')">🗑 삭제</button></div></div>';
+    var acts=[];
+    if(left===0)acts.push('<button class="cm-act-btn" onclick="cmBumpCommission('+c.id+')"><span>🔝</span>끌올</button>');
+    acts.push(c.adLocked
+      ?'<span class="cm-act-btn is-off" title="광고를 집행 중인 커미션은 수정할 수 없어요"><span>🔒</span>수정</span>'
+      :'<button class="cm-act-btn" onclick="cmOpenRegister('+c.id+')"><span>✏️</span>수정</button>');
+    acts.push('<button class="cm-act-btn" onclick="cmOpenSlugModal('+c.id+')"><span>🔗</span>링크</button>');
+    acts.push('<button class="cm-act-btn" onclick="openCreateAdForCommission('+c.id+')"><span>📢</span>광고</button>');
+    acts.push('<button class="cm-act-btn danger" onclick="cmDeleteCommission('+c.id+')"><span>🗑</span>삭제</button>');
+    return '<div class="cm-my-item">'+
+      '<div class="cm-my-main"><div class="cm-my-thumb" style="'+thumbStyle+'">'+thumbImg+'</div>'+
+        '<div class="cm-my-info"><div class="cm-my-title">'+esc(c.title)+'</div>'+
+          '<div class="cm-my-price">'+Number(c.price).toLocaleString()+'원~</div>'+
+          '<div class="cm-my-badges">'+st+waitChip+slugChip+'</div></div></div>'+
+      '<div class="cm-my-acts">'+acts.join('')+'</div></div>';
   }).join('');
 }
 var cmMyBookmarks=[];
