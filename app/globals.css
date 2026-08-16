@@ -2663,6 +2663,9 @@
   /* 커미션 상세: 작가 본인 전용 삭제 바 */
   .cm-owner-bar{margin:4px 0 2px;text-align:right}
   .cm-owner-del{background:#fdeaea;color:#d64545;border:1px solid #f3caca;font-size:13px;font-weight:700;padding:8px 14px;border-radius:10px;cursor:pointer}
+  /* 소유자 바의 주소 설정 — 삭제(빨강)와 구분되는 중립 버튼. 주소가 있으면 그 주소가 그대로 문구가 된다 */
+  .cm-owner-link{background:var(--surface);color:var(--ink-2);border:1px solid var(--line-2);font-size:13px;font-weight:700;padding:8px 14px;border-radius:10px;cursor:pointer;margin-right:8px;font-family:inherit}
+  .cm-owner-link:hover{border-color:var(--brand);color:var(--brand-2)}
   .cm-my-empty{text-align:center;color:var(--muted);padding:60px 20px;font-size:14px;line-height:1.7}
 
   /* 내 커미션 일괄 제어 */

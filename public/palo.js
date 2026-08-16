@@ -4438,7 +4438,10 @@ function cmDetailHTML(d,idx){
       '<div class="cm-stats"><div class="cm-stat"><span class="cm-k">신청 가능</span><span class="cm-v">'+esc(d.slots||'8')+'개 남음</span></div>'+
         '<div class="cm-stat"><span class="cm-k">작업 기간</span><span class="cm-v">'+esc(period)+'</span></div></div>'+
       cmAdminScoreHTML(d)+
-      ((isOwner&&d.id!=null)?'<div class="cm-owner-bar"><button class="cm-owner-del" onclick="cmDeleteCommission('+d.id+')">🗑 이 커미션 삭제</button></div>':'')+
+      // 주소 설정을 상세에도 — '내 커미션' 목록의 🔗 버튼만으로는 찾기 어려웠다(2026-08-16 사용자 요청)
+      ((isOwner&&d.id!=null)?'<div class="cm-owner-bar">'+
+        '<button class="cm-owner-link" onclick="cmOpenSlugModal('+d.id+')">🔗 '+(d.slug?('commi.kr/'+esc(d.slug)):'커미션 주소 만들기')+'</button>'+
+        '<button class="cm-owner-del" onclick="cmDeleteCommission('+d.id+')">🗑 이 커미션 삭제</button></div>':'')+
       '<div class="cm-desc">'+(descHTML?descHTML:esc(desc))+'</div>'+
       (showRevEvent?('<div class="cm-revevent">'+
         '<div class="cm-revevent-h">🎁 리뷰 이벤트 진행 중</div>'+
@@ -4952,6 +4955,8 @@ function cmRenderRegisterScreen(){
     '<div class="cm-ws-shortcut" onclick="cmOpenWsCommissionPicker()"><span>🎨 이미 등록한 커미션에 최신 작업물 올리기</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>'+
     // 알림을 아직 안 켠 작가에게만 — 문의·신청 알림을 못 받으면 커미션을 열어 둔 의미가 없다
     notifBannerHTML('cmreg')+
+    // 수정 화면에서도 주소 설정으로 갈 수 있게(2026-08-16) — 사람들이 '수정'에서 찾는다
+    (editing?('<div class="cm-ws-shortcut" onclick="cmOpenSlugModal('+cmReg.editingId+')"><span>🔗 커미션 주소 만들기 (commi.kr/원하는이름)</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>'):'')+
     '<div class="cm-reg">'+
       '<div class="cm-reg-label">샘플 이미지 <span class="cm-reg-req">*</span> <span class="cm-reg-sub">최대 10장</span></div>'+
       '<input type="file" id="cmRegFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="hidden" onchange="cmOnRegFileChange(event)">'+
@@ -10734,8 +10739,11 @@ function cmOpenSlugModal(id){
       '<button class="r-ok" onclick="cmSaveSlug()">저장</button></div>';
     document.body.appendChild(m);
   }
-  var cur=(cmMyList.find(function(c){return c.id===id;})||{}).slug||"";
-  document.getElementById("cmSlugInput").value=cur;
+  // 현재 값은 어느 화면에서 열렸든 찾아진다 — 내 커미션 목록·전체 목록·상세 순으로 조회
+  var src=cmMyList.find(function(c){return c.id===id;})
+       ||cmData.find(function(c){return c.id===id;})
+       ||((typeof cmDetail!=="undefined"&&cmDetail&&cmDetail.id===id)?cmDetail:null)||{};
+  document.getElementById("cmSlugInput").value=src.slug||"";
   cmSlugPreviewSync();
   m.classList.add("open");
   setTimeout(function(){try{document.getElementById("cmSlugInput").focus();}catch(e){}},60);
@@ -10768,6 +10776,12 @@ async function cmSaveSlug(){
   var apply=function(c){if(c&&c.id===_slugTargetId)c.slug=d.slug||null;};
   cmMyList.forEach(apply);cmData.forEach(apply);
   if(typeof cmDetail!=="undefined"&&cmDetail)apply(cmDetail);
+  // 상세 화면을 보고 있으면 소유자 바의 버튼 문구·주소창도 즉시 갱신
+  var ownerBtn=document.querySelector(".cm-owner-link");
+  if(ownerBtn&&cmDetailCurrentId===_slugTargetId){
+    ownerBtn.innerHTML="🔗 "+(d.slug?("commi.kr/"+esc(d.slug)):"커미션 주소 만들기");
+    try{history.replaceState({},"",d.slug?("/"+encodeURIComponent(d.slug)):("/commission/"+_slugTargetId));}catch(e){}
+  }
   cmCloseSlugModal();
   if(d.slug){
     toast("커미션 주소가 설정됐어요 · commi.kr/"+d.slug,"🔗");
