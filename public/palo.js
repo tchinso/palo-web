@@ -4116,8 +4116,9 @@ async function cmOpenChatAbout(authorId,commissionId,commissionTitle){
   if(inputRow){
     inputRow.insertAdjacentHTML('beforebegin','<div class="cm-chat-ref-hint" id="cmChatRefHint">🎨 다음 메시지에 <b>'+esc(commissionTitle)+'</b> 참조가 함께 전송돼요 <span onclick="cmCancelChatRef()">취소</span></div>');
     // 문의하러 온 사람이 알림을 안 켰으면 여기서 권유 — 답장이 언제 올지 모르는 채로 기다리게 된다.
-    // (자격 판정·중복 표시 방지는 notifBannerKind와 id=notifBanner 가 알아서 한다)
-    if(!document.getElementById("notifBanner")){
+    // ⚠️ 중복 검사는 **채팅방 안으로 좁혀서** — 전체 문서를 보면 채팅 아래에 깔린 홈 피드의
+    //    배너에 걸려 "이미 있다"고 오판해 여기 배너가 아예 안 떴다(2026-08-15 사용자 신고).
+    if(!document.querySelector("#chatRoom .notif-banner")){
       inputRow.insertAdjacentHTML('beforebegin',notifBannerHTML('inquiry'));
     }
   }
@@ -8228,11 +8229,14 @@ function notifBannerHidden(){
     return until>Date.now();
   }catch(e){return false;}
 }
+/* ⚠️ 배너는 이제 여러 자리에 동시에 있을 수 있다(홈 + 커미션 등록 + 문의 채팅, 2026-08-15).
+   getElementById 로 지우면 문서상 첫 번째(대개 홈 것)만 지워지고 누른 배너는 남는다 —
+   켜기/닫기는 어차피 모든 배너를 무의미하게 만들므로 **전부** 지운다. */
+function removeNotifBanners(){document.querySelectorAll(".notif-banner").forEach(function(el){el.remove();});}
 function dismissNotifBanner(e){
   if(e&&e.stopPropagation)e.stopPropagation();
   try{localStorage.setItem(NOTIF_BANNER_KEY,String(Date.now()+7*24*3600*1000));}catch(err){}
-  var el=document.getElementById("notifBanner");
-  if(el)el.remove();
+  removeNotifBanners();
 }
 /* 이 계정이 이미 어딘가에서 알림을 켜 뒀는지(기기 무관).
    ⚠️ iOS는 **사파리와 홈 화면 앱을 서로 다른 컨텍스트로** 취급한다. 홈 화면 앱에서 알림을 켜도
@@ -8247,7 +8251,7 @@ function notifCheckSubscribed(){
     .then(function(res){
       if(!res.error&&res.data&&res.data.length){
         _notifHasSub=true;
-        var el=document.getElementById("notifBanner");if(el)el.remove();
+        removeNotifBanners();
       }
     },function(){});
 }
@@ -8301,7 +8305,7 @@ async function notifBannerEnable(e){
   if(e&&e.stopPropagation)e.stopPropagation();
   await enablePushNotifications();
   // 켰든 거절했든 이 배너는 할 일이 끝났다(거절이면 다시 물어볼 수 없다)
-  var el=document.getElementById("notifBanner");if(el)el.remove();
+  removeNotifBanners();
   if(notifPermState()!=="granted")dismissNotifBanner();
 }
 function openNotifSettings(e){
