@@ -3776,7 +3776,7 @@ function renderAdminCommissionMgmt(){
 function cmComputeTopTags(){
   var counts={};
   // 접수중 커미션의 태그만 집계(마감만 달린 태그가 칩에 떠서 눌러도 빈 결과 나오는 것 방지)
-  cmData.forEach(function(d){if(d.status!=='open')return;(d.tags||[]).forEach(function(t){counts[t]=(counts[t]||0)+1;});});
+  cmData.forEach(function(d){if(d.status==='close')return;(d.tags||[]).forEach(function(t){counts[t]=(counts[t]||0)+1;});});
   var tags=Object.keys(counts);
   tags.sort(function(a,b){return counts[b]-counts[a];});
   return tags.slice(0,10);
@@ -3797,7 +3797,7 @@ function pfCmListItemHTML(d){
   var hasImg=!!(d.images&&d.images.length);
   var thumb=hasImg?'':'background:'+cmGrads[d.id%cmGrads.length];
   var thumbImg=hasImg?thumbImgHTML(d.images[0],'class="thumb-fill"'):'';
-  var statusHTML=d.status==='open'?'<div class="pfh-cm-status open">접수중</div>':'<div class="pfh-cm-status">신청 마감</div>';
+  var statusHTML=d.status==='open'?'<div class="pfh-cm-status open">접수중</div>':(d.status==='upcoming'?'<div class="pfh-cm-status soon">오픈 예정</div>':'<div class="pfh-cm-status">신청 마감</div>');
   var bookmarked=cmBookmarkIds&&cmBookmarkIds.has(d.id);
   var tags=(d.tags||[]).map(function(t){return '<span class="pfh-cm-tag">#'+esc(t)+'</span>';}).join('');
   return '<div class="pfh-cm-item" onclick="cmOpenCommissionById('+d.id+')">'+
@@ -3971,7 +3971,7 @@ function cmCardHTML(d,idx,pos){
   var thumb=hasImg?'':'background:'+cmGrads[idx%cmGrads.length];
   // 첫 두 줄(4~6칸)은 첫 화면에 바로 보이므로 lazy 를 끄고 즉시 받는다
   var thumbImg=hasImg?thumbImgHTML(d.images[0],'class="thumb-fill"',pos!=null&&pos<6):'';
-  var status=d.status==='open'?'<div class="cm-status open">오픈중</div>':'';
+  var status=d.status==='open'?'<div class="cm-status open">오픈중</div>':(d.status==='upcoming'?'<div class="cm-status soon">오픈 예정</div>':'');
   // 목록 카드에는 🎁 하나만(2026-08-15 사용자 요청 — 글자까지 있으면 썸네일을 가린다).
   // 무슨 뜻인지는 상세에서 배너로 설명되므로 여기선 표시만 한다. title은 마우스 올린 사람용.
   var revBadge=d.reviewEventOn?'<div class="cm-revevent-badge" title="리뷰 이벤트 진행 중">🎁</div>':'';
@@ -3993,8 +3993,9 @@ function cmCardHTML(d,idx,pos){
 }
 function cmFilteredIdx(){
   var q=(cmState.query||'').trim().toLowerCase();
-  // 접수중(open)만 노출 — 마감 커미션은 홈·신규·인기·검색·추천 어디에도 안 보이게(작가는 '내 커미션'에서 관리).
-  var idxs=cmData.map(function(d,i){return i;}).filter(function(i){return cmData[i].status==='open';});
+  // 마감(close)만 숨김 — 접수중·오픈 예정은 홈·신규·인기·검색·추천에 노출(2026-08-16 3단계).
+  // 마감은 지금까지처럼 어디에도 안 보인다(작가는 '내 커미션'에서 관리).
+  var idxs=cmData.map(function(d,i){return i;}).filter(function(i){return cmData[i].status!=='close';});
   /* 성인 커미션 노출 규칙
      · 인증한 사람: 탭으로 켜고 끈다(기본 꺼짐)
      · 미인증자: 내용 없는 가림막 카드만 보인다. 단 **검색어·태그가 걸려 있으면 뺀다** —
@@ -4435,7 +4436,7 @@ function cmDetailHTML(d,idx){
           '<span title="저장한 사람 수">'+CM_IC_BOOKMARK+'저장 '+(d.bookmarkCount||0)+'</span>'+
         '</div>'+
       '</div>'+
-      '<div class="cm-stats"><div class="cm-stat"><span class="cm-k">신청 가능</span><span class="cm-v">'+esc(d.slots||'8')+'개 남음</span></div>'+
+      '<div class="cm-stats"><div class="cm-stat"><span class="cm-k">신청 가능</span><span class="cm-v">'+(d.status==='upcoming'?'오픈 예정':(esc(d.slots||'8')+'개 남음'))+'</span></div>'+
         '<div class="cm-stat"><span class="cm-k">작업 기간</span><span class="cm-v">'+esc(period)+'</span></div></div>'+
       cmAdminScoreHTML(d)+
       // 주소 설정을 상세에도 — '내 커미션' 목록의 🔗 버튼만으로는 찾기 어려웠다(2026-08-16 사용자 요청)
@@ -4475,7 +4476,9 @@ function cmDetailHTML(d,idx){
     '<div class="cm-pad"></div>'+
     '<div class="cm-apply-bar"><div class="cm-bm'+(bookmarked?' on':'')+'"'+(d.id!=null?(' onclick="cmToggleBookmark('+d.id+',this)"'):'')+'><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12v18l-6-4-6 4z"/></svg></div>'+
       '<div class="cm-ask" onclick="'+((d.authorId&&d.id!=null)?('cmOpenChatAbout(\''+cmQ(d.authorId)+'\','+d.id+',\''+cmQ(title)+'\')'):'cmComingSoon()')+'">문의하기</div>'+
-      '<div class="cm-apply" onclick="'+((d.authorId&&d.id!=null)?('cmApply(\''+cmQ(d.authorId)+'\','+d.id+',\''+cmQ(title)+'\')'):'cmComingSoon()')+'">신청하기</div></div>'+
+      (d.status==='upcoming'
+        ?'<div class="cm-apply is-soon" onclick="cmSoonNotice()">⏳ 오픈 예정</div></div>'
+        :'<div class="cm-apply" onclick="'+((d.authorId&&d.id!=null)?('cmApply(\''+cmQ(d.authorId)+'\','+d.id+',\''+cmQ(title)+'\')'):'cmComingSoon()')+'">신청하기</div></div>')+
   '</div>';
 }
 /* 가림막 카드를 눌렀을 때. 상세로 보내지 않고 인증 안내만 한다
@@ -4970,8 +4973,10 @@ function cmRenderRegisterScreen(){
       '<div class="cm-reg-taglist" id="cmRegTagList">'+tagsHTML+'</div>'+
       '<div class="cm-reg-taghint'+(cmReg.tags.length>=5?' full':'')+'" id="cmRegTagHint">'+cmReg.tags.length+'/5개</div>'+
       '<div class="cm-reg-label">접수 상태</div>'+
-      '<div class="cm-reg-toggle"><div class="cm-reg-tg'+(cmReg.status==='open'?' sel':'')+'" id="cmTgOpen" onclick="cmSetStatus(\'open\')">🟢 접수중</div>'+
-        '<div class="cm-reg-tg'+(cmReg.status==='close'?' sel':'')+'" id="cmTgClose" onclick="cmSetStatus(\'close\')">⛔ 마감</div></div>'+
+      // 상태 3단계(2026-08-16): 오픈 예정 = 목록·검색엔 보이지만 신청은 아직 못 받는 상태
+      '<div class="cm-reg-toggle"><div class="cm-reg-tg'+(cmReg.status==='open'?' sel':'')+'" data-st="open" onclick="cmSetStatus(\'open\')">🟢 접수중</div>'+
+        '<div class="cm-reg-tg'+(cmReg.status==='upcoming'?' sel':'')+'" data-st="upcoming" onclick="cmSetStatus(\'upcoming\')">⏳ 오픈 예정</div>'+
+        '<div class="cm-reg-tg'+(cmReg.status==='close'?' sel':'')+'" data-st="close" onclick="cmSetStatus(\'close\')">⛔ 마감</div></div>'+
       /* 성인(19+) 표시. 접수 상태 바로 아래에 둔다 — 나중에 물으면 이미 다 적은 뒤라
          되돌리기 번거롭고, 무엇보다 "누가 볼 수 있는지"를 정하는 항목이라 앞에 있어야 한다. */
       '<div class="cm-reg-label">🔞 성인 커미션 <span class="cm-reg-sub">19세 미만이 보면 안 되는 내용이면 표시해주세요</span></div>'+
@@ -5276,10 +5281,13 @@ function cmRenderTagList(){
   hint.textContent=cmReg.tags.length+'/5개';
   hint.classList.toggle('full',cmReg.tags.length>=5);
 }
+// 오픈 예정 커미션의 '신청' 자리 안내 — 문의는 열려 있으니 문의로 유도한다
+function cmSoonNotice(){toast("아직 오픈 전이에요. 궁금한 점은 문의하기로 물어보세요","⏳");}
 function cmSetStatus(v){
   cmReg.status=v;
-  document.getElementById('cmTgOpen').classList.toggle('sel',v==='open');
-  document.getElementById('cmTgClose').classList.toggle('sel',v==='close');
+  // ⚠️ [data-st] 로 좁힌다 — .cm-reg-tg 는 성인·리뷰이벤트 토글도 쓰는 공용 클래스라,
+  //    전부 순회하면 그쪽 선택 표시까지 벗겨진다(2026-08-16 검증에서 발견).
+  document.querySelectorAll('.cm-reg-tg[data-st]').forEach(function(el){el.classList.toggle('sel',el.getAttribute('data-st')===v);});
 }
 /* 성인 표시를 켜려면 본인도 연령 확인을 마쳐야 한다.
    ⚠️ 진짜 강제는 서버(RLS)가 한다 — 여기서 막는 건 저장을 눌렀다가 실패하는 대신
@@ -5472,7 +5480,7 @@ function cmMyListHTML(){
        (실측 캡처: 버튼 영역이 내용의 3배) 낡아 보였다. 액션은 아이콘+짧은 글자의
        균등 4칸 바로 — 끌올 대기는 버튼이 아니라 상태 옆 칩으로 강등(누를 수 없는 건
        버튼 모양이면 안 된다). */
-    var st=c.status==='open'?'<span class="cm-my-badge open">🟢 접수중</span>':'<span class="cm-my-badge close">⛔ 마감</span>';
+    var st=c.status==='open'?'<span class="cm-my-badge open">🟢 접수중</span>':(c.status==='upcoming'?'<span class="cm-my-badge soon">⏳ 오픈 예정</span>':'<span class="cm-my-badge close">⛔ 마감</span>');
     var left=(CM_BUMP_READY&&c.status==='open')?cmBumpLeftMs(c):-1;
     var waitChip=left>0?'<span class="cm-my-badge wait" title="24시간에 한 번 올릴 수 있어요">⏳ '+cmFmtLeft(left)+'</span>':'';
     var slugChip=c.slug?'<span class="cm-my-badge lnk" onclick="cmOpenSlugModal('+c.id+')" title="커미션 주소">/'+esc(c.slug)+'</span>':'';

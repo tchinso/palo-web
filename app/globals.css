@@ -1232,6 +1232,7 @@
   .pfh-cm-thumb{width:84px;height:84px;border-radius:12px;flex-shrink:0;position:relative;overflow:hidden}
   .pfh-cm-status{position:absolute;bottom:6px;right:6px;font-size:10px;font-weight:700;padding:3px 7px;border-radius:6px;background:rgba(255,255,255,.9);color:var(--muted)}
   .pfh-cm-status.open{background:rgba(63,143,95,.92);color:#fff}
+  .pfh-cm-status.soon{background:rgba(151,132,214,.92);color:#fff}
   .pfh-cm-info{flex:1;min-width:0}
   .pfh-cm-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
   .pfh-cm-title{font-size:15.5px;font-weight:700;line-height:1.35;min-width:0;word-break:break-word}
@@ -2199,6 +2200,7 @@
   .cm-bookmark.on svg{fill:var(--brand);color:var(--brand)}
   .cm-status{position:absolute;top:10px;right:10px;font-size:11px;font-weight:700;padding:4px 8px;border-radius:8px}
   .cm-status.open{background:rgba(63,143,95,.92);color:#fff}
+  .cm-status.soon{background:rgba(151,132,214,.92);color:#fff}
   /* 목록 카드 위 배지 — 여기는 뒤가 그림이라 backdrop-filter가 실제로 먹는다(진짜 유리).
      ⚠️ 다만 밝은 그림 위에서 흰 글자가 안 읽히므로, 완전 투명이 아니라 브랜드색을
         충분히 깔고(.82) 그 위에 블러를 얹는다. */
@@ -2415,6 +2417,8 @@
   .cm-apply-bar .cm-bm.on svg{fill:var(--brand);color:var(--brand)}
   .cm-apply-bar .cm-ask{flex:1;background:var(--brand-soft);color:var(--brand-2);font-size:16px;font-weight:700;padding:14px;border-radius:12px;text-align:center;cursor:pointer}
   .cm-apply-bar .cm-apply{flex:1.4;background:var(--brand);color:#fff;font-size:16px;font-weight:800;padding:14px;border-radius:12px;text-align:center;cursor:pointer}
+  /* 오픈 예정 — 눌러도 신청이 안 되는 상태를 모양으로도 말한다(누르면 안내 토스트) */
+  .cm-apply-bar .cm-apply.is-soon{background:var(--surface-2);color:var(--muted)}
   .cm-pad{height:calc(100px + var(--cm-tabbar-h,0px))}
 
   .cm-pf-top{position:sticky;top:0;z-index:20;background:var(--bg);display:flex;align-items:center;gap:14px;padding:14px 18px}
@@ -2645,6 +2649,7 @@
   .cm-my-badges{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px}
   .cm-my-badges .cm-my-badge{margin-top:0}
   .cm-my-badge.wait{background:var(--surface-2);color:var(--muted)}
+  .cm-my-badge.soon{background:#efeafb;color:#6b58a8}
   .cm-my-badge.lnk{background:var(--brand-soft);color:var(--brand-2);cursor:pointer;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .cm-my-acts{display:flex;border-top:1px solid var(--line)}
   .cm-act-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;
