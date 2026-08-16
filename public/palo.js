@@ -8254,6 +8254,10 @@ function notifCheckSubscribed(){
 /* 배너를 보여줄 상황인지. 보여줄 만하면 그 '종류'를 돌려준다(ask | ios). */
 function notifBannerKind(){
   if(!AUTH.user)return null;                       // 로그인해야 구독을 저장할 수 있다
+  // 시험 표식(2026-08-15): nb_test=1 이면 이미 켰거나 닫았어도 보여준다 — 배너·확인창을
+  // 확인할 때 알림을 끄고 새 브라우저를 준비할 필요가 없게. 켜기: localStorage.setItem("nb_test","1")
+  // 끄기: localStorage.removeItem("nb_test"). 일반 사용자에게는 아무 영향 없다.
+  try{if(localStorage.getItem("nb_test")==="1")return (isIOSDevice()&&!isStandalonePWA())?"ios":"ask";}catch(e){}
   if(notifBannerHidden())return null;
   // ⚠️ **권한 판정이 iOS 분기보다 먼저 와야 한다.** 순서가 반대면 아이폰 사용자는
   //    이미 알림을 켰어도 '홈 화면에 추가하세요' 배너를 계속 보게 된다(그 순서가 실제 버그였다).
