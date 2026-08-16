@@ -1049,6 +1049,21 @@ async function _makeLoginNonce(){
    X: "Twitter" — 안드로이드는 확실, **아이폰 X앱은 최신 버전에서 표식이 없을 수 있다**
       (그 경우 일반 브라우저로 취급되어 기본 모달이 뜬다 — 잘못 판별하는 것보다 낫다).
    ua 인자는 테스트용 — 실제 호출은 인자 없이 한다. */
+/* 시험 표식을 주소로 켠다 — 폰에서는 콘솔을 열 수 없어서 localStorage를 직접 못 만진다.
+   commi.kr/?nb_test=1 로 들어오면 켜지고 ?nb_test=0 이면 꺼진다(tk_test도 동일).
+   파라미터는 바로 지운다 — 남겨두면 공유·새로고침 때마다 다시 적용된다. */
+(function(){
+  try{
+    var q=new URLSearchParams(location.search),touched=false;
+    ["nb_test","tk_test"].forEach(function(k){
+      var v=q.get(k);
+      if(v==="1"){localStorage.setItem(k,"1");touched=true;}
+      else if(v==="0"){localStorage.removeItem(k);touched=true;}
+      if(v!==null)q.delete(k);
+    });
+    if(touched)history.replaceState({},"",location.pathname+(q.toString()?"?"+q.toString():""));
+  }catch(e){}
+})();
 function inAppBrowser(ua){
   ua=ua||navigator.userAgent||"";
   if(/musical_ly|bytedance|tiktok|trill/i.test(ua))return "tiktok";
@@ -4160,6 +4175,8 @@ function cmRenderApplyForm(commission){
   var policyHTML=commission.policy?esc(commission.policy).replace(/\n/g,'<br>'):CM_DEFAULT_POLICY_HTML;
   document.getElementById("main").innerHTML='<div class="cm-root">'+
     '<div class="cm-sub-top"><svg onclick="screenBack()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg><b>커미션 신청서</b></div>'+
+    // 신청 결과(수락·거절)를 기다리게 되므로 알림을 안 켠 신청자에게 권유(2026-08-15)
+    notifBannerHTML('apply')+
     '<div class="cm-reg">'+
       '<div class="cm-reg-label">참고 이미지 <span class="cm-reg-sub">선택 · 최대 5장</span></div>'+
       '<input type="file" id="cmAppFileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="hidden" onchange="cmOnApplyFileChange(event)">'+
@@ -8289,7 +8306,8 @@ function notifBannerHTML(ctx){
   // 문구는 짧게 — 텍스트 칸이 좁아서(아이콘·버튼·닫기가 폭을 가져간다) 길면 3줄로 늘어진다
   var tx={
     cmreg:["문의·신청 알림을 놓치지 마세요","알림을 켜면 문의가 오는 즉시 알려드려요."],
-    inquiry:["답장 알림을 받아보세요","작가님이 답장하면 바로 알려드려요."]
+    inquiry:["답장 알림을 받아보세요","작가님이 답장하면 바로 알려드려요."],
+    apply:["신청 결과 알림을 받아보세요","작가님이 수락하면 바로 알려드려요."]
   }[ctx]||["새 댓글을 바로 알려드려요","내 글의 댓글·좋아요, 커미션 문의까지."];
   return '<div class="notif-banner" id="notifBanner">'+
     '<span class="nb-ic">'+(ios?NB_ICON_PHONE:NB_ICON_BELL)+'</span>'+
