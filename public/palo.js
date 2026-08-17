@@ -4378,7 +4378,6 @@ function cmSliderHTML(imgs,idx){
     cmSlTopBtnsHTML()+
     '<div class="cm-sl-track" id="cmSlTrack" onscroll="cmSliderScroll(this)">'+items+'</div>'+
     (n>1?(
-      '<div class="cm-sl-count" id="cmSlCount">1 / '+n+'</div>'+
       '<button type="button" class="cm-sl-nav prev" onclick="cmSliderMove(-1)" aria-label="이전 이미지">‹</button>'+
       '<button type="button" class="cm-sl-nav next" onclick="cmSliderMove(1)" aria-label="다음 이미지">›</button>'+
       (n<=CM_DOTS_MAX?('<div class="cm-dots" id="cmSlDots">'+imgs.map(function(u,i){return i?'<i></i>':'<i class="on"></i>';}).join('')+'</div>'):'')
@@ -4392,8 +4391,9 @@ function cmSliderScroll(el){
   if(i<0)i=0; else if(i>n-1)i=n-1;
   var dots=document.getElementById("cmSlDots");
   if(dots)for(var k=0;k<dots.children.length;k++)dots.children[k].className=(k===i)?"on":"";
-  var c=document.getElementById("cmSlCount");
-  if(c)c.textContent=(i+1)+" / "+n;
+  // (2026-08-16 제거) 우상단 'n / m' 카운터 — 이미지 안으로 옮긴 공유·더보기 버튼과 자리가
+  // 겹쳤다. 위치 표시는 하단 점이 담당하고, 등록 제한이 10장이라 점은 항상 표시된다
+  // (카운터는 10장 초과 대비용이었는데 그 경우가 존재할 수 없다).
 }
 function cmSliderMove(dir){
   var el=document.getElementById("cmSlTrack");
