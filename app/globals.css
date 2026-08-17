@@ -53,8 +53,9 @@
   @media(pointer:coarse){
     :where(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=color],[type=button],[type=submit]),textarea,[contenteditable="true"]){font-size:16px}
   }
-  body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
-    background:radial-gradient(circle at 12% 8%,rgba(224,122,166,.05),transparent 42%),radial-gradient(circle at 88% 20%,rgba(151,132,214,.045),transparent 44%),radial-gradient(circle at 70% 90%,rgba(124,195,224,.04),transparent 46%)}
+  /* (2026-08-16 제거) body::before 전면 색 얼룩 장식 — 분홍끼 배경 시절의 앰비언스였는데,
+     배경을 순백으로 바꾼 뒤에는 이것만 남아 "배경이 덜 하얘진" 것처럼 보였다(모바일에서 특히 —
+     작은 화면은 얼룩 하나가 화면 대부분을 덮는다). 순백을 원했으니 장식도 걷는다. */
   .serif{font-weight:800;letter-spacing:-.02em}
   a{text-decoration:none;color:inherit}button{font-family:inherit}
   ::selection{background:var(--brand);color:#fff}
@@ -2923,7 +2924,7 @@
 .ed-fmt .ed-fmt-more i{font-style:normal;color:var(--muted);margin-left:3px}
 .ed-fmt .ed-fmt-back{background:var(--brand-soft);color:#9c3566;font-size:17px;font-weight:900;min-width:34px;padding:0}
 .ed-fmt .ed-fmt-close{margin-left:auto;color:var(--muted);font-size:14px;min-width:34px;padding:0;
-  position:sticky;right:0;box-shadow:-8px 0 10px rgba(253,247,249,.9)} /* 가로로 밀려도 닫기는 남는다 */
+  position:sticky;right:0;box-shadow:-8px 0 10px rgba(255,255,255,.9)} /* 가로로 밀려도 닫기는 남는다 — 페이드 색은 배경(순백)과 동일해야 한다 */
 /* 하위 목록의 글꼴 미리보기 글자는 조금 더 크게(무슨 서체인지 보이게) */
 .ed-fmt-sub button{font-size:14px}
 
