@@ -8,7 +8,7 @@ export default function manifest() {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#fbf7f8",
+    background_color: "#ffffff",
     theme_color: "#e07aa6",
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
