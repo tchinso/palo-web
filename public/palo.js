@@ -8296,17 +8296,29 @@ function dismissNotifBanner(e){
       사파리에서 본 `Notification.permission` 은 여전히 "default" 다.
       그래서 권한만 보고 판단하면 **이미 켠 사람에게 또 권유하게 된다**(2026-08-09 사용자 신고).
       계정에 푸시 구독이 하나라도 있으면 '이미 켠 사람'으로 보고 배너를 접는다. */
-var _notifHasSub=null;   // null=아직 모름 / true·false=확인함
+var _notifHasSub=null;    // null=아직 모름 / true·false=확인함
+var _notifSubKnown=false; // 조회가 끝났는가 — 끝나기 전의 배너는 숨긴 채 그려 둔다(아래 참고)
 function notifCheckSubscribed(){
   if(_notifHasSub!==null||!AUTH.user||!window.supabase)return;
   _notifHasSub=false;   // 조회 중 중복 요청 방지
   window.supabase.from("push_subscriptions").select("id").eq("user_id",AUTH.user.id).limit(1)
     .then(function(res){
+      _notifSubKnown=true;
       if(!res.error&&res.data&&res.data.length){
         _notifHasSub=true;
         removeNotifBanners();
+      }else{
+        /* 안 켠 계정으로 판명 — 숨긴 채 그려 뒀던 배너를 이제 드러낸다.
+           ⚠️ 예전엔 순서가 반대였다: 일단 보여주고 '켠 계정'이면 지웠다 → 첫 화면에서
+           배너가 잠깐 보였다 사라지는 깜빡임(2026-08-16 사용자 신고). 확인 후 등장은
+           깜빡임이 아니라 '늦게 나타남'이라 거슬리지 않는다. */
+        document.querySelectorAll(".notif-banner.nb-pending").forEach(function(el){el.classList.remove("nb-pending");});
       }
-    },function(){});
+    },function(){
+      // 조회 실패 — 영영 숨겨 두는 것보다는 보여주는 쪽이 낫다(자격은 이미 다른 검사를 통과했다)
+      _notifSubKnown=true;
+      document.querySelectorAll(".notif-banner.nb-pending").forEach(function(el){el.classList.remove("nb-pending");});
+    });
 }
 /* 배너를 보여줄 상황인지. 보여줄 만하면 그 '종류'를 돌려준다(ask | ios). */
 function notifBannerKind(){
@@ -8338,7 +8350,9 @@ function notifBannerHTML(ctx){
     inquiry:["답장 알림을 받아보세요","작가님이 답장하면 바로 알려드려요."],
     apply:["신청 결과 알림을 받아보세요","작가님이 수락하면 바로 알려드려요."]
   }[ctx]||["새 댓글을 바로 알려드려요","내 글의 댓글·좋아요, 커미션 문의까지."];
-  return '<div class="notif-banner" id="notifBanner">'+
+  // 구독 여부 확인 전엔 nb-pending(숨김)으로 그린다 — 확인이 끝나면 notifCheckSubscribed가
+  // 드러내거나(안 켠 계정) 지운다(켠 계정). 깜빡임 방지의 핵심.
+  return '<div class="notif-banner'+(_notifSubKnown?'':' nb-pending')+'" id="notifBanner">'+
     '<span class="nb-ic">'+(ios?NB_ICON_PHONE:NB_ICON_BELL)+'</span>'+
     '<span class="nb-tx">'+
       '<b>'+(ios?'홈 화면에 추가하면 알림을 받아요':tx[0])+'</b>'+
