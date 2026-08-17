@@ -1076,6 +1076,13 @@ async function _makeLoginNonce(){
     if(touched)history.replaceState({},"",location.pathname+(q.toString()?"?"+q.toString():""));
   }catch(e){}
 })();
+/* ===== 하단 탭 강조 방식 (2026-08-17, 임시 전환) =====
+   "glass"  — 유리 조각(#tabInd)이 미끄러져 넘어가는 기존 방식(출렁임 포함)
+   "simple" — 에브리타임식: 평소엔 옅은 색, 선택된 탭만 진한 색(이동 효과 없음)
+   기존 코드(.tab-ind CSS·syncTabInd·wobble)는 전부 그대로 두고 body 클래스로만 잠근다 —
+   되돌리려면 이 값을 "glass"로 바꾸면 끝. */
+var TABBAR_STYLE="simple";
+if(TABBAR_STYLE==="simple")document.body.classList.add("tab-style-simple");
 function inAppBrowser(ua){
   ua=ua||navigator.userAgent||"";
   if(/musical_ly|bytedance|tiktok|trill/i.test(ua))return "tiktok";

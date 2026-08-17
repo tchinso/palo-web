@@ -739,6 +739,13 @@
   .tab.on .ic{transform:translateY(-1px)}
   .tab .badge{position:absolute;top:2px;right:calc(50% - 20px);min-width:16px;height:16px;background:var(--brand);color:#fff;font-size:9px;font-weight:800;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid #fff}
   .tab .lbl{display:block}
+  /* ===== 하단 탭 강조: 에브리타임식 (2026-08-17, 임시 전환 — palo.js의 TABBAR_STYLE) =====
+     유리 조각 방식(.tab-ind, 위)은 지우지 않고 이 클래스로만 잠근다. 색 전이는 .tab의
+     기존 transition(color .26s)이 그대로 해줘서 누르는 순간 부드럽게 진해진다. */
+  body.tab-style-simple .tab-ind{display:none}
+  body.tab-style-simple .tab{color:var(--muted-2)}
+  body.tab-style-simple .tab.on{color:#9c3566}
+  body.tab-style-simple .tab.on .ic{transform:none} /* 색으로만 강조 — 아이콘 들썩임도 쉬게 */
 
   @media(max-width:860px){
     .menu-btn{display:block}.search.desktop{display:none}.write-btn{display:none}
