@@ -6528,27 +6528,53 @@ function renderEdTags(){
 function pickTag(t){edState.tag=(edState.tag===t?null:t);renderEdTags()}
 /* formatting */
 function fmt(e,cmd,val){e.preventDefault();document.getElementById("wContent").focus();document.execCommand(cmd,false,val||null)}
-/* ===== 자유 색 선택(OS 팔레트) — 글쓰기·커미션 설명란 공용 (2026-08-16 사용자 요청) =====
-   숨긴 <input type="color">를 눌러 OS의 스펙트럼 팔레트를 연다 — 폰·PC 모두 원하는 지점을
-   찍으면 그 색이 나온다. 직접 그린 팔레트보다 접근성·정확도가 훨씬 낫다.
-   ⚠️ 적용은 'change'(선택 확정) 한 번만 — 'input'(드래그 중 연발)마다 적용하면
-      선택 영역에 span이 겹겹이 중첩된다. */
-var _pickColorCb=null,_pickColorLast={fore:"#d1608f",hilite:"#fff3b0"};
+/* ===== 자유 색 선택(8×8 색 표) — 글쓰기·커미션 설명란 공용 (2026-08-16 사용자 요청) =====
+   팔레트 버튼을 누르면 64색(8×8) 표가 떠서 원하는 칸을 찍는다.
+   표 구성: 위 7줄 = 8색상(빨·주·노·초·청록·파랑·보라·분홍) × 밝음→어두움 7단계,
+           맨 아랫줄 = 검정→흰색 무채색 8단계.
+   ⚠️ 견본의 onmousedown 은 preventDefault — 에디터의 글자 선택이 풀리면 색이 허공에 적용된다
+      (설명란 견본 버튼들과 같은 규칙). 바깥(어둠막)을 누르면 적용 없이 닫힌다. */
+var _pickColorCb=null;
+var PICK_GRID=(function(){
+  var rows=[],hues=[0,25,50,120,190,230,285,330];
+  [85,73,62,52,42,33,25].forEach(function(l){
+    rows.push(hues.map(function(h){return "hsl("+h+",68%,"+l+"%)";}));
+  });
+  rows.push(["#000000","#3a3a3a","#5c5c5c","#7f7f7f","#a3a3a3","#c7c7c7","#e5e5e5","#ffffff"]);
+  return rows;
+})();
 function pickColor(kind,cb){
-  var inp=document.getElementById("colorPickInput");
-  if(!inp){
-    inp=document.createElement("input");
-    inp.type="color";inp.id="colorPickInput";
-    inp.style.cssText="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0";
-    document.body.appendChild(inp);
-    inp.addEventListener("change",function(){
-      if(_pickColorCb)_pickColorCb(inp.value);
-      _pickColorCb=null;
-    });
+  _pickColorCb=cb;
+  var pop=document.getElementById("colorGridPop");
+  if(!pop){
+    var scrim=document.createElement("div");
+    scrim.id="colorGridScrim";scrim.className="color-grid-scrim";
+    scrim.addEventListener("mousedown",function(e){e.preventDefault();}); // 선택 유지
+    scrim.addEventListener("click",closeColorGrid);
+    document.body.appendChild(scrim);
+    pop=document.createElement("div");
+    pop.id="colorGridPop";pop.className="color-grid-pop";
+    pop.innerHTML=PICK_GRID.map(function(row){
+      return row.map(function(c){
+        return '<button type="button" class="cg-sw" style="background:'+c+'" '+
+          'onmousedown="event.preventDefault()" onclick="pickColorChoose(\''+c+'\')"></button>';
+      }).join('');
+    }).join('');
+    document.body.appendChild(pop);
   }
-  inp.value=_pickColorLast[kind]||"#d1608f";
-  _pickColorCb=function(c){_pickColorLast[kind]=c;cb(c);};
-  inp.click();
+  document.getElementById("colorGridScrim").style.display="block";
+  pop.style.display="grid";
+}
+function pickColorChoose(c){
+  var cb=_pickColorCb;_pickColorCb=null;
+  closeColorGrid();
+  if(cb)cb(c);
+}
+function closeColorGrid(){
+  var p=document.getElementById("colorGridPop"),s=document.getElementById("colorGridScrim");
+  if(p)p.style.display="none";
+  if(s)s.style.display="none";
+  _pickColorCb=null;
 }
 // 글쓰기 에디터용 — 선택 영역은 버튼 onmousedown에서 saveEditorSelection으로 미리 저장돼 있다
 function edPickColor(kind){

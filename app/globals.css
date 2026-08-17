@@ -2603,8 +2603,16 @@
   .cm-reg-addimg .cm-cnt{font-size:11px}
   /* 가격 입력 */
   .cm-reg-price{display:flex;align-items:center;gap:8px}
-  /* 무지개 견본 — 'OS 팔레트로 직접 고르기' 버튼. 원뿔 그라디언트로 '모든 색'을 표현 */
+  /* 무지개 견본 — '8×8 색 표 열기' 버튼. 원뿔 그라디언트로 '모든 색'을 표현 */
   .cm-tb-sw.cm-tb-rainbow{background:conic-gradient(#f66,#fc3,#6d6,#4cc,#66f,#c6f,#f66)!important}
+  /* 8×8 색 표 팝업 — 글쓰기·커미션 공용. 어둠막을 누르면 적용 없이 닫힌다 */
+  .color-grid-scrim{display:none;position:fixed;inset:0;z-index:129;background:rgba(58,36,56,.28)}
+  .color-grid-pop{display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:130;
+    grid-template-columns:repeat(8,34px);gap:5px;background:var(--surface);border-radius:16px;
+    padding:12px;box-shadow:var(--sh-lg)}
+  .cg-sw{width:34px;height:34px;border-radius:9px;border:1px solid rgba(0,0,0,.1);cursor:pointer;padding:0;transition:transform .1s}
+  .cg-sw:hover{transform:scale(1.12)}
+  @media(max-width:380px){.color-grid-pop{grid-template-columns:repeat(8,32px)}.cg-sw{width:32px;height:32px}}
   .cm-reg-price input{flex:1}
   .cm-reg-price .cm-unit{font-size:15px;font-weight:700;color:var(--ink-2)}
   /* 타입 선택 */
