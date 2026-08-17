@@ -137,11 +137,12 @@ ${""/* bottom tabs */}
   <div class="tabbar-inner">
     <span class="tab-ind" id="tabInd" aria-hidden="true"></span>
     ${""/* 아이콘은 상단 헤더와 같은 선(stroke) 방식(2026-08-16 사용자 요청 — 면 채움과 섞이면
-         디자인 일치성이 깨진다). 채팅·내 정보는 앱의 다른 곳(헤더·프로필)이 쓰는 것과 같은 패스. */}
+         디자인 일치성이 깨진다). 채팅은 앱의 다른 곳이 쓰는 것과 같은 패스.
+         '내 정보' 탭은 2026-08-17 사용자 요청으로 삭제 — 프로필은 헤더 아이콘으로 간다
+         (syncTabs("me")는 해당 탭이 없으면 전부 꺼지고 표시선도 숨어 안전). */}
     <button class="tab on" data-tab="home" onclick="goHome()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg><span class="lbl">홈</span></button>
     <button class="tab" data-tab="commission" onclick="openCommissionList()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h.9a2 2 0 0 0 1.4-3.4c-.6-.7-.1-1.8.8-1.8H17a4 4 0 0 0 4-4c0-4.9-4-8.8-9-8.8z"/><circle cx="7.6" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="9.3" cy="7.8" r="1.1" fill="currentColor" stroke="none"/><circle cx="13.8" cy="6.9" r="1.1" fill="currentColor" stroke="none"/><circle cx="17.2" cy="9.5" r="1.1" fill="currentColor" stroke="none"/></svg><span class="lbl">커미션</span></button>
     <button class="tab" data-tab="chat" onclick="openChatList('home')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8 8.38 8.38 0 0 1 8.5-8.5 8.5 8.5 0 0 1 8.5 8.5z"/></svg><span class="lbl">채팅</span></button>
-    <button class="tab" data-tab="me" onclick="openProfile()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="lbl">내 정보</span></button>
   </div>
 </nav>
 
