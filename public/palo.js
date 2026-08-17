@@ -2167,6 +2167,11 @@ function renderList(){
   h+='</div>';
   if(isSearch)h+=moreSentinelHTML(arr.length);
   else if(totalPages>1)h+=pagerHTML(totalPages);
+  // 우측 하단 글쓰기 버튼(2026-08-16) — 하단 탭의 '글쓰기'를 빼는 대신 커미션 만들기와 같은 떠 있는 버튼으로.
+  // PC는 헤더에 글쓰기 버튼이 이미 있어 모바일에서만 보인다(CSS).
+  h+='<div class="cm-fab-wrap home-write-fab"><button class="cm-fab" onclick="openWrite()">'+
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>'+
+    '글쓰기</button></div>';
   main.innerHTML=h;
   syncChipScroll();
   observeAdBanners();
@@ -6273,7 +6278,7 @@ function openWrite(){
   document.getElementById("wContent").innerHTML="";
   document.getElementById("edImages").innerHTML="";
   edState.polls={};
-  document.getElementById("edCrit").checked=(edState.board==="crit");
+  var _ec=document.getElementById("edCrit");if(_ec)_ec.checked=(edState.board==="crit"); // 체크박스는 제거됨(2026-08-16) — 가드만 유지
   document.getElementById("edTitleLabel").textContent="글쓰기";
   edSetSubmitLabel("등록"); // 상단·폼 끝 두 버튼 모두
   document.getElementById("writeModal").classList.add("open");
@@ -6296,7 +6301,7 @@ function openEditPost(id){
   document.getElementById("wContent").innerHTML=p.html?sanitizePostHtml(p.html):p.content.map(function(x){return"<p>"+esc(x)+"</p>"}).join("");
   renderEdImages();
   edState.polls={}; // 수정 시엔 투표 편집 미지원(1단계) — 버튼도 숨김
-  document.getElementById("edCrit").checked=(edState.board==="crit");
+  var _ec=document.getElementById("edCrit");if(_ec)_ec.checked=(edState.board==="crit"); // 체크박스는 제거됨(2026-08-16) — 가드만 유지
   document.getElementById("edTitleLabel").textContent="글 수정";
   edSetSubmitLabel("수정 완료");
   document.getElementById("writeModal").classList.add("open");
@@ -6435,7 +6440,7 @@ function edRestoreDraft(){
     el.innerHTML=edPollBlockInner(key);
   });
   renderEdImages();
-  document.getElementById("edCrit").checked=(edState.board==="crit");
+  var _ec=document.getElementById("edCrit");if(_ec)_ec.checked=(edState.board==="crit"); // 체크박스는 제거됨(2026-08-16) — 가드만 유지
   if(bar)bar.style.display="none"; // 불러왔으면 안내 줄은 할 일이 끝났다
   toast("쓰던 글을 불러왔어요","📄");
 }
@@ -6468,7 +6473,7 @@ function pickBoard(id){
   if(id==="review"&&!AUTH.user){toast("로그인 후 후기를 작성할 수 있어요");return;}
   edState.board=id;edState.tag=null;buildBoardMenu();refreshBoardLabel();renderEdTags();
   document.getElementById("edBoardMenu").classList.remove("open");
-  document.getElementById("edCrit").checked=(id==="crit");
+  var _ec2=document.getElementById("edCrit");if(_ec2)_ec2.checked=(id==="crit");
   if(id!=="review"){
     document.getElementById("edReviewNickInput").value="";
     edState.commissionPostId=null;edState.reviewedNick=null;edState.reviewedUserId=null;edState.sentiment=null;

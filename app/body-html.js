@@ -140,7 +140,6 @@ ${""/* bottom tabs */}
          디자인 일치성이 깨진다). 채팅·내 정보는 앱의 다른 곳(헤더·프로필)이 쓰는 것과 같은 패스. */}
     <button class="tab on" data-tab="home" onclick="goHome()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg><span class="lbl">홈</span></button>
     <button class="tab" data-tab="commission" onclick="openCommissionList()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h.9a2 2 0 0 0 1.4-3.4c-.6-.7-.1-1.8.8-1.8H17a4 4 0 0 0 4-4c0-4.9-4-8.8-9-8.8z"/><circle cx="7.6" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="9.3" cy="7.8" r="1.1" fill="currentColor" stroke="none"/><circle cx="13.8" cy="6.9" r="1.1" fill="currentColor" stroke="none"/><circle cx="17.2" cy="9.5" r="1.1" fill="currentColor" stroke="none"/></svg><span class="lbl">커미션</span></button>
-    <button class="tab write" onclick="openWrite()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg><span class="lbl">글쓰기</span></button>
     <button class="tab" data-tab="chat" onclick="openChatList('home')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8 8.38 8.38 0 0 1 8.5-8.5 8.5 8.5 0 0 1 8.5 8.5z"/></svg><span class="lbl">채팅</span></button>
     <button class="tab" data-tab="me" onclick="openProfile()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="lbl">내 정보</span></button>
   </div>
@@ -200,19 +199,17 @@ ${""/* write editor (full screen, cafe-style) */}
       <div class="ed-fmt" id="edFmtPanel">
       ${""/* 기본 줄. 글꼴·크기는 창을 띄우지 않고 이 줄을 오른쪽으로 밀어내며 목록을 편다 */}
       <div class="ed-fmt-row" id="edFmtMain">
+        ${""/* 자주 쓰는 것 앞으로(2026-08-16 사용자 요청): 굵게·색·글꼴·크기 — 나머지는 뒤로 */}
         <button type="button" title="굵게" onmousedown="fmt(event,'bold')"><span class="ei" style="font-weight:900">B</span></button>
-        <button type="button" title="기울임" onmousedown="fmt(event,'italic')"><span class="ei" style="font-style:italic;font-family:serif">I</span></button>
-        <button type="button" title="밑줄" onmousedown="fmt(event,'underline')"><span class="ei" style="text-decoration:underline">U</span></button>
-        <span class="ed-div"></span>
-        ${""/* 글자색·형광펜은 OS 팔레트에서 직접 고른다(2026-08-16) — 고정 한 색이었던 것을 자유 선택으로 */}
-        <button type="button" title="글자색" onmousedown="event.preventDefault();saveEditorSelection();edPickColor('fore')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1-1.5-.5-.8 0-1.5 1-1.5h1a4 4 0 0 0 4-4c0-5-3-9-8-9z"/><circle cx="7.5" cy="10.5" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="10.5" r="1" fill="currentColor" stroke="none"/></svg></button>
-        <button type="button" title="형광펜" onmousedown="event.preventDefault();saveEditorSelection();edPickColor('hilite')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
-        <span class="ed-div"></span>
-        <button type="button" title="목록" onmousedown="fmt(event,'insertUnorderedList')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-        <button type="button" title="인용" onmousedown="insertQuote(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h4v6H7c0-3 0-4 2-6M15 7h4v6h-4c0-3 0-4 2-6"/></svg></button>
-        <span class="ed-div"></span>
+        <button type="button" title="글자색" onmousedown="event.preventDefault();saveEditorSelection();edPickColor('fore')"><span class="ei ed-colortxt">색</span></button>
         <button type="button" class="ed-fmt-more" onmousedown="edSaveForMenu(event)" onclick="edFmtView('font')">글꼴 <i>›</i></button>
         <button type="button" class="ed-fmt-more" onmousedown="edSaveForMenu(event)" onclick="edFmtView('size')">크기 <i>›</i></button>
+        <span class="ed-div"></span>
+        <button type="button" title="기울임" onmousedown="fmt(event,'italic')"><span class="ei" style="font-style:italic;font-family:serif">I</span></button>
+        <button type="button" title="밑줄" onmousedown="fmt(event,'underline')"><span class="ei" style="text-decoration:underline">U</span></button>
+        <button type="button" title="형광펜" onmousedown="event.preventDefault();saveEditorSelection();edPickColor('hilite')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
+        <button type="button" title="목록" onmousedown="fmt(event,'insertUnorderedList')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <button type="button" title="인용" onmousedown="insertQuote(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h4v6H7c0-3 0-4 2-6M15 7h4v6h-4c0-3 0-4 2-6"/></svg></button>
       </div>
       ${""/* 글꼴 목록: 같은 자리에서 오른쪽으로 이어지는 가로 목록 */}
       <div class="ed-fmt-row ed-fmt-sub" id="edFmtFont" hidden>
@@ -253,12 +250,7 @@ ${""/* write editor (full screen, cafe-style) */}
 
       ${""/* 투표는 위 도구바 📊 버튼으로 본문 원하는 위치에 삽입(여러 개 가능) */}
 
-      ${""/* 옵션 */}
-      <div class="ed-options">
-        <label class="ed-opt"><input type="checkbox" id="edCrit"><span>크리틱(피드백) 받고 싶어요</span></label>
-        <label class="ed-opt"><input type="checkbox" id="edNotify" checked><span>댓글 알림 받기</span></label>
-      </div>
-      <p class="ed-guide"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg> 인신공격·도용·AI 무단 도배는 삭제될 수 있어요. 서로의 그림을 존중해 주세요.</p>
+      ${""/* (2026-08-16 제거) 크리틱·댓글알림 체크박스 — JS 어디서도 값을 읽지 않는 죽은 UI였다. 경고 문구도 사용자 요청으로 제거 */}
       ${""/* v2 전용: 폼 끝에서 제출(디시식). v1에서는 CSS로 숨긴다 */}
       <div class="ed-foot">
         <button type="button" class="ed-foot-cancel" onclick="closeWrite()">취소</button>

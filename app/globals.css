@@ -1232,6 +1232,12 @@
   .pfh-cm-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:var(--brand-soft);color:var(--brand-2)}
   /* 문의 가능 시간(프로필 소개 아래) */
   /* 글쓰기 게시판 선택 — 좌우 스크롤 칩 띠(2026-08-16) */
+  /* '색' 버튼 텍스트 — 밑에 무지개 줄을 깔아 색 도구임을 알린다 */
+  .ed-colortxt{font-weight:900;font-style:normal;background:linear-gradient(0deg,transparent 0,transparent 2px,currentColor 0) no-repeat;
+    border-bottom:3px solid transparent;border-image:linear-gradient(90deg,#f66,#fc3,#6d6,#4cc,#66f) 1}
+  /* 홈 글쓰기 FAB — PC는 헤더에 글쓰기가 있어 모바일에서만.
+     ⚠️ .cm-fab-wrap{display:flex}가 이 규칙보다 뒤(1500줄대)에 있어 클래스 두 개로 특이도를 올린다 */
+  @media(min-width:861px){.cm-fab-wrap.home-write-fab{display:none}}
   .ed-boardstrip{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:2px 0 6px}
   .ed-boardstrip::-webkit-scrollbar{display:none}
   .ed-bchip{flex:0 0 auto;border:1px solid var(--line-2);background:var(--surface);border-radius:999px;
