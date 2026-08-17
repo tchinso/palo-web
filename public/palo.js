@@ -1064,19 +1064,8 @@ async function _makeLoginNonce(){
    (알림 배너용 nb_test는 검증이 끝나 제거함, 2026-08-15 — localStorage에 남은 값은 무해) */
 (function(){
   try{
-    // 버튼 디자인 시안 전환(임시, 2026-08-16 비교용): ?btn=b|c|d|e 적용, ?btn=a 원래대로.
-    // 선택이 끝나면 이 블록과 btn-v-* CSS 중 안 쓰는 것을 제거할 것.
-    var q0=new URLSearchParams(location.search);
-    var bv=q0.get("btn");
-    if(bv!==null){
-      if(/^[bcde]$/.test(bv))localStorage.setItem("palo_btn_v",bv);
-      else localStorage.removeItem("palo_btn_v");
-    }
-    var saved=localStorage.getItem("palo_btn_v");
-    if(saved)document.body.classList.add("btn-v-"+saved);
-    if(bv!==null){q0.delete("btn");history.replaceState({},"",location.pathname+(q0.toString()?"?"+q0.toString():""));}
-  }catch(e){}
-  try{
+    // 버튼 디자인 시안 전환기(?btn=b~e)는 2026-08-17 C 확정으로 제거됨 — 남은 저장값만 청소
+    localStorage.removeItem("palo_btn_v");
     var q=new URLSearchParams(location.search),touched=false;
     ["tk_test"].forEach(function(k){
       var v=q.get(k);
@@ -2182,13 +2171,33 @@ function renderList(){
   else if(totalPages>1)h+=pagerHTML(totalPages);
   // 우측 하단 글쓰기 버튼(2026-08-16) — 하단 탭의 '글쓰기'를 빼는 대신 커미션 만들기와 같은 떠 있는 버튼으로.
   // PC는 헤더에 글쓰기 버튼이 이미 있어 모바일에서만 보인다(CSS).
-  h+='<div class="cm-fab-wrap home-write-fab"><button class="cm-fab" onclick="openWrite()">'+
+  h+='<div class="cm-fab-wrap home-write-fab"><button class="cm-fab" aria-label="글쓰기" onclick="openWrite()">'+
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>'+
-    '글쓰기</button></div>';
+    '<span class="cm-fab-txt">글쓰기</span></button></div>';
   main.innerHTML=h;
+  fabAutoCollapse();
   syncChipScroll();
   observeAdBanners();
   observeSearchMore();
+}
+/* ===== 떠 있는 버튼(FAB) 펼침→접힘 (2026-08-17, 시안 C 확정) =====
+   처음엔 아이콘+글자로 펼쳐 보였다가 잠시 뒤 원형 아이콘만 남긴다.
+   한 번 접힌 버튼(글자 기준)은 재렌더 때 처음부터 접힌 채 그린다 — 목록은 알림 확인
+   등으로 수시로 다시 그려져서, 매번 다시 펼치면 눈앞에서 계속 들썩이기 때문. */
+var _fabMiniDone={};
+function fabAutoCollapse(){
+  var b=document.querySelector(".cm-fab");
+  if(!b||b.classList.contains("mini"))return;
+  var key=(b.textContent||"").trim()||"fab";
+  if(_fabMiniDone[key]){b.classList.add("mini");return;}
+  setTimeout(function(){
+    if(!b.isConnected)return; // 그 사이 화면이 다시 그려졌으면 새 렌더의 타이머에 맡긴다
+    _fabMiniDone[key]=true;
+    b.style.width=b.offsetWidth+"px"; // auto 폭은 전이가 안 걸린다 — 픽셀로 고정하고
+    b.getBoundingClientRect();        // 강제 반영한 뒤
+    b.classList.add("mini");          // 글자를 접으면서
+    b.style.width="56px";             // 원형 폭으로 전이
+  },2600);
 }
 function openPost(id){
   track("post_view");
@@ -3968,6 +3977,7 @@ async function openCommissionList(){
   if(!document.getElementById('cmGrid')){
     document.getElementById("main").innerHTML=cmListHTML();
   }
+  fabAutoCollapse();
   window.scrollTo({top:0,behavior:"smooth"});
   refreshCommissions();
 }
@@ -4127,9 +4137,9 @@ function cmListHTML(){
     '<div class="cm-grid" id="cmGrid">'+cmGridHTML()+'</div>'+
     // 커미션 목록에만 뜨는 '만들기' 버튼. 하단 탭 위에 뜨도록 탭 높이만큼 띄운다.
     // (#main을 다시 그리면 같이 사라지므로 다른 화면으로 새어나가지 않는다)
-    '<div class="cm-fab-wrap"><button class="cm-fab" onclick="cmStartRegister()">'+
+    '<div class="cm-fab-wrap"><button class="cm-fab" aria-label="커미션 만들기" onclick="cmStartRegister()">'+
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'+
-      '커미션 만들기</button></div>'+
+      '<span class="cm-fab-txt">커미션 만들기</span></button></div>'+
   '</div>';
 }
 // 로그인해야 만들 수 있다. 바로 등록 화면을 열면 저장 단계에서 막혀 헛수고가 되므로 먼저 안내한다.
