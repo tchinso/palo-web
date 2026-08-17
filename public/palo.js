@@ -5076,10 +5076,13 @@ function cmRenderRegisterScreen(){
         CM_DESC_COLORS.map(function(c){
           return '<button type="button" class="cm-tb-sw" title="글자색" onmousedown="cmDescSaveSelection();event.preventDefault();cmDescSetColor(\''+c+'\')" style="background:'+c+'"></button>';
         }).join('')+
+        // 무지개 버튼 = OS 팔레트에서 원하는 색을 직접 찍기(2026-08-16). 견본 8색은 빠른 선택용으로 유지.
+        '<button type="button" class="cm-tb-sw cm-tb-rainbow" title="원하는 색 직접 선택" onmousedown="cmDescSaveSelection();event.preventDefault()" onclick="cmDescPickColor()"></button>'+
         '<span class="cm-reg-tb-div"></span>'+
         CM_DESC_HILITES.map(function(c){
           return '<button type="button" class="cm-tb-sw cm-tb-hl" title="형광펜" onmousedown="cmDescSaveSelection();event.preventDefault();cmDescSetHilite(\''+c+'\')" style="background:'+c+'"></button>';
         }).join('')+
+        '<button type="button" class="cm-tb-sw cm-tb-hl cm-tb-rainbow" title="형광펜 색 직접 선택" onmousedown="cmDescSaveSelection();event.preventDefault()" onclick="cmDescPickHilite()"></button>'+
         '<button type="button" class="cm-tb-sw cm-tb-hl cm-tb-none" title="형광펜 지우기" onmousedown="cmDescSaveSelection();event.preventDefault();cmDescSetHilite(\'transparent\')">✕</button>'+
       '</div>'+
       '<div class="cm-reg-toolbar cm-tb-sub" id="cmDescRowFont" hidden>'+
@@ -6525,6 +6528,39 @@ function renderEdTags(){
 function pickTag(t){edState.tag=(edState.tag===t?null:t);renderEdTags()}
 /* formatting */
 function fmt(e,cmd,val){e.preventDefault();document.getElementById("wContent").focus();document.execCommand(cmd,false,val||null)}
+/* ===== 자유 색 선택(OS 팔레트) — 글쓰기·커미션 설명란 공용 (2026-08-16 사용자 요청) =====
+   숨긴 <input type="color">를 눌러 OS의 스펙트럼 팔레트를 연다 — 폰·PC 모두 원하는 지점을
+   찍으면 그 색이 나온다. 직접 그린 팔레트보다 접근성·정확도가 훨씬 낫다.
+   ⚠️ 적용은 'change'(선택 확정) 한 번만 — 'input'(드래그 중 연발)마다 적용하면
+      선택 영역에 span이 겹겹이 중첩된다. */
+var _pickColorCb=null,_pickColorLast={fore:"#d1608f",hilite:"#fff3b0"};
+function pickColor(kind,cb){
+  var inp=document.getElementById("colorPickInput");
+  if(!inp){
+    inp=document.createElement("input");
+    inp.type="color";inp.id="colorPickInput";
+    inp.style.cssText="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0";
+    document.body.appendChild(inp);
+    inp.addEventListener("change",function(){
+      if(_pickColorCb)_pickColorCb(inp.value);
+      _pickColorCb=null;
+    });
+  }
+  inp.value=_pickColorLast[kind]||"#d1608f";
+  _pickColorCb=function(c){_pickColorLast[kind]=c;cb(c);};
+  inp.click();
+}
+// 글쓰기 에디터용 — 선택 영역은 버튼 onmousedown에서 saveEditorSelection으로 미리 저장돼 있다
+function edPickColor(kind){
+  pickColor(kind,function(c){
+    restoreEditorSelection();
+    document.getElementById("wContent").focus();
+    document.execCommand(kind==="fore"?"foreColor":"hiliteColor",false,c);
+  });
+}
+// 커미션 설명란용 — cmDescSaveSelection이 onmousedown에서 저장, 적용 함수가 스스로 복원한다
+function cmDescPickColor(){pickColor("fore",function(c){cmDescSetColor(c);});}
+function cmDescPickHilite(){pickColor("hilite",function(c){cmDescSetHilite(c);});}
 function insertQuote(e){e.preventDefault();document.getElementById("wContent").focus();document.execCommand("formatBlock",false,"blockquote")}
 var savedEditorRange=null;
 function saveEditorSelection(){

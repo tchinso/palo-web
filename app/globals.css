@@ -2603,6 +2603,8 @@
   .cm-reg-addimg .cm-cnt{font-size:11px}
   /* 가격 입력 */
   .cm-reg-price{display:flex;align-items:center;gap:8px}
+  /* 무지개 견본 — 'OS 팔레트로 직접 고르기' 버튼. 원뿔 그라디언트로 '모든 색'을 표현 */
+  .cm-tb-sw.cm-tb-rainbow{background:conic-gradient(#f66,#fc3,#6d6,#4cc,#66f,#c6f,#f66)!important}
   .cm-reg-price input{flex:1}
   .cm-reg-price .cm-unit{font-size:15px;font-weight:700;color:var(--ink-2)}
   /* 타입 선택 */
