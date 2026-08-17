@@ -3809,10 +3809,10 @@ function pfCmListItemHTML(d){
     '<div class="pfh-cm-info">'+
       '<div class="pfh-cm-top"><div class="pfh-cm-title">'+esc(d.title)+'</div>'+
         '<div class="cm-bm pfh-cm-bm'+(bookmarked?' on':'')+'" onclick="event.stopPropagation();cmToggleBookmark('+d.id+',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12v18l-6-4-6 4z"/></svg></div></div>'+
-      (tags?('<div class="pfh-cm-tags">'+tags+'</div>'):'')+
+      // 배치(2026-08-16 사용자 요청): 제목 바로 아래 설명 → 지표 → 태그는 맨 아래에 작게
       '<div class="pfh-cm-desc">'+esc(d.desc||'')+'</div>'+
-      // 조회수·북마크 수(2026-08-16 사용자 요청) — 커미션 목록 카드와 같은 선 아이콘으로 통일
       '<div class="pfh-cm-stats"><span>'+CM_IC_VIEW+(d.views||0)+'</span><span>'+CM_IC_BOOKMARK+(d.bookmarkCount||0)+'</span></div>'+
+      (tags?('<div class="pfh-cm-tags">'+tags+'</div>'):'')+
     '</div>'+
   '</div>';
 }
