@@ -2044,12 +2044,29 @@
      그 자리에 내 커미션 버튼을 노출 */
   /* 커미션 상세에서만 헤더에 나오는 공유·더보기.
      ⚠️ [hidden]과 달리 display:flex 를 이기려면 규칙을 명시해야 한다(툴바에서 겪은 함정). */
+  /* (2026-08-16 개편) 상세 헤더 = 작가 이름(좌) + 구독(우). 뒤로·공유·더보기는 이미지
+     안쪽 상단(.cm-sl-top)으로 이사 — 헤더의 공유/더보기 버튼(.cm-detail-btn)과 ☰→← 전환은
+     더 이상 안 쓴다(마크업은 남겨두되 상세에서 헤더 요소들을 통째로 숨긴다). */
   .cm-detail-btn{display:none}
-  body.cm-detail .cm-detail-btn{display:flex}
-  /* 상세에서는 ☰ 가 ← 로 바뀐다(누르면 뒤로 — palo.js의 menuBtn 핸들러가 분기) */
   #menuBtn .ic-back{display:none}
-  body.cm-detail #menuBtn .ic-menu{display:none}
-  body.cm-detail #menuBtn .ic-back{display:block}
+  /* ⚠️ 내 커미션 버튼은 body.cm-page 노출 규칙(뒤쪽 소스)이 이겨서, 특이도를 한 단계 올려 숨긴다 */
+  body.cm-detail #menuBtn,body.cm-detail .brand,body.cm-page.cm-detail .cm-header-my-btn{display:none}
+  .cmh-artist,.cmh-sub{display:none}
+  .cmh-artist[hidden],.cmh-sub[hidden]{display:none!important}
+  body.cm-detail .cmh-artist{display:flex;flex:1;min-width:0;align-items:center;background:none;border:none;
+    font-family:inherit;font-size:16.5px;font-weight:800;color:var(--ink);cursor:pointer;text-align:left;
+    letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0}
+  body.cm-detail .cmh-sub{display:inline-flex;align-items:center;flex-shrink:0;
+    background:linear-gradient(120deg,var(--brand),var(--grape));color:#fff;border:none;border-radius:999px;
+    padding:8px 16px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;transition:.14s}
+  body.cm-detail .cmh-sub.on{background:var(--surface-2);color:var(--muted)}
+  /* 이미지 안쪽 상단의 떠 있는 버튼들 — 밝은 그림·흰 공백 어디서든 읽히게 어두운 반투명 원 */
+  .cm-sl-top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:10px;z-index:5;pointer-events:none}
+  .cm-sl-top-r{display:flex;gap:8px}
+  .cm-sl-ic{pointer-events:auto;width:36px;height:36px;border-radius:50%;border:none;display:grid;place-items:center;cursor:pointer;
+    background:rgba(24,16,21,.38);color:#fff;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:background .14s}
+  .cm-sl-ic:hover{background:rgba(24,16,21,.55)}
+  .cm-sl-ic svg{width:19px;height:19px}
   .cm-header-my-btn{display:none}
   body.cm-page .msearch-ico-btn{display:none}
   body.cm-page .search.desktop{display:none}

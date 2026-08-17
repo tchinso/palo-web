@@ -34,6 +34,10 @@ if(/^\\/commission(\\/|$)/.test(location.pathname))document.body.classList.add("
       <span class="logo"><img src="/logo-inapp.png" alt="" width="34" height="34"></span>
       <span class="mark">commi</span>
     </div>
+    ${""/* 커미션 상세 전용 헤더(2026-08-16): 왼쪽 작가 이름(누르면 프로필), 오른쪽 구독.
+         값은 palo.js의 cmSyncDetailHead가 상세를 그릴 때 채운다. body.cm-detail일 때만 보인다. */}
+    <button type="button" class="cmh-artist" id="cmHeadArtist" hidden onclick="cmHeadArtistClick()"></button>
+    <button type="button" class="cmh-sub" id="cmHeadSub" hidden onclick="cmHeadSubClick()">구독</button>
     <div class="search desktop">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
       <input type="text" id="searchInput" placeholder="제목, 내용, 댓글, 작성자 검색" autocomplete="off"><button class="s-clear" id="searchClear" aria-label="지우기" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>

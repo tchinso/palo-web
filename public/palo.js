@@ -4130,9 +4130,29 @@ async function cmToggleSubscribe(authorId,nickname){
   if(!AUTH.user){toast("로그인이 필요해요","🔒");openLoginModal();return;}
   if(!authorId||authorId===AUTH.user.id)return;
   await toggleFollow(authorId,nickname);
+  var on=FOLLOW.has(authorId);
+  // 본문 카드와 헤더의 구독 버튼 둘 다 갱신(2026-08-16 헤더 구독 추가)
   var b=document.getElementById("cmSubBtn");
-  if(b){var on=FOLLOW.has(authorId);b.classList.toggle("on",on);b.textContent=on?"구독 중":"구독";}
+  if(b){b.classList.toggle("on",on);b.textContent=on?"구독 중":"구독";}
+  var h=document.getElementById("cmHeadSub");
+  if(h){h.classList.toggle("on",on);h.textContent=on?"구독 중":"구독";}
 }
+/* ===== 상세 헤더(작가 이름 + 구독) — body.cm-detail일 때만 보인다 ===== */
+var cmHeadArtistId=null,cmHeadArtistName="";
+function cmSyncDetailHead(d){
+  cmHeadArtistId=(d&&d.authorId)||null;
+  cmHeadArtistName=(d&&(d.artist||""))||"";
+  var a=document.getElementById("cmHeadArtist"),s=document.getElementById("cmHeadSub");
+  if(a){a.textContent=cmHeadArtistName||"미리보기";a.hidden=false;}
+  if(s){
+    // 본인 커미션·미리보기·비로그인 열람에는 구독이 의미 없으면 숨긴다(본문 카드와 같은 규칙)
+    var show=!!(cmHeadArtistId&&(!AUTH.user||AUTH.user.id!==cmHeadArtistId));
+    s.hidden=!show;
+    if(show){var on=FOLLOW.has(cmHeadArtistId);s.classList.toggle("on",on);s.textContent=on?"구독 중":"구독";}
+  }
+}
+function cmHeadArtistClick(){if(cmHeadArtistId)cmOpenAuthorProfile(cmHeadArtistId);}
+function cmHeadSubClick(){cmToggleSubscribe(cmHeadArtistId,cmHeadArtistName);}
 var cmPendingChatRef=null; // {commissionId,title,conversationId} — 다음에 보낼 메시지에 커미션 참조를 붙일지
 async function cmOpenChatAbout(authorId,commissionId,commissionTitle){
   // 로그인하지 않았어도 문의는 할 수 있다 — 코드를 받아 그 방으로 다시 들어오는 방식
@@ -4323,9 +4343,23 @@ async function cmOpenCommissionById(commissionId){
       innerHTML로 통째로 새로 그려진다. 그래서 렌더 뒤에 따로 초기화 함수를 부르는 방식은
       한 군데만 빠뜨려도 조용히 죽는다 — 상태를 DOM에서 그때그때 읽는 인라인 핸들러로 둔다. */
 var CM_DOTS_MAX=10;  // 이보다 많으면 점 대신 '3 / 24' 카운터만 (점이 뭉개진다)
+/* 이미지 안쪽 상단의 떠 있는 버튼들(2026-08-16 사용자 요청) — 뒤로/공유/더보기를 헤더에서
+   이미지 위로 옮겼다(헤더는 작가 이름+구독으로). 반투명 원형 버튼(인스타·핀터레스트식).
+   ⚠️ 이미지가 없는 커미션(그라데이션 자리)에도 넣는다 — 뒤로 갈 방법이 사라지면 안 된다. */
+function cmSlTopBtnsHTML(){
+  return '<div class="cm-sl-top">'+
+    '<button type="button" class="cm-sl-ic" onclick="screenBack()" aria-label="뒤로">'+
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>'+
+    '<div class="cm-sl-top-r">'+
+      '<button type="button" class="cm-sl-ic" onclick="cmShare(cmDetailCurrentId)" aria-label="공유">'+
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M4 15v5h16v-5"/></svg></button>'+
+      '<button type="button" class="cm-sl-ic" onclick="cmOpenMoreMenu(cmDetailCurrentId)" aria-label="더보기">'+
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>'+
+    '</div></div>';
+}
 function cmSliderHTML(imgs,idx){
   if(!imgs||!imgs.length){
-    return '<div class="cm-slider" style="background:'+cmGrads[idx%cmGrads.length]+'"></div>';
+    return '<div class="cm-slider" style="background:'+cmGrads[idx%cmGrads.length]+'">'+cmSlTopBtnsHTML()+'</div>';
   }
   var n=imgs.length;
   // esc(cmQ(u)): cmQ로 JS 문자열 이스케이프 → esc로 속성 이스케이프. 순서가 바뀌면 안 된다.
@@ -4338,6 +4372,7 @@ function cmSliderHTML(imgs,idx){
     '</div>';
   }).join('');
   return '<div class="cm-slider">'+
+    cmSlTopBtnsHTML()+
     '<div class="cm-sl-track" id="cmSlTrack" onscroll="cmSliderScroll(this)">'+items+'</div>'+
     (n>1?(
       '<div class="cm-sl-count" id="cmSlCount">1 / '+n+'</div>'+
@@ -4424,6 +4459,7 @@ function cmDetailHTML(d,idx){
      흩어 두면 한 곳만 빠뜨려도 조용히 어긋난다. 모두가 반드시 지나는 이 자리에 둔다.
      등록 미리보기는 id가 없어 null → 헤더 버튼도 숨는다(_cmDetailNow). */
   cmDetailCurrentId=(d&&d.id!=null)?d.id:null;
+  cmSyncDetailHead(d); // 헤더의 작가 이름·구독 버튼 — 헤더는 #main 밖 고정 DOM이라 여기서 바로 채워도 된다
   /* 예전엔 여기에 [←] ... [공유][⋯] 만 든 59px짜리 바가 있었다. 거의 빈 줄이라
      앱 헤더로 올리고 제거했다(2026-08-15 사용자 요청) — 헤더의 ☰가 상세에선 ←가 된다. */
   return '<div class="cm-root">'+
