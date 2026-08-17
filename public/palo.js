@@ -6456,7 +6456,9 @@ function buildBoardMenu(){
   var h="";
   BOARDS.forEach(function(g){
     g.items.filter(function(b){return b.id!=="all"}).forEach(function(b){
-      h+='<button type="button" class="ed-bchip'+(edState.board===b.id?' on':'')+'" onclick="pickBoard(\''+b.id+'\')">'+
+      // 홈 상단 게시판 탭과 같은 성격별 색(CHIP_GROUP) — 색만 봐도 어떤 종류인지 알게(2026-08-16)
+      var grp=CHIP_GROUP[b.id]||"g-etc";
+      h+='<button type="button" class="ed-bchip '+grp+(edState.board===b.id?' on':'')+'" onclick="pickBoard(\''+b.id+'\')">'+
         boardEmoji(b.id)+' '+esc(b.name)+'</button>';
     });
   });

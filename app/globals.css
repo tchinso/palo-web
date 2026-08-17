@@ -1243,7 +1243,17 @@
   .ed-bchip{flex:0 0 auto;border:1px solid var(--line-2);background:var(--surface);border-radius:999px;
     padding:8px 13px;font-family:inherit;font-size:13px;font-weight:700;color:var(--ink-2);cursor:pointer;
     white-space:nowrap;transition:.13s;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-  .ed-bchip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  /* 성격별 색 — 홈 상단 게시판 탭(.chip.g-*)과 같은 값. 선택(on)도 같은 진한 톤 */
+  .ed-bchip.g-talk{background:#fbeef4;color:#c2568a;border-color:#f0c8dc}
+  .ed-bchip.g-talk.on{background:#f6d8e8;color:#ad4172;border-color:#e59cbc}
+  .ed-bchip.g-art{background:#f1edfb;color:#7566bd;border-color:#d6cbf1}
+  .ed-bchip.g-art.on{background:#e4dbf7;color:#5f4fa8;border-color:#a99ae0}
+  .ed-bchip.g-trade{background:#e9f4fa;color:#4a8ba7;border-color:#bcdcec}
+  .ed-bchip.g-trade.on{background:#d7ebf5;color:#37738d;border-color:#93c6dc}
+  .ed-bchip.g-event{background:#eef5e7;color:#6d9143;border-color:#cfe2b9}
+  .ed-bchip.g-event.on{background:#e0eed2;color:#587a33;border-color:#a9c98a}
+  .ed-bchip.g-etc{background:#f0eef0;color:#7b7079;border-color:#dcd6db}
+  .ed-bchip.g-etc.on{background:#e3dfe3;color:#5f555d;border-color:#c3bcc2}
   .pfh-hours{display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;font-weight:700;color:var(--ink-2);margin-top:6px}
   .pfh-hours svg{width:13px;height:13px;color:var(--brand-2)}
   .pfh-cm-desc{font-size:13px;color:var(--muted);line-height:1.5;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
