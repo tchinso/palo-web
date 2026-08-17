@@ -406,6 +406,8 @@ function pfHeroHTML(p,isSelf,reviewStats,bookmarkCount,actionsHTML){
   var editAvaBtn=isSelf?'<button type="button" class="pfh-ava-edit" onclick="document.getElementById(\'avatarFile\').click()" title="프로필 이미지 변경" aria-label="프로필 이미지 변경">📷</button>':'';
   var grade=(p.level?levelBadgeHtml(p.level,'pfh-grade-badge'):'')+titleBadgeById(p.title_id,'pfh-grade-badge');
   var bio=p.bio?esc(p.bio).replace(/\n/g,'<br>'):(isSelf?'소개글을 적어보세요.':'');
+  // 문의 가능 시간(2026-08-16) — 의뢰인이 언제 연락해도 되는지 프로필에서 바로 보이게
+  var hoursHTML=p.inquiry_hours?('<div class="pfh-hours"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>문의 가능: '+esc(p.inquiry_hours)+'</div>'):'';
   var links='';
   if(p.sns_twitter)links+='<a class="pfh-link" href="'+esc(pfSnsUrl('twitter',p.sns_twitter))+'" target="_blank" rel="noopener" title="트위터(X)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg></a>';
   if(p.sns_instagram)links+='<a class="pfh-link" href="'+esc(pfSnsUrl('instagram',p.sns_instagram))+'" target="_blank" rel="noopener" title="인스타그램"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>';
@@ -423,6 +425,7 @@ function pfHeroHTML(p,isSelf,reviewStats,bookmarkCount,actionsHTML){
     '<div class="pfh-name">'+esc(p.nickname)+'</div>'+
     (grade?'<div class="pfh-grade">'+grade+'</div>':'')+
     (bio?'<div class="pfh-bio">'+bio+'</div>':'')+
+    hoursHTML+
     (links?'<div class="pfh-links">'+links+'</div>':'')+
     editLinksBtn+
     (actionsHTML||'')+
@@ -3521,7 +3524,7 @@ function cmRowToData(row,artistNickname,artistAvatar){
     id:row.id,authorId:row.author_id,
     artist:artistNickname||'탈퇴한 사용자',
     artistAvatar:artistAvatar||null,
-    title:row.title,price:row.price,status:row.status,tags:row.tags||[],slug:row.slug||null,
+    title:row.title,price:row.price,priceMax:row.price_max||null,status:row.status,tags:row.tags||[],slug:row.slug||null,
     period:row.period,slots:row.slots,desc:row.description,descHtml:row.description_html||null,usage:row.usage_rights,policy:row.trade_policy,
     images:imgs,likes:0,views:row.views||0,createdAt:row.created_at,form:row.application_form||[],
     reviewEventOn:!!row.review_event_on,reviewEventBenefit:row.review_event_benefit||'',
@@ -4420,6 +4423,12 @@ function cmDetailImages(){
   }catch(e){return [];}
 }
 
+/* 가격 표시 한 곳에서 — 최대가 있으면 '19,000~50,000원', 없으면 예전처럼 '19,000원~' */
+function cmPriceText(price,priceMax){
+  var a=Number(price||0).toLocaleString();
+  if(priceMax!=null&&priceMax!=='')return a+'~'+Number(priceMax).toLocaleString()+'원';
+  return a+'원~';
+}
 function cmDetailHTML(d,idx){
   var artist=d.artist||'나';
   var title=d.title||'제목 없음';
@@ -4467,7 +4476,7 @@ function cmDetailHTML(d,idx){
     '<div class="cm-d-body">'+
       satisfactionHTML+
       '<div class="cm-d-title">'+esc(title)+(showRevEvent?' <span class="cm-revevent-tag">🎁 리뷰 이벤트 중</span>':'')+'</div>'+
-      (d.hidePrice?'':'<div class="cm-d-price">'+esc(price)+'원</div>')+
+      (d.hidePrice?'':'<div class="cm-d-price">'+cmPriceText(price,d.priceMax)+'</div>')+
       '<div class="cm-artist-row" onclick="'+(d.authorId?('cmOpenAuthorProfile(\''+cmQ(d.authorId)+'\')'):('cmOpenArtistProfile(\''+cmQ(artist)+'\')'))+'">'+
         '<div class="cm-l"><div class="cm-ava">'+avatarHTML(artist,d.artistAvatar)+'</div><div><span class="cm-nm">'+esc(artist)+'</span> <span class="cm-rv">'+realReviews.length+'개 후기</span></div></div>'+
         /* ⚠️ 예전엔 뜻 모를 아이콘 옆에 **하드코딩된 0**과 숫자만 있는 조회수가 나란히 있어,
@@ -4960,13 +4969,13 @@ function cmOpenRegister(editId){
     return;
   }
   cmRegSubmitting=false; // 화면을 새로 열면 잠금 초기화 — 이전 시도가 네트워크에서 영영 안 돌아온 경우의 고착 방지
-  cmReg={images:[],tags:[],status:'open',editingId:editId||null,title:'',price:'',period:'',slots:'',desc:'',descHtml:'',usage:'',policy:'',form:[],reviewEventOn:false,reviewEventBenefit:'',isAdult:false};
+  cmReg={images:[],tags:[],status:'open',editingId:editId||null,title:'',price:'',priceMax:'',period:'',slots:'',desc:'',descHtml:'',usage:'',policy:'',form:[],reviewEventOn:false,reviewEventBenefit:'',isAdult:false};
   if(editId){
     var c=cmMyList.find(function(x){return x.id===editId});
     if(c&&c.adLocked){toast('광고를 집행 중인 커미션은 수정할 수 없어요');return;}
     if(c){
       cmReg.images=c.images.slice();cmReg.tags=c.tags.slice();cmReg.status=c.status;
-      cmReg.title=c.title;cmReg.price=c.price;cmReg.period=c.period;cmReg.slots=c.slots;
+      cmReg.title=c.title;cmReg.price=c.price;cmReg.priceMax=c.priceMax||'';cmReg.period=c.period;cmReg.slots=c.slots;
       cmReg.desc=c.desc;cmReg.descHtml=c.descHtml||'';cmReg.usage=c.usage||'';cmReg.policy=c.policy||'';
       cmReg.reviewEventOn=!!c.reviewEventOn;cmReg.reviewEventBenefit=c.reviewEventBenefit||'';
       cmReg.isAdult=!!c.isAdult;
@@ -4978,6 +4987,7 @@ function cmOpenRegister(editId){
 function cmSyncReg(){
   cmReg.title=document.getElementById('cmRegTitle').value;
   cmReg.price=document.getElementById('cmRegPrice').value;
+  cmReg.priceMax=(document.getElementById('cmRegPriceMax')||{}).value||'';
   cmReg.period=document.getElementById('cmRegPeriod').value;
   cmReg.slots=document.getElementById('cmRegSlots').value;
   var descEl=document.getElementById('cmRegDescEditor');
@@ -5009,7 +5019,9 @@ function cmRenderRegisterScreen(){
       '<div class="cm-reg-label">커미션 제목 <span class="cm-reg-req">*</span></div>'+
       '<input class="cm-reg-input" id="cmRegTitle" placeholder="예: LD 반신 채색 커미션" oninput="cmCheckReg()" value="'+esc(cmReg.title)+'">'+
       '<div class="cm-reg-label">가격 <span class="cm-reg-req">*</span></div>'+
-      '<div class="cm-reg-price"><input class="cm-reg-input" id="cmRegPrice" type="number" inputmode="numeric" min="0" step="1000" placeholder="19000" oninput="cmCheckReg()" value="'+esc(cmReg.price)+'"><span class="cm-unit">원 ~</span></div>'+
+      // 최소~최대 범위(2026-08-16 사용자 요청). 최대는 선택 — 비우면 예전처럼 '19,000원~'
+      '<div class="cm-reg-price"><input class="cm-reg-input" id="cmRegPrice" type="number" inputmode="numeric" min="0" step="1000" placeholder="최소 19000" oninput="cmCheckReg()" value="'+esc(cmReg.price)+'"><span class="cm-unit">원 ~</span>'+
+        '<input class="cm-reg-input" id="cmRegPriceMax" type="number" inputmode="numeric" min="0" step="1000" placeholder="최대 (선택)" oninput="cmCheckReg()" value="'+esc(cmReg.priceMax||'')+'"><span class="cm-unit">원</span></div>'+
       '<div class="cm-reg-label">커미션 태그 <span class="cm-reg-sub">선택 · 최대 5개 · 검색어 노출에 사용돼요</span></div>'+
       '<input class="cm-reg-input" id="cmRegTagInput" placeholder="예: 반신, 두상, 빠른마감 (입력 후 Enter)" onkeydown="cmOnTagKey(event)">'+
       '<div class="cm-reg-taglist" id="cmRegTagList">'+tagsHTML+'</div>'+
@@ -5373,12 +5385,16 @@ function cmRegMissing(){
   if(!cmReg.images.length)m.push({label:'샘플 이미지',el:'cmRegImgs'});
   if(!cmReg.title.trim())m.push({label:'제목',el:'cmRegTitle'});
   if(cmNormalizePrice(cmReg.price)==null)m.push({label:'가격',el:'cmRegPrice'});
+  // 최대 가격은 선택이지만, 적었다면 정수여야 하고 최소보다 작으면 안 된다
+  if(cmReg.priceMax&&(cmNormalizePrice(cmReg.priceMax)==null
+      ||Number(cmNormalizePrice(cmReg.priceMax))<Number(cmNormalizePrice(cmReg.price)||0)))
+    m.push({label:'최대 가격(최소 이상의 숫자)',el:'cmRegPriceMax'});
   if(!cmReg.desc.trim())m.push({label:'설명',el:'cmRegDescEditor'});
   if(cmReg.reviewEventOn&&!cmReg.reviewEventBenefit.trim())m.push({label:'리뷰 이벤트 혜택',el:'cmRegRevBenefit'});
   return m;
 }
 /* 빈 필수 칸을 눈에 보이게 — 붉은 테두리를 붙이고, 채워지면 다음 cmCheckReg 때 걷힌다 */
-var CM_REG_REQ_ELS=['cmRegImgs','cmRegTitle','cmRegPrice','cmRegDescEditor','cmRegRevBenefit'];
+var CM_REG_REQ_ELS=['cmRegImgs','cmRegTitle','cmRegPrice','cmRegPriceMax','cmRegDescEditor','cmRegRevBenefit'];
 function cmRegMarkMissing(list){
   var missIds={};list.forEach(function(x){missIds[x.el]=1;});
   CM_REG_REQ_ELS.forEach(function(id){
@@ -5406,7 +5422,7 @@ function cmCheckReg(){
 function cmPreviewReg(){
   cmSyncReg();
   var title=cmReg.title.trim()||'제목 없음';
-  var price=(cmReg.price?Number(cmReg.price).toLocaleString():'0')+'원~';
+  var price=cmPriceText(cmReg.price||'0',cmReg.priceMax);
   var period=cmReg.period.trim()||'작가 설정';
   var slots=cmReg.slots.trim();
   var desc=cmReg.desc.trim()||'(설명 없음)';
@@ -5447,6 +5463,7 @@ async function cmSubmitReg(){
   var row={
     title:cmReg.title.trim(),
     price:cmNormalizePrice(cmReg.price),  // 검증을 통과한 정수 문자열로 저장(음수·소수 차단)
+    price_max:cmReg.priceMax?cmNormalizePrice(cmReg.priceMax):null,
     tags:cmReg.tags.slice(),
     status:cmReg.status,
     period:cmReg.period.trim(),
@@ -5539,7 +5556,7 @@ function cmMyListHTML(){
     return '<div class="cm-my-item">'+
       '<div class="cm-my-main"><div class="cm-my-thumb" style="'+thumbStyle+'">'+thumbImg+'</div>'+
         '<div class="cm-my-info"><div class="cm-my-title">'+esc(c.title)+'</div>'+
-          '<div class="cm-my-price">'+Number(c.price).toLocaleString()+'원~</div>'+
+          '<div class="cm-my-price">'+cmPriceText(c.price,c.priceMax)+'</div>'+
           '<div class="cm-my-badges">'+st+waitChip+slugChip+'</div></div></div>'+
       '<div class="cm-my-acts">'+acts.join('')+'</div></div>';
   }).join('');
@@ -5704,7 +5721,7 @@ async function cmOpenMy(tab){
     if(res.error){toast('불러오기 실패: '+res.error.message);return;}
     cmMyList=res.data.map(function(row){
       var imgs=(row.commission_images||[]).slice().sort(function(a,b){return a.sort-b.sort;}).map(function(x){return x.url;});
-      return{id:row.id,title:row.title,price:row.price,tags:row.tags||[],status:row.status,period:row.period,
+      return{id:row.id,title:row.title,price:row.price,priceMax:row.price_max||null,tags:row.tags||[],status:row.status,period:row.period,
         slots:row.slots,desc:row.description,descHtml:row.description_html||null,usage:row.usage_rights,policy:row.trade_policy,images:imgs,
         reviewEventOn:!!row.review_event_on,reviewEventBenefit:row.review_event_benefit||'',
         form:row.application_form||[],adLocked:!!AD_LOCKED_COMMISSION_IDS[row.id],slug:row.slug||null,

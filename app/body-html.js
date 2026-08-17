@@ -543,6 +543,7 @@ ${""/* 사진을 고른 뒤 "이만큼 넣을게요" 확인하는 창.
     <input id="pfInstaInput" class="nick-in" placeholder="인스타그램 아이디 또는 링크">
     <input id="pfEmailInput" class="nick-in" placeholder="이메일 주소">
     <input id="pfLinkInput" class="nick-in" type="url" inputmode="url" placeholder="자유 링크 (블로그·포트폴리오 등)">
+    <input id="pfHoursInput" class="nick-in" maxlength="40" placeholder="문의 가능 시간 (예: 평일 19~23시)">
     <p class="nick-hint">비워두면 프로필에 안 보여요.</p>
     <button class="r-ok" onclick="savePfEdit()">저장</button>
   </div>

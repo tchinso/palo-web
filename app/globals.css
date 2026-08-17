@@ -1246,6 +1246,9 @@
   /* 태그는 카드 맨 아래에 작게(2026-08-16) — 제목·설명보다 눈에 덜 띄는 보조 정보 */
   .pfh-cm-tags{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 0}
   .pfh-cm-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:var(--brand-soft);color:var(--brand-2)}
+  /* 문의 가능 시간(프로필 소개 아래) */
+  .pfh-hours{display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;font-weight:700;color:var(--ink-2);margin-top:6px}
+  .pfh-hours svg{width:13px;height:13px;color:var(--brand-2)}
   .pfh-cm-desc{font-size:13px;color:var(--muted);line-height:1.5;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
   /* 조회수·북마크 수 — 커미션 목록 카드의 지표 줄과 같은 문법(선 아이콘+숫자) */
   .pfh-cm-stats{display:flex;gap:12px;align-items:center;margin-top:6px;font-size:11.5px;font-weight:700;color:var(--muted)}
