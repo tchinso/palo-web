@@ -1235,6 +1235,42 @@
   /* '색' 버튼 텍스트 — 밑에 무지개 줄을 깔아 색 도구임을 알린다 */
   .ed-colortxt{font-weight:900;font-style:normal;background:linear-gradient(0deg,transparent 0,transparent 2px,currentColor 0) no-repeat;
     border-bottom:3px solid transparent;border-image:linear-gradient(90deg,#f66,#fc3,#6d6,#4cc,#66f) 1}
+  /* ===== 버튼 디자인 시안 전환(임시 비교, ?btn=b|c|d|e — 선택 후 정리 예정) =====
+     대상: 떠 있는 버튼(.cm-fab = 글쓰기·커미션 만들기), 구독(.cmh-sub·상세 카드 .cm-btn), 팔로우(.d-follow) */
+  /* B. 솔리드 브랜드 */
+  body.btn-v-b .cm-fab{background:#e07aa6;border-radius:16px;box-shadow:0 4px 12px rgba(224,122,166,.35)}
+  body.btn-v-b .cmh-sub{background:#e07aa6;border-radius:10px}
+  body.btn-v-b .cmh-sub.on{background:#fff;color:#d1608f;box-shadow:inset 0 0 0 1.5px #e07aa6}
+  body.btn-v-b .cm-sub-card .cm-btn{background:#e07aa6;border-radius:10px}
+  body.btn-v-b .cm-sub-card .cm-btn.on{background:#fff;color:#d1608f;box-shadow:inset 0 0 0 1.5px #e07aa6}
+  body.btn-v-b .d-follow{background:#e07aa6;border-radius:10px}
+  body.btn-v-b .d-follow.following{background:#fff;color:#d1608f;box-shadow:inset 0 0 0 1.5px #e07aa6}
+  /* C. 잉크 미니멀 — FAB는 글자 없는 원형 아이콘 */
+  body.btn-v-c .cm-fab{background:#3a2c36;width:56px;height:56px;border-radius:50%;padding:0;justify-content:center;font-size:0;gap:0;box-shadow:0 8px 22px rgba(58,44,54,.3)}
+  body.btn-v-c .cm-fab svg{width:22px;height:22px}
+  body.btn-v-c .cmh-sub{background:#3a2c36;border-radius:999px}
+  body.btn-v-c .cmh-sub.on{background:none;color:#766871;box-shadow:inset 0 0 0 1.5px #dcc4d3}
+  body.btn-v-c .cm-sub-card .cm-btn{background:#3a2c36;border-radius:999px}
+  body.btn-v-c .cm-sub-card .cm-btn.on{background:none;color:#766871;box-shadow:inset 0 0 0 1.5px #dcc4d3}
+  body.btn-v-c .d-follow{background:#3a2c36;border-radius:999px}
+  body.btn-v-c .d-follow.following{background:none;color:#766871;box-shadow:inset 0 0 0 1.5px #dcc4d3}
+  /* D. 뉴트럴 화이트 */
+  body.btn-v-d .cm-fab{background:#fff;color:#d1608f;box-shadow:0 6px 18px rgba(90,50,80,.14),inset 0 0 0 1.5px #e07aa6}
+  body.btn-v-d .cmh-sub{background:#fff;color:#d1608f;box-shadow:inset 0 0 0 1.5px #f0c8dc}
+  body.btn-v-d .cmh-sub.on{background:#f7e6ef;color:#ad4172;box-shadow:none}
+  body.btn-v-d .cm-sub-card .cm-btn{background:#fff;color:#d1608f;box-shadow:inset 0 0 0 1.5px #f0c8dc}
+  body.btn-v-d .cm-sub-card .cm-btn.on{background:#f7e6ef;color:#ad4172;box-shadow:none}
+  body.btn-v-d .d-follow{background:#fff;color:#d1608f;box-shadow:inset 0 0 0 1.5px #f0c8dc}
+  body.btn-v-d .d-follow.following{background:#f7e6ef;color:#ad4172;box-shadow:none}
+  /* E. 소프트 파스텔 */
+  body.btn-v-e .cm-fab{background:#f7e6ef;color:#ad4172;border-radius:18px;box-shadow:0 4px 14px rgba(224,122,166,.2)}
+  body.btn-v-e .cmh-sub{background:#f7e6ef;color:#ad4172;border-radius:12px}
+  body.btn-v-e .cmh-sub.on{background:#3a2c36;color:#fff}
+  body.btn-v-e .cm-sub-card .cm-btn{background:#f7e6ef;color:#ad4172;border-radius:12px}
+  body.btn-v-e .cm-sub-card .cm-btn.on{background:#3a2c36;color:#fff}
+  body.btn-v-e .d-follow{background:#f7e6ef;color:#ad4172;border-radius:12px}
+  body.btn-v-e .d-follow.following{background:#3a2c36;color:#fff}
+
   /* 홈 글쓰기 FAB — PC는 헤더에 글쓰기가 있어 모바일에서만.
      ⚠️ .cm-fab-wrap{display:flex}가 이 규칙보다 뒤(1500줄대)에 있어 클래스 두 개로 특이도를 올린다 */
   @media(min-width:861px){.cm-fab-wrap.home-write-fab{display:none}}

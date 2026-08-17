@@ -1064,6 +1064,19 @@ async function _makeLoginNonce(){
    (알림 배너용 nb_test는 검증이 끝나 제거함, 2026-08-15 — localStorage에 남은 값은 무해) */
 (function(){
   try{
+    // 버튼 디자인 시안 전환(임시, 2026-08-16 비교용): ?btn=b|c|d|e 적용, ?btn=a 원래대로.
+    // 선택이 끝나면 이 블록과 btn-v-* CSS 중 안 쓰는 것을 제거할 것.
+    var q0=new URLSearchParams(location.search);
+    var bv=q0.get("btn");
+    if(bv!==null){
+      if(/^[bcde]$/.test(bv))localStorage.setItem("palo_btn_v",bv);
+      else localStorage.removeItem("palo_btn_v");
+    }
+    var saved=localStorage.getItem("palo_btn_v");
+    if(saved)document.body.classList.add("btn-v-"+saved);
+    if(bv!==null){q0.delete("btn");history.replaceState({},"",location.pathname+(q0.toString()?"?"+q0.toString():""));}
+  }catch(e){}
+  try{
     var q=new URLSearchParams(location.search),touched=false;
     ["tk_test"].forEach(function(k){
       var v=q.get(k);
