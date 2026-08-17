@@ -31,8 +31,7 @@ if(/^\\/commission(\\/|$)/.test(location.pathname))document.body.classList.add("
     ${""/* 커미션 상세에서는 ☰ 대신 ←(뒤로)로 바뀐다. 아이콘 두 개를 넣어 두고 CSS(body.cm-detail)가 고른다 — 상세로 들어갈 때마다 DOM을 갈아끼우지 않으려고. */}
     <button class="menu-btn" id="menuBtn" aria-label="메뉴 열기"><svg class="ic ic-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg><svg class="ic ic-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
     <div class="brand" onclick="goHome()">
-      <span class="logo"><img src="/logo-inapp.png" alt="" width="34" height="34"></span>
-      <span class="mark">commi</span>
+      <span class="logo"><img src="/logo-inapp.png" alt="commi" width="34" height="34"></span>
     </div>
     ${""/* 커미션 상세 전용 헤더(2026-08-16): 왼쪽 작가 이름(누르면 프로필), 오른쪽 구독.
          값은 palo.js의 cmSyncDetailHead가 상세를 그릴 때 채운다. body.cm-detail일 때만 보인다. */}
@@ -164,10 +163,8 @@ ${""/* write editor (full screen, cafe-style) */}
     <div class="wrap ed-body">
       ${""/* 게시판 + 말머리 */}
       <div class="ed-metarow">
-        <button class="ed-boardpick" id="edBoardPick" onclick="toggleBoardMenu(event)">
-          <span id="edBoardLabel">게시판 선택</span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <div class="ed-boardmenu" id="edBoardMenu"></div>
+        ${""/* 게시판 선택: 드롭다운 → 좌우 스크롤 칩 띠(2026-08-16 사용자 요청). buildBoardMenu가 채운다 */}
+        <div class="ed-boardstrip" id="edBoardMenu"></div>
       </div>
       <div class="ed-tags" id="edTags"></div>
       <div class="ed-board-guide" id="edBoardGuide" style="display:none"></div>

@@ -6446,18 +6446,20 @@ function edRestoreDraft(){
   if(ed)ed.addEventListener("input",edSaveDraftSoon);
 })();
 function buildBoardMenu(){
+  /* 드롭다운 → 좌우 스크롤 칩 띠(2026-08-16 사용자 요청). 그룹 제목 없이 한 줄로 —
+     칩은 이모지+이름이라 그룹 없이도 구분되고, 가로 스크롤에 제목이 끼면 흐름이 끊긴다. */
   var h="";
   BOARDS.forEach(function(g){
-    var items=g.items.filter(function(b){return b.id!=="all"});
-    if(!items.length)return;
-    h+='<div class="ed-bm-g">'+g.group+'</div>';
-    items.forEach(function(b){
-      h+='<div class="ed-bm-a'+(edState.board===b.id?' on':'')+'" onclick="pickBoard(\''+b.id+'\')">'+
-        '<span class="ed-bm-ic '+boardCls(b.id)+'">'+boardEmoji(b.id)+'</span>'+
-        '<span class="ed-bm-n">'+esc(b.name)+'</span></div>';
+    g.items.filter(function(b){return b.id!=="all"}).forEach(function(b){
+      h+='<button type="button" class="ed-bchip'+(edState.board===b.id?' on':'')+'" onclick="pickBoard(\''+b.id+'\')">'+
+        boardEmoji(b.id)+' '+esc(b.name)+'</button>';
     });
   });
-  document.getElementById("edBoardMenu").innerHTML=h;
+  var el=document.getElementById("edBoardMenu");
+  el.innerHTML=h;
+  // 고른 칩이 보이게 — 수정 모드로 열면 선택된 게시판이 띠 저 끝에 있을 수 있다
+  var on=el.querySelector(".ed-bchip.on");
+  if(on)try{on.scrollIntoView({block:"nearest",inline:"center"});}catch(e){}
 }
 function toggleBoardMenu(e){e.stopPropagation();document.getElementById("edBoardMenu").classList.toggle("open")}
 function pickBoard(id){
@@ -6491,12 +6493,14 @@ var BOARD_GUIDE={
   review:"커미션 이용 후기를 남기는 곳이에요."
 };
 function refreshBoardLabel(){
-  // 고른 게시판도 목록과 같은 모양(이모지+색)으로 보여줘서 무엇을 골랐는지 바로 알게 한다
+  // 칩 띠로 바뀌며 라벨 요소는 사라졌다(2026-08-16) — 있으면 채우고 없으면 안내문만 갱신
   var lb=document.getElementById("edBoardLabel");
-  if(edState.board){
-    lb.innerHTML='<span class="ed-bm-ic '+boardCls(edState.board)+'">'+boardEmoji(edState.board)+'</span>'+
-      esc(boardName(edState.board));
-  }else lb.textContent="게시판 선택";
+  if(lb){
+    if(edState.board){
+      lb.innerHTML='<span class="ed-bm-ic '+boardCls(edState.board)+'">'+boardEmoji(edState.board)+'</span>'+
+        esc(boardName(edState.board));
+    }else lb.textContent="게시판 선택";
+  }
   var bg=document.getElementById("edBoardGuide");
   if(bg){
     var g=edState.board?BOARD_GUIDE[edState.board]:null;
