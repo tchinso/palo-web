@@ -1255,7 +1255,14 @@
   /* 홈 글쓰기 FAB — PC는 헤더에 글쓰기가 있어 모바일에서만.
      ⚠️ .cm-fab-wrap{display:flex}가 이 규칙보다 뒤(1500줄대)에 있어 클래스 두 개로 특이도를 올린다 */
   @media(min-width:861px){.cm-fab-wrap.home-write-fab{display:none}}
-  .ed-boardstrip{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:2px 0 6px}
+  /* 좌우 잘림 방지(2026-08-17): 본문 여백(.ed-body 22px/모바일 16px)만큼 음수 마진으로 밀고
+     같은 값을 안쪽 여백으로 — 칩이 본문 가장자리에서 뭉텅 잘리지 않고 화면 끝까지 흘러간다
+     (.cm-chips와 같은 관용구) */
+  .ed-boardstrip{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+    margin:0 -22px;padding:2px 22px 6px}
+  @media(max-width:860px){.ed-boardstrip{margin:0 -16px;padding:2px 16px 6px}}
+  /* ≤400px에선 .wrap 좌우 여백이 18px(소스 순서상 .ed-body보다 뒤)이라 잔재 2px가 남는다 — 값 일치 */
+  @media(max-width:400px){.ed-boardstrip{margin:0 -18px;padding:2px 18px 6px}}
   .ed-boardstrip::-webkit-scrollbar{display:none}
   .ed-bchip{flex:0 0 auto;border:1px solid var(--line-2);background:var(--surface);border-radius:999px;
     padding:8px 13px;font-family:inherit;font-size:13px;font-weight:700;color:var(--ink-2);cursor:pointer;
