@@ -3651,13 +3651,15 @@ async function cmAppendAdultStubs(){
 }
 // 커미션별 전체 북마크 수(서버 집계). commission_bookmarks는 '본인 것만' RLS라 클라가 못 세므로
 // security definer RPC(개수만 반환)로 받아 각 커미션 d.bookmarkCount에 채움.
-async function cmLoadBookmarkCounts(){
+/* list 를 주면 그 목록에, 안 주면 cmData 에 채운다 — 프로필의 작가 커미션 목록도
+   같은 집계를 쓰기 위해 재사용 가능하게(2026-08-16). RPC는 전체 개수 맵을 돌려준다. */
+async function cmLoadBookmarkCounts(list){
   var m={};
   try{
     var res=await window.supabase.rpc("get_commission_bookmark_counts");
     if(!res.error&&res.data)res.data.forEach(function(r){m[r.commission_id]=r.cnt;});
   }catch(e){}
-  cmData.forEach(function(d){d.bookmarkCount=m[d.id]||0;});
+  (list||cmData).forEach(function(d){d.bookmarkCount=m[d.id]||0;});
 }
 // 추천 점수(서버 계산)를 불러와 {커미션id: 점수} 맵으로 저장. 추천 탭 정렬에 사용.
 // RPC가 아직 없거나(실행 전) 오류면 빈 맵으로 두고, 정렬은 후기 순으로 자연 폴백.
@@ -3791,7 +3793,9 @@ async function pfArtistCommissions(userId,nickname,avatarUrl){
   if(!window.supabase)return[];
   var res=await window.supabase.from('commissions').select('*,commission_images(url,sort)').eq('author_id',userId).order('created_at',{ascending:false});
   if(res.error||!res.data)return[];
-  return res.data.map(function(row){return cmRowToData(row,nickname,avatarUrl);});
+  var list=res.data.map(function(row){return cmRowToData(row,nickname,avatarUrl);});
+  await cmLoadBookmarkCounts(list); // 프로필 카드에 북마크 수를 보여주기 위해(2026-08-16)
+  return list;
 }
 function pfCmListItemHTML(d){
   var hasImg=!!(d.images&&d.images.length);
@@ -3807,6 +3811,8 @@ function pfCmListItemHTML(d){
         '<div class="cm-bm pfh-cm-bm'+(bookmarked?' on':'')+'" onclick="event.stopPropagation();cmToggleBookmark('+d.id+',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12v18l-6-4-6 4z"/></svg></div></div>'+
       (tags?('<div class="pfh-cm-tags">'+tags+'</div>'):'')+
       '<div class="pfh-cm-desc">'+esc(d.desc||'')+'</div>'+
+      // 조회수·북마크 수(2026-08-16 사용자 요청) — 커미션 목록 카드와 같은 선 아이콘으로 통일
+      '<div class="pfh-cm-stats"><span>'+CM_IC_VIEW+(d.views||0)+'</span><span>'+CM_IC_BOOKMARK+(d.bookmarkCount||0)+'</span></div>'+
     '</div>'+
   '</div>';
 }
