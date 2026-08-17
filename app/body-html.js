@@ -202,13 +202,13 @@ ${""/* write editor (full screen, cafe-style) */}
       <div class="ed-fmt-row" id="edFmtMain">
         ${""/* 자주 쓰는 것 앞으로(2026-08-16 사용자 요청): 굵게·색·글꼴·크기 — 나머지는 뒤로 */}
         <button type="button" title="굵게" onmousedown="fmt(event,'bold')"><span class="ei" style="font-weight:900">B</span></button>
-        <button type="button" title="글자색" onmousedown="event.preventDefault();saveEditorSelection();edPickColor('fore')"><span class="ei ed-colortxt">색</span></button>
+        ${""/* 글자색·형광펜 통합 '색상' 버튼(2026-08-17) — 종류는 팝업 위 탭에서 고른다 */}
+        <button type="button" title="색상" onmousedown="event.preventDefault();saveEditorSelection();edPickColor()"><span class="ei ed-colortxt">색상</span></button>
         <button type="button" class="ed-fmt-more" onmousedown="edSaveForMenu(event)" onclick="edFmtView('font')">글꼴 <i>›</i></button>
         <button type="button" class="ed-fmt-more" onmousedown="edSaveForMenu(event)" onclick="edFmtView('size')">크기 <i>›</i></button>
         <span class="ed-div"></span>
         <button type="button" title="기울임" onmousedown="fmt(event,'italic')"><span class="ei" style="font-style:italic;font-family:serif">I</span></button>
         <button type="button" title="밑줄" onmousedown="fmt(event,'underline')"><span class="ei" style="text-decoration:underline">U</span></button>
-        <button type="button" title="형광펜" onmousedown="event.preventDefault();saveEditorSelection();edPickColor('hilite')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M13 7l4 4"/></svg></button>
         <button type="button" title="목록" onmousedown="fmt(event,'insertUnorderedList')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
         <button type="button" title="인용" onmousedown="insertQuote(event)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h4v6H7c0-3 0-4 2-6M15 7h4v6h-4c0-3 0-4 2-6"/></svg></button>
       </div>

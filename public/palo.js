@@ -6575,7 +6575,7 @@ function fmt(e,cmd,val){e.preventDefault();document.getElementById("wContent").f
            맨 아랫줄 = 검정→흰색 무채색 8단계.
    ⚠️ 견본의 onmousedown 은 preventDefault — 에디터의 글자 선택이 풀리면 색이 허공에 적용된다
       (설명란 견본 버튼들과 같은 규칙). 바깥(어둠막)을 누르면 적용 없이 닫힌다. */
-var _pickColorCb=null;
+var _pickColorCb=null,_pickColorKind="fore";
 var PICK_GRID=(function(){
   var rows=[],hues=[0,25,50,120,190,230,285,330];
   [85,73,62,52,42,33,25].forEach(function(l){
@@ -6584,7 +6584,7 @@ var PICK_GRID=(function(){
   rows.push(["#000000","#3a3a3a","#5c5c5c","#7f7f7f","#a3a3a3","#c7c7c7","#e5e5e5","#ffffff"]);
   return rows;
 })();
-function pickColor(kind,cb){
+function pickColor(kind,cb,opts){
   _pickColorCb=cb;
   var pop=document.getElementById("colorGridPop");
   if(!pop){
@@ -6595,7 +6595,13 @@ function pickColor(kind,cb){
     document.body.appendChild(scrim);
     pop=document.createElement("div");
     pop.id="colorGridPop";pop.className="color-grid-pop";
-    pop.innerHTML=PICK_GRID.map(function(row){
+    // 종류 탭(글자색/형광펜) — 글쓰기의 '색상' 통합 버튼으로 열 때만 보인다(opts.tabs).
+    // 커미션 설명란처럼 종류가 정해진 단독 호출은 종전대로 색 표만 뜬다.
+    pop.innerHTML='<div class="cg-modes" id="cgModes">'+
+        '<button type="button" data-k="fore" onmousedown="event.preventDefault()" onclick="pickColorMode(\'fore\')">글자색</button>'+
+        '<button type="button" data-k="hilite" onmousedown="event.preventDefault()" onclick="pickColorMode(\'hilite\')">형광펜</button>'+
+      '</div>'+
+      PICK_GRID.map(function(row){
       return row.map(function(c){
         return '<button type="button" class="cg-sw" style="background:'+c+'" '+
           'onmousedown="event.preventDefault()" onclick="pickColorChoose(\''+c+'\')"></button>';
@@ -6603,13 +6609,21 @@ function pickColor(kind,cb){
     }).join('');
     document.body.appendChild(pop);
   }
+  document.getElementById("cgModes").style.display=(opts&&opts.tabs)?"flex":"none";
+  pickColorMode(kind);
   document.getElementById("colorGridScrim").style.display="block";
   pop.style.display="grid";
 }
+// 팝업 안 종류 탭 전환 — 선택은 pickColorChoose가 색과 함께 넘긴다
+function pickColorMode(k){
+  _pickColorKind=k;
+  var m=document.getElementById("cgModes");
+  if(m)[].forEach.call(m.children,function(b){b.classList.toggle("on",b.getAttribute("data-k")===k);});
+}
 function pickColorChoose(c){
-  var cb=_pickColorCb;_pickColorCb=null;
+  var cb=_pickColorCb,k=_pickColorKind;_pickColorCb=null;
   closeColorGrid();
-  if(cb)cb(c);
+  if(cb)cb(c,k); // 두 번째 인자(종류)는 통합 버튼만 쓴다 — 단독 호출 콜백은 무시해도 됨
 }
 function closeColorGrid(){
   var p=document.getElementById("colorGridPop"),s=document.getElementById("colorGridScrim");
@@ -6618,12 +6632,16 @@ function closeColorGrid(){
   _pickColorCb=null;
 }
 // 글쓰기 에디터용 — 선택 영역은 버튼 onmousedown에서 saveEditorSelection으로 미리 저장돼 있다
-function edPickColor(kind){
-  pickColor(kind,function(c){
+// 글자색·형광펜이 '색상' 버튼 하나로 합쳐짐(2026-08-17) — 종류는 팝업 위 탭에서 고르고,
+// 마지막으로 쓴 종류를 기억해 다음에 그 탭이 켜진 채 열린다.
+var _edColorKind="fore";
+function edPickColor(){
+  pickColor(_edColorKind,function(c,kind){
+    _edColorKind=kind;
     restoreEditorSelection();
     document.getElementById("wContent").focus();
     document.execCommand(kind==="fore"?"foreColor":"hiliteColor",false,c);
-  });
+  },{tabs:true});
 }
 // 커미션 설명란용 — cmDescSaveSelection이 onmousedown에서 저장, 적용 함수가 스스로 복원한다
 function cmDescPickColor(){pickColor("fore",function(c){cmDescSetColor(c);});}

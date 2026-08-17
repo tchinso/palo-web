@@ -2644,6 +2644,11 @@
   .color-grid-pop{display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:130;
     grid-template-columns:repeat(8,34px);gap:5px;background:var(--surface);border-radius:16px;
     padding:12px;box-shadow:var(--sh-lg)}
+  /* 팝업 위 종류 탭(글자색/형광펜) — 글쓰기의 '색상' 통합 버튼으로 열 때만 보인다 */
+  .cg-modes{grid-column:1/-1;display:flex;gap:6px;margin-bottom:4px}
+  .cg-modes button{flex:1;border:1px solid var(--line-2);background:var(--surface);border-radius:999px;
+    padding:7px 0;font-family:inherit;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer}
+  .cg-modes button.on{background:var(--ink);border-color:var(--ink);color:#fff}
   .cg-sw{width:34px;height:34px;border-radius:9px;border:1px solid rgba(0,0,0,.1);cursor:pointer;padding:0;transition:transform .1s}
   .cg-sw:hover{transform:scale(1.12)}
   @media(max-width:380px){.color-grid-pop{grid-template-columns:repeat(8,32px)}.cg-sw{width:32px;height:32px}}
